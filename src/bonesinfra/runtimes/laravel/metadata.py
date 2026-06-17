@@ -5,7 +5,7 @@ def questions():
             "type": "choice",
             "label": "PHP version",
             "choices": ["8.2", "8.3", "8.4"],
-            "default": "8.3",
+            "default": "8.5",
         },
         {
             "key": "install_queue_worker",

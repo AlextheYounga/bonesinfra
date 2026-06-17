@@ -18,27 +18,9 @@ def ensure_users_and_groups(data):
         _sudo=True,
     )
 
-    server.user(
-        name="Ensure runtime user exists",
-        user=data["runtime_user"],
-        system=True,
-        home="/nonexistent",
-        shell="/usr/sbin/nologin",
-        create_home=False,
-        _sudo=True,
-    )
-
     server.group(
         name="Ensure runtime group exists",
         group=data["runtime_group"],
-        _sudo=True,
-    )
-
-    server.user(
-        name="Ensure runtime user is in runtime group",
-        user=data["runtime_user"],
-        groups=[data["runtime_group"]],
-        append=True,
         _sudo=True,
     )
 
@@ -49,9 +31,12 @@ def ensure_users_and_groups(data):
     )
 
     server.user(
-        name="Ensure runtime user is in release-read group",
+        name="Ensure runtime user exists with groups",
         user=data["runtime_user"],
-        groups=[data["release_group"]],
-        append=True,
+        system=True,
+        home="/nonexistent",
+        shell="/usr/sbin/nologin",
+        create_home=False,
+        groups=[data["runtime_group"], data["release_group"]],
         _sudo=True,
     )

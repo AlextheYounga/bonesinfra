@@ -7,10 +7,10 @@ from . import helpers
 RUNTIMES_MODULES = {
     "laravel": "bonesinfra.runtimes.laravel",
     "django": "bonesinfra.runtimes.django.django",
-    "next": "bonesinfra.runtimes.next.next",
+    "next": "bonesinfra.runtimes._stub",
     "rails": "bonesinfra.runtimes.rails.rails",
-    "sveltekit": "bonesinfra.runtimes.sveltekit.svelte",
-    "vue": "bonesinfra.runtimes.vue.vue",
+    "sveltekit": "bonesinfra.runtimes._stub",
+    "vue": "bonesinfra.runtimes._stub",
 }
 
 

@@ -1,0 +1,25 @@
+from pyinfra.operations import files
+
+
+def mkdir(name, path, user="root", group="root", mode="0755"):
+    files.directory(
+        name=name,
+        path=path,
+        user=user,
+        group=group,
+        mode=mode,
+        _sudo=True,
+    )
+
+
+def render(name, src, dest, user="root", group="root", mode="0644", **data):
+    files.template(
+        name=name,
+        src=str(src),
+        dest=dest,
+        user=user,
+        group=group,
+        mode=mode,
+        **data,
+        _sudo=True,
+    )

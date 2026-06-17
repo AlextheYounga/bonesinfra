@@ -35,6 +35,7 @@ disable=
     W0622,  # redefined-builtin       (Ruff A)
     R0903,  # too-few-public-methods  (subjective; Ruff has no equivalent)
     R0913,  # too-many-arguments      (Ruff PLR0913 w/ per-file-ignores)
+    R0917,  # too-many-positional-arguments (wrapper functions like render)
     R0914,  # too-many-locals         (Ruff PLR0914 w/ per-file-ignores)
     R0902,  # too-many-instance-attributes (Ruff PLR0902; path dataclass)
     E1120,  # no-value-for-parameter   (false positives for pyinfra API)

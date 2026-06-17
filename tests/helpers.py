@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from functools import cache
 from pathlib import Path
 
 INFRA_DIR = Path(__file__).resolve().parent.parent
@@ -12,6 +13,7 @@ PYTHON_BIN = sys.executable
 PYTHON_ENV = {**os.environ, "PYTHONPATH": str(SRC_DIR)}
 
 
+@cache
 def read(path):
     return Path(path).read_text()
 

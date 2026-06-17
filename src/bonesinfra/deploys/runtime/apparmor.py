@@ -1,5 +1,6 @@
+from pyinfra.operations import server, systemd
 
-from pyinfra.operations import files, server, systemd
+from bonesinfra.infra.deploy_helpers import render
 
 
 def setup(data, paths, here):
@@ -20,16 +21,13 @@ def setup(data, paths, here):
     apparmor_profile_name = f"bonesdeploy-{data['project_name']}-nginx"
     apparmor_profile_path = f"/etc/apparmor.d/{apparmor_profile_name}"
 
-    files.template(
-        name="Deploy per-project apparmor profile",
-        src=str(here / "assets/apparmor/project-nginx-profile.j2"),
-        dest=apparmor_profile_path,
-        user="root",
-        group="root",
+    render(
+        "Deploy per-project apparmor profile",
+        here / "assets/apparmor/project-nginx-profile.j2",
+        apparmor_profile_path,
         mode="0644",
         apparmor_profile_name=apparmor_profile_name,
         **data,
-        _sudo=True,
     )
 
     server.shell(

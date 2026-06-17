@@ -2,46 +2,40 @@ from pathlib import Path
 
 from pyinfra.operations import files, server, systemd
 
+from bonesinfra.infra.deploy_helpers import mkdir, render
+
 
 def setup(data, paths, here):
-    files.directory(
+    mkdir(
         name="Ensure socket directory exists",
         path=paths["runtime_socket_dir"],
         user=data["runtime_user"],
         group=data["runtime_group"],
         mode="0750",
-        _sudo=True,
     )
 
-    files.directory(
+    mkdir(
         name="Ensure conf directory exists",
         path=paths["conf_root"],
-        user="root",
         group=data["runtime_group"],
         mode="0750",
-        _sudo=True,
     )
 
-    files.template(
-        name="Deploy per-site nginx config",
-        src=str(here / "assets/nginx/site-nginx.conf.j2"),
-        dest=paths["site_nginx_config"],
-        user="root",
+    render(
+        "Deploy per-site nginx config",
+        here / "assets/nginx/site-nginx.conf.j2",
+        paths["site_nginx_config"],
         group=data["runtime_group"],
         mode="0640",
         **data,
-        _sudo=True,
     )
 
-    files.template(
-        name="Deploy per-site nginx systemd service",
-        src=str(here / "assets/nginx/site-nginx.service.j2"),
-        dest=paths["systemd_site_nginx_service"],
-        user="root",
-        group="root",
+    render(
+        "Deploy per-site nginx systemd service",
+        here / "assets/nginx/site-nginx.service.j2",
+        paths["systemd_site_nginx_service"],
         mode="0644",
         **data,
-        _sudo=True,
     )
 
     systemd.daemon_reload(
@@ -52,19 +46,16 @@ def setup(data, paths, here):
     nginx_server_name = data.get("ssl_domain", "_")
     nginx_ssl_enabled = bool(data.get("ssl_cert_path") and data.get("ssl_key_path"))
 
-    files.template(
-        name="Deploy router nginx config",
-        src=str(here / "assets/nginx/router.conf.j2"),
-        dest=paths["nginx_site_available"],
-        user="root",
-        group="root",
+    render(
+        "Deploy router nginx config",
+        here / "assets/nginx/router.conf.j2",
+        paths["nginx_site_available"],
         mode="0644",
         nginx_server_name=nginx_server_name,
         nginx_ssl_enabled=nginx_ssl_enabled,
         nginx_ssl_certificate_path=data.get("ssl_cert_path", ""),
         nginx_ssl_certificate_key_path=data.get("ssl_key_path", ""),
         **data,
-        _sudo=True,
     )
 
     files.link(

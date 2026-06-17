@@ -2,8 +2,9 @@ import sys
 from pathlib import Path
 
 from pyinfra import host
-from pyinfra.operations import files, server, systemd
+from pyinfra.operations import server, systemd
 
+from bonesinfra.infra.deploy_helpers import render
 from bonesinfra.infra.utils import unflatten
 
 
@@ -12,42 +13,34 @@ def deploy_ssl():
     paths = data.get("paths", {})
     here = Path(__file__).parent.parent.parent
 
-    ssl_domain = data.get("ssl_domain")
-    ssl_email = data.get("ssl_email")
-    if not ssl_domain:
-        print("Error: ssl_domain is required", file=sys.stderr)
-        sys.exit(1)
-    if not ssl_email:
-        print("Error: ssl_email is required", file=sys.stderr)
+    if not data.get("ssl_domain") or not data.get("ssl_email"):
+        print("Error: ssl_domain and ssl_email are required", file=sys.stderr)
         sys.exit(1)
 
-    render_http_challenge_config(data, paths, here)
+    _render_router_config(data, paths, here, ssl_enabled=False, stage="certbot challenge")
     obtain_certificate(data, paths)
-    render_https_config(data, paths, here)
+    _render_router_config(data, paths, here, ssl_enabled=True, stage="SSL enable")
 
 
-def render_http_challenge_config(data, paths, here):
-    files.template(
-        name="Render nginx HTTP challenge config",
-        src=str(here / "assets/nginx/router.conf.j2"),
-        dest=paths["nginx_site_available"],
-        user="root",
-        group="root",
+def _render_router_config(data, paths, here, ssl_enabled, stage):
+    render(
+        f"Render nginx config ({stage})",
+        here / "assets/nginx/router.conf.j2",
+        paths["nginx_site_available"],
         mode="0644",
         nginx_server_name=data["ssl_domain"],
-        nginx_ssl_enabled=False,
+        nginx_ssl_enabled=ssl_enabled,
         **data,
-        _sudo=True,
     )
 
     server.shell(
-        name="Validate nginx configuration before certbot",
+        name=f"Validate nginx configuration ({stage})",
         commands=["nginx -t"],
         _sudo=True,
     )
 
     systemd.service(
-        name="Reload nginx before certbot challenge",
+        name=f"Reload nginx ({stage})",
         service="nginx",
         reloaded=True,
         _sudo=True,
@@ -65,33 +58,5 @@ def obtain_certificate(data, paths):
             f"-d {data['ssl_domain']} "
             "--keep-until-expiring"
         ],
-        _sudo=True,
-    )
-
-
-def render_https_config(data, paths, here):
-    files.template(
-        name="Render nginx HTTPS config",
-        src=str(here / "assets/nginx/router.conf.j2"),
-        dest=paths["nginx_site_available"],
-        user="root",
-        group="root",
-        mode="0644",
-        nginx_server_name=data["ssl_domain"],
-        nginx_ssl_enabled=True,
-        **data,
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Validate nginx configuration after SSL enable",
-        commands=["nginx -t"],
-        _sudo=True,
-    )
-
-    systemd.service(
-        name="Reload nginx with SSL configuration",
-        service="nginx",
-        reloaded=True,
         _sudo=True,
     )

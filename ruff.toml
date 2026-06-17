@@ -88,6 +88,9 @@ combine-as-imports = true
   "T20",     # print to stderr on failure
   "PLR0913", # run() takes 6 keyword args naturally
 ]
+"src/bonesinfra/infra/deploy_helpers.py" = [
+  "PLR0913", # render() wraps pyinfra template with all its args
+]
 "src/bonesinfra/deploys/runtime/template_runtime.py" = [
   "PLC0415", # lazy import to avoid circular dependency
   "BLE001",  # blind except on ImportError/KeyError
