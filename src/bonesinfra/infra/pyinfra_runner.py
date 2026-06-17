@@ -6,7 +6,6 @@ from typing import Any
 
 from pyinfra.api import Config, Inventory, State
 from pyinfra.api.connect import connect_all
-from pyinfra.api.host import Host
 from pyinfra.api.operations import run_ops
 
 
@@ -24,8 +23,7 @@ def run(
         config.SSH_KEY = ssh_key
         config.SSH_STRICT_HOST_KEY_CHECKING = False
 
-    host = Host(hostname, data=data)
-    inventory = Inventory((host,), ())
+    inventory = Inventory(([(hostname, data)], {}))
     state = State(inventory, config)
 
     connect_all(state)
@@ -34,7 +32,6 @@ def run(
 
     run_ops(state)
 
-    failed = getattr(state, "is_failed", False)
-    if failed:
+    if state.failed_hosts:
         print("pyinfra deploy completed with failures.", file=sys.stderr)
         sys.exit(1)

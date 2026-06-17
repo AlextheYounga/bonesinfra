@@ -49,7 +49,7 @@ class DeployContext:
         flat_data["runtime_group"] = data.get("runtime_group", "www-data")
         flat_data["release_group"] = data.get("release_group", "deployers")
         flat_data["project_root_parent"] = paths.project_root_parent
-        flat_data["ssh_port"] = str(port)
+        flat_data["ssh_port"] = port
         flat_data["paths"] = paths.__dict__
 
         for key, value in runtime_cfg.items():
