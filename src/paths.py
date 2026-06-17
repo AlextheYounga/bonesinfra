@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
 
 DEFAULT_REPO_PARENT = "/home/git"
 DEFAULT_PROJECT_ROOT_PARENT = "/srv/sites"
@@ -91,7 +89,7 @@ class DeploymentPaths:
         project_name: str,
         repo_path: str,
         project_root: str,
-        web_root: Optional[str] = None,
+        web_root: str | None = None,
     ) -> "DeploymentPaths":
         if web_root is None:
             web_root = DEFAULT_WEB_ROOT

@@ -1,17 +1,25 @@
-import os
+import sys
+from pathlib import Path
 
 from pyinfra import host
 from pyinfra.operations import files, server, systemd
+
 from src.utils import unflatten
 
 
 def deploy():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
-    here = os.path.dirname(__file__)
+    here = Path(__file__).parent
 
-    assert data.get("ssl_domain"), "ssl_domain is required"
-    assert data.get("ssl_email"), "ssl_email is required"
+    ssl_domain = data.get("ssl_domain")
+    ssl_email = data.get("ssl_email")
+    if not ssl_domain:
+        print("Error: ssl_domain is required", file=sys.stderr)
+        sys.exit(1)
+    if not ssl_email:
+        print("Error: ssl_email is required", file=sys.stderr)
+        sys.exit(1)
 
     render_http_challenge_config(data, paths, here)
     obtain_certificate(data, paths)
@@ -21,7 +29,7 @@ def deploy():
 def render_http_challenge_config(data, paths, here):
     files.template(
         name="Render nginx HTTP challenge config",
-        src=os.path.join(here, "assets/nginx/router.conf.j2"),
+        src=str(here / "assets/nginx/router.conf.j2"),
         dest=paths["nginx_site_available"],
         user="root",
         group="root",
@@ -64,7 +72,7 @@ def obtain_certificate(data, paths):
 def render_https_config(data, paths, here):
     files.template(
         name="Render nginx HTTPS config",
-        src=os.path.join(here, "assets/nginx/router.conf.j2"),
+        src=str(here / "assets/nginx/router.conf.j2"),
         dest=paths["nginx_site_available"],
         user="root",
         group="root",
@@ -87,4 +95,3 @@ def render_https_config(data, paths, here):
         reloaded=True,
         _sudo=True,
     )
-

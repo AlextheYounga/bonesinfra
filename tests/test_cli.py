@@ -16,6 +16,7 @@ def _run_no_input(*args):
         text=True,
         timeout=10,
         env=helpers.PYTHON_ENV,
+        check=False,
     )
 
 
@@ -27,6 +28,7 @@ def _run_with_stdin(stdin_data, *args):
         text=True,
         timeout=10,
         env=helpers.PYTHON_ENV,
+        check=False,
     )
 
 
@@ -52,7 +54,7 @@ def test_setup_apply_rejects_missing_host():
 
 def test_runtime_apply_requires_ssh_user():
     result = _run_no_input("runtime", "apply", "--config", "/dev/null", "--runtime-config", "/dev/null")
-    assert result.returncode != 0, f"Expected non-zero exit for missing --ssh-user"
+    assert result.returncode != 0, "Expected non-zero exit for missing --ssh-user"
 
 
 def test_ssl_apply_rejects_missing_host():

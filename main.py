@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-BonesDeploy infra CLI entrypoint.
+"""BonesDeploy infra CLI entrypoint.
 
 Usage:
     python main.py runtime list --json
@@ -14,11 +13,11 @@ Usage:
 import argparse
 import json
 import sys
-import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, str(Path(__file__).parent))
 
-from src.runtimes import list_runtimes, get_runtime
+from src.runtimes import get_runtime, list_runtimes
 
 
 def _load_runtime(name):
@@ -72,8 +71,8 @@ def cmd_setup_apply(args):
         print("Error: missing host in deploy data", file=sys.stderr)
         sys.exit(3)
 
-    from src.setup import deploy
     from src.pyinfra_runner import run as run_deploy
+    from src.setup import deploy
 
     run_deploy(
         hostname=hostname,
@@ -85,7 +84,7 @@ def cmd_setup_apply(args):
 
 
 def cmd_runtime_apply(args):
-    from src.utils import load_toml, unflatten
+    from src.utils import load_toml
 
     bones_cfg = load_toml(args.config)
     data = bones_cfg.get("data", {})
@@ -99,12 +98,12 @@ def cmd_runtime_apply(args):
     runtime_cfg = {}
 
     if args.runtime_config:
-        from pathlib import Path
         rpath = Path(args.runtime_config)
         if rpath.exists():
             runtime_cfg = load_toml(str(rpath))
 
     from src.paths import DeploymentPaths
+
     paths = DeploymentPaths.new(project_name, repo_path, project_root, web_root)
 
     flat_data = {}
@@ -124,8 +123,8 @@ def cmd_runtime_apply(args):
         if key not in flat_data:
             flat_data[key] = value
 
-    from src.runtime import deploy
     from src.pyinfra_runner import run as run_deploy
+    from src.runtime import deploy
 
     run_deploy(
         hostname=host,
@@ -146,8 +145,8 @@ def cmd_ssl_apply(args):
         print("Error: missing host in deploy data", file=sys.stderr)
         sys.exit(3)
 
-    from src.ssl import deploy
     from src.pyinfra_runner import run as run_deploy
+    from src.ssl import deploy
 
     run_deploy(
         hostname=hostname,
@@ -170,7 +169,9 @@ def main():
     runtime_parser = subparsers.add_parser("runtime", help="Runtime operations")
     runtime_subparsers = runtime_parser.add_subparsers(dest="subcommand", required=True)
 
-    _add_json_flag(runtime_subparsers.add_parser("list", help="List available runtimes")).set_defaults(func=cmd_runtime_list)
+    _add_json_flag(runtime_subparsers.add_parser("list", help="List available runtimes")).set_defaults(
+        func=cmd_runtime_list
+    )
 
     questions_parser = _add_json_flag(runtime_subparsers.add_parser("questions", help="Get runtime questions"))
     questions_parser.add_argument("runtime", help="Runtime name")
@@ -192,7 +193,9 @@ def main():
     setup_apply.set_defaults(func=cmd_setup_apply)
 
     ssl_parser = subparsers.add_parser("ssl", help="SSL operations")
-    ssl_apply = ssl_parser.add_subparsers(dest="subcommand", required=True).add_parser("apply", help="Apply SSL configuration")
+    ssl_apply = ssl_parser.add_subparsers(dest="subcommand", required=True).add_parser(
+        "apply", help="Apply SSL configuration"
+    )
     ssl_apply.add_argument("--config", required=True, help="Path to bones.toml")
     ssl_apply.set_defaults(func=cmd_ssl_apply)
 

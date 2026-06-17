@@ -1,7 +1,6 @@
 """Test discovery runner — no external deps required."""
 
 import importlib
-import sys
 import traceback
 from pathlib import Path
 
@@ -25,12 +24,12 @@ def main():
     passed = 0
     failed = 0
 
-    for mod_name, test_name, fn in discover_tests():
+    for _, test_name, fn in discover_tests():
         try:
             fn()
             print(f"  OK: {test_name}")
             passed += 1
-        except Exception:
+        except AssertionError:
             print(f"  FAIL: {test_name}")
             for line in traceback.format_exc().splitlines()[-3:]:
                 print(f"        {line}")

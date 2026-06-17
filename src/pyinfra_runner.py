@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from pyinfra.api import Config, Inventory, State
 from pyinfra.api.connect import connect_all
@@ -15,7 +16,7 @@ def run(
     ssh_user: str,
     ssh_port: int = 22,
     ssh_key: str | None = None,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     deploy: Callable[[], None],
 ) -> None:
     config = Config(SSH_USER=ssh_user, SSH_PORT=ssh_port)

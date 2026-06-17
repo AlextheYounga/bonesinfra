@@ -1,10 +1,9 @@
-import os
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from src.utils import load_runtime_config
 
-
 PHP_SURY_KEYRING_URL = "https://packages.sury.org/debsuryorg-archive-keyring.deb"
-PHP_SURY_KEYRING_PATH = "/tmp/debsuryorg-archive-keyring.deb"
 PHP_SURY_KEYRING_DEST = "/usr/share/keyrings/deb.sury.org-php.gpg"
 PHP_SURY_PREREQUISITES = [
     "apt-transport-https",
@@ -34,29 +33,22 @@ def questions():
 
 def deploy():
     from pyinfra import host
-    from pyinfra.facts.server import LinuxDistribution
-    from pyinfra.operations import apt, files, server, systemd
+
     from src.utils import unflatten
 
-    here = os.path.dirname(__file__)
+    here = Path(__file__).parent
     data = unflatten(host.data.dict())
     runtime = load_runtime_config(__file__)
     php_version = runtime.get("php_version", "8.3")
-    project = data["project_name"]
     paths = data["paths"]
-    runtime_user = data["runtime_user"]
-    runtime_group = data["runtime_group"]
-
-    pool_config_path = f"/srv/conf/{project}/php-fpm.conf"
-    php_fpm_socket_path = paths["runtime_php_fpm_socket"]
 
     add_php_apt_source(php_version)
     install_php_packages(php_version)
 
-    setup_storage_directories(paths, runtime_user, runtime_group)
-    setup_php_fpm(here, data, paths, project, php_version, pool_config_path, php_fpm_socket_path, runtime_user, runtime_group)
-    setup_php_fpm_apparmor(project, here, data)
-    setup_laravel_nginx(here, data, paths, project, php_fpm_socket_path, runtime_user, runtime_group)
+    setup_storage_directories(paths, data)
+    setup_php_fpm(here, data, paths, php_version)
+    setup_php_fpm_apparmor(data, here)
+    setup_laravel_nginx(here, data, paths)
 
 
 def _resolve_codename():
@@ -84,15 +76,18 @@ def add_php_apt_source():
         _sudo=True,
     )
 
+    with NamedTemporaryFile(delete=False, suffix=".deb") as f:
+        keyring_path = f.name
+
     server.shell(
         name="Download PHP repo keyring package",
-        commands=[f"curl -sSLo {PHP_SURY_KEYRING_PATH} {PHP_SURY_KEYRING_URL}"],
+        commands=[f"curl -sSLo {keyring_path} {PHP_SURY_KEYRING_URL}"],
         _sudo=True,
     )
 
     apt.deb(
         name="Install PHP repo keyring package",
-        src=PHP_SURY_KEYRING_PATH,
+        src=keyring_path,
         _sudo=True,
     )
 
@@ -139,9 +134,11 @@ def install_php_packages(php_version):
     )
 
 
-def setup_storage_directories(paths, runtime_user, runtime_group):
+def setup_storage_directories(paths, data):
     from pyinfra.operations import files
 
+    runtime_user = data["runtime_user"]
+    runtime_group = data["runtime_group"]
     subdirs = ["logs", "framework/cache", "framework/sessions", "framework/views"]
     for subdir in subdirs:
         files.directory(
@@ -154,8 +151,13 @@ def setup_storage_directories(paths, runtime_user, runtime_group):
         )
 
 
-def setup_php_fpm(here, data, paths, project, php_version, pool_config_path, php_fpm_socket_path, runtime_user, runtime_group):
+def setup_php_fpm(here, data, paths, php_version):
     from pyinfra.operations import files, server, systemd
+
+    project = data["project_name"]
+    runtime_group = data["runtime_group"]
+    pool_config_path = f"/srv/conf/{project}/php-fpm.conf"
+    php_fpm_socket_path = paths["runtime_php_fpm_socket"]
 
     files.directory(
         name="Ensure conf directory exists",
@@ -168,7 +170,7 @@ def setup_php_fpm(here, data, paths, project, php_version, pool_config_path, php
 
     files.template(
         name="Deploy PHP-FPM pool config",
-        src=os.path.join(here, "assets/php/php-fpm-pool.conf.j2"),
+        src=str(here / "assets/php/php-fpm-pool.conf.j2"),
         dest=pool_config_path,
         user="root",
         group="root",
@@ -181,7 +183,7 @@ def setup_php_fpm(here, data, paths, project, php_version, pool_config_path, php
 
     files.template(
         name="Deploy PHP-FPM systemd service",
-        src=os.path.join(here, "assets/php/site-php-fpm.service.j2"),
+        src=str(here / "assets/php/site-php-fpm.service.j2"),
         dest=f"/etc/systemd/system/{project}-php-fpm.service",
         user="root",
         group="root",
@@ -209,15 +211,16 @@ def setup_php_fpm(here, data, paths, project, php_version, pool_config_path, php
     )
 
 
-def setup_php_fpm_apparmor(project, here, data):
+def setup_php_fpm_apparmor(data, here):
     from pyinfra.operations import files, server
 
+    project = data["project_name"]
     profile_name = f"bonesdeploy-{project}-php-fpm"
     profile_path = f"/etc/apparmor.d/{profile_name}"
 
     files.template(
         name="Deploy PHP-FPM AppArmor profile",
-        src=os.path.join(here, "assets/php/site-php-fpm-profile.j2"),
+        src=str(here / "assets/php/site-php-fpm-profile.j2"),
         dest=profile_path,
         user="root",
         group="root",
@@ -234,12 +237,17 @@ def setup_php_fpm_apparmor(project, here, data):
     )
 
 
-def setup_laravel_nginx(here, data, paths, project, php_fpm_socket_path, runtime_user, runtime_group):
+def setup_laravel_nginx(here, data, paths):
     from pyinfra.operations import files, server, systemd
+
+    project = data["project_name"]
+    runtime_user = data["runtime_user"]
+    runtime_group = data["runtime_group"]
+    php_fpm_socket_path = paths["runtime_php_fpm_socket"]
 
     files.template(
         name="Deploy Laravel-specific per-site nginx config",
-        src=os.path.join(here, "assets/nginx/laravel-site-nginx.conf.j2"),
+        src=str(here / "assets/nginx/laravel-site-nginx.conf.j2"),
         dest=paths["site_nginx_config"],
         user="root",
         group=runtime_group,

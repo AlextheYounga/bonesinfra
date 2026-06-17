@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,14 +52,13 @@ def exec_module(path):
 
 
 def run(*args):
-    import subprocess
-
     result = subprocess.run(
         [sys.executable, *args],
         capture_output=True,
         text=True,
         timeout=10,
         env=PYTHON_ENV,
+        check=False,
     )
     assert result.returncode == 0, f"Failed: {' '.join(args)}\n{result.stderr}"
     return result.stdout

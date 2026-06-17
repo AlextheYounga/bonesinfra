@@ -1,24 +1,26 @@
-import os
+from pathlib import Path
 
 from pyinfra import host
 from pyinfra.operations import apt, files, server
+
+from src.packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTARY_PACKAGES
 from src.utils import unflatten
-from packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTARY_PACKAGES
+
 
 def deploy():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
-    here = os.path.dirname(__file__)
+    here = Path(__file__).parent
     packages = BASE_SYSTEM_PACKAGES + SUPPLEMENTARY_PACKAGES
 
     install_system_packages(packages)
     install_rust()
-    ensure_users_and_groups(data, paths)
+    ensure_users_and_groups(data)
     setup_repo_and_project_dirs(data, paths)
     setup_placeholder_release(data, paths, here)
     install_authorized_key(data)
     setup_firewall(data)
-    install_bonesremote(data)
+    install_bonesremote()
 
 
 def install_system_packages(packages):
@@ -35,9 +37,7 @@ def install_system_packages(packages):
 def install_rust():
     server.shell(
         name="Install rustup and cargo",
-        commands=[
-            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
-        ],
+        commands=["curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"],
         _sudo=True,
     )
 
@@ -145,7 +145,7 @@ def setup_repo_and_project_dirs(data, paths):
 
     files.directory(
         name="Ensure build directory (private to deploy user)",
-        path=os.path.join(data["project_root"], "build"),
+        path=str(Path(data["project_root"]) / "build"),
         user=data["deploy_user"],
         group=data["deploy_user"],
         mode="0700",
@@ -174,7 +174,7 @@ def setup_repo_and_project_dirs(data, paths):
 def setup_placeholder_release(data, paths, here):
     files.template(
         name="Seed placeholder index page",
-        src=os.path.join(here, "assets/nginx/index.html.j2"),
+        src=str(here / "assets/nginx/index.html.j2"),
         dest=paths["placeholder_index"],
         user=data["deploy_user"],
         group=data["release_group"],
@@ -221,8 +221,7 @@ def setup_firewall(data):
         if not ssh_cidrs:
             cmds.append(f"ufw {rule} {ssh_port}/tcp")
         else:
-            for cidr in ssh_cidrs:
-                cmds.append(f"ufw {rule} from {cidr} to any port {ssh_port} proto tcp")
+            cmds.extend(f"ufw {rule} from {cidr} to any port {ssh_port} proto tcp" for cidr in ssh_cidrs)
 
     for port in allowed_ports:
         if port == "ssh":
@@ -248,7 +247,7 @@ def setup_firewall(data):
         )
 
 
-def install_bonesremote(data):
+def install_bonesremote():
     cargo_bin = "/root/.cargo/bin/cargo"
     server.shell(
         name="Install bonesremote binary",
@@ -263,4 +262,3 @@ def install_bonesremote(data):
         commands=["/usr/local/bin/bonesremote init"],
         _sudo=True,
     )
-

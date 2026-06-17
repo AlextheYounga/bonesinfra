@@ -1,6 +1,5 @@
 import importlib
 
-
 _REGISTRY = {}
 
 _MODULE_PATHS = {
@@ -32,7 +31,5 @@ def list_runtimes():
 def get_runtime(name):
     module = _REGISTRY.get(name)
     if module is None:
-        raise KeyError(
-            f"Unknown runtime: {name}. Available: {', '.join(list_runtimes())}"
-        )
+        raise KeyError(f"Unknown runtime: {name}. Available: {', '.join(list_runtimes())}")
     return module

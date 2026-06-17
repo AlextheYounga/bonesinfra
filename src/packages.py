@@ -1,5 +1,5 @@
 BASE_SYSTEM_PACKAGES: list[str] = [
-	"build-essential",
+    "build-essential",
     "ca-certificates",
     "curl",
     "git",
@@ -52,6 +52,3 @@ SUPPLEMENTARY_PACKAGES: list[str] = [
     "zip",
     "zsh",
 ]
-
-
-
