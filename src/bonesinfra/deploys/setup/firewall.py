@@ -1,0 +1,45 @@
+from pyinfra.operations import server
+
+
+def configure(data):
+    if not data.get("firewall_enabled", True):
+        return
+
+    ssh_port = int(data.get("ssh_port", 22))
+    allowed_ports = data.get("firewall_allowed_ports", ["http", "https"])
+    port_aliases = data.get("firewall_port_aliases", {"http": 80, "https": 443})
+    rate_limit = data.get("firewall_ssh_rate_limit", False)
+    ssh_cidrs = data.get("firewall_ssh_allowed_cidrs", [])
+    manage_ssh = data.get("firewall_manage_ssh", True)
+
+    cmds = []
+
+    if manage_ssh:
+        rule = "limit" if rate_limit else "allow"
+        if not ssh_cidrs:
+            cmds.append(f"ufw {rule} {ssh_port}/tcp")
+        else:
+            cmds.extend(f"ufw {rule} from {cidr} to any port {ssh_port} proto tcp" for cidr in ssh_cidrs)
+
+    for port in allowed_ports:
+        if port == "ssh":
+            continue
+        port_num = port_aliases.get(port, port)
+        cmds.append(f"ufw allow {port_num}/tcp")
+
+    cmds.append(f"ufw --force default {data.get('firewall_default_incoming_policy', 'deny')} incoming")
+    cmds.append(f"ufw --force default {data.get('firewall_default_outgoing_policy', 'allow')} outgoing")
+    cmds.append("ufw --force enable")
+
+    server.shell(
+        name="Apply UFW configuration",
+        commands=cmds,
+        _sudo=True,
+    )
+
+    if data.get("firewall_show_status", True):
+        server.shell(
+            name="Display UFW status",
+            commands=["ufw status verbose"],
+            _sudo=True,
+        )

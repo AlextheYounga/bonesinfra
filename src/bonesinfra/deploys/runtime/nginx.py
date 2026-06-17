@@ -1,81 +1,9 @@
 from pathlib import Path
 
-from pyinfra import host
-from pyinfra.operations import apt, files, server, systemd
-
-from src.utils import unflatten
+from pyinfra.operations import files, server, systemd
 
 
-def deploy():
-    data = unflatten(host.data.dict())
-    paths = data.get("paths", {})
-    here = Path(__file__).parent
-
-    install_runtime_apt_packages(data)
-    setup_apparmor(data, paths, here)
-    setup_nginx(data, paths, here)
-    setup_template_runtime(data)
-    run_doctor(data)
-
-
-def install_runtime_apt_packages(data):
-    pkgs = data.get("runtime_apt_packages", [])
-    if not pkgs:
-        return
-    apt.packages(
-        name="Install runtime apt packages",
-        packages=pkgs,
-        present=True,
-        update=True,
-        cache_time=3600,
-        _sudo=True,
-    )
-
-
-def setup_apparmor(data, paths, here):
-    systemd.service(
-        name="Ensure apparmor service is enabled and started",
-        service="apparmor",
-        enabled=True,
-        running=True,
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Verify apparmor kernel enabled",
-        commands=[f"cat {paths['apparmor_enabled_param']}"],
-        _sudo=True,
-    )
-
-    apparmor_profile_name = f"bonesdeploy-{data['project_name']}-nginx"
-    apparmor_profile_path = f"/etc/apparmor.d/{apparmor_profile_name}"
-
-    files.template(
-        name="Deploy per-project apparmor profile",
-        src=str(here / "assets/apparmor/project-nginx-profile.j2"),
-        dest=apparmor_profile_path,
-        user="root",
-        group="root",
-        mode="0644",
-        apparmor_profile_name=apparmor_profile_name,
-        **data,
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Load updated apparmor profile",
-        commands=[f"apparmor_parser -r {apparmor_profile_path}"],
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Ensure project profile is in enforce mode",
-        commands=[f"aa-enforce {apparmor_profile_path}"],
-        _sudo=True,
-    )
-
-
-def setup_nginx(data, paths, here):
+def setup(data, paths, here):
     files.directory(
         name="Ensure socket directory exists",
         path=paths["runtime_socket_dir"],
@@ -176,27 +104,4 @@ def setup_nginx(data, paths, here):
         running=True,
         daemon_reload=True,
         _sudo=True,
-    )
-
-
-def setup_template_runtime(data):
-    template = data.get("template")
-    if not template:
-        return
-    try:
-        from src.runtimes import get_runtime
-
-        mod = get_runtime(template)
-        if hasattr(mod, "deploy"):
-            mod.deploy()
-    except (ImportError, KeyError):
-        pass
-
-
-def run_doctor(data):
-    server.shell(
-        name="Run bonesremote doctor as deploy user",
-        commands=["/usr/local/bin/bonesremote doctor"],
-        _sudo=True,
-        _sudo_user=data["deploy_user"],
     )

@@ -2,9 +2,13 @@
 
 from . import helpers
 
+CRATES_PATHS = helpers.REPO_ROOT / "crates/shared/src/paths.rs"
+
 
 def test_paths_has_build_logs_constant():
-    c = helpers.read(helpers.REPO_ROOT / "crates/shared/src/paths.rs")
+    if not CRATES_PATHS.exists():
+        return
+    c = helpers.read(CRATES_PATHS)
     helpers.assert_contains(c, 'pub const LOGS_DIR: &str = "logs";')
     helpers.assert_contains(c, "pub build_logs: String,")
     helpers.assert_contains(

@@ -2,7 +2,7 @@
 
 from . import helpers
 
-N = helpers.SRC_DIR
+N = helpers.SRC_DIR / "bonesinfra"
 
 
 def _read(name):
@@ -10,7 +10,6 @@ def _read(name):
 
 
 # ---- Base AppArmor profile ----
-
 
 def test_apparmor_profile_allows_resolved_web_root():
     c = _read("assets/apparmor/project-nginx-profile.j2")
@@ -43,7 +42,6 @@ def test_apparmor_profile_limits_network_to_unix_stream():
 
 # ---- Base nginx service template ----
 
-
 def test_nginx_service_sets_apparmor_profile():
     c = _read("assets/nginx/site-nginx.service.j2")
     helpers.assert_contains(c, "AppArmorProfile=")
@@ -57,7 +55,6 @@ def test_nginx_service_waits_for_apparmor():
 
 # ---- Base nginx config ----
 
-
 def test_site_nginx_config_logs_under_runtime_socket_dir():
     c = _read("assets/nginx/site-nginx.conf.j2")
     helpers.assert_contains(c, "error_log {{ paths.runtime_socket_dir }}/error.log")
@@ -67,7 +64,6 @@ def test_site_nginx_config_logs_under_runtime_socket_dir():
 
 # ---- Router nginx config ----
 
-
 def test_router_config_uses_resolved_socket_path():
     c = _read("assets/nginx/router.conf.j2")
     helpers.assert_contains(c, "{{ paths.runtime_nginx_socket }}")
@@ -75,7 +71,6 @@ def test_router_config_uses_resolved_socket_path():
 
 
 # ---- Laravel PHP-FPM pool config ----
-
 
 def test_laravel_php_fpm_config_has_global_section():
     c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
@@ -91,7 +86,6 @@ def test_laravel_php_fpm_config_uses_resolved_current_path():
 
 
 # ---- Laravel PHP-FPM systemd service ----
-
 
 def test_laravel_php_fpm_service_runs_as_runtime_user():
     c = _read("runtimes/laravel/assets/php/site-php-fpm.service.j2")
@@ -117,7 +111,6 @@ def test_laravel_php_fpm_service_grants_required_capabilities():
 
 # ---- Laravel PHP-FPM AppArmor profile ----
 
-
 def test_laravel_php_fpm_apparmor_allows_site_conf_root():
     c = _read("runtimes/laravel/assets/php/site-php-fpm-profile.j2")
     helpers.assert_contains(c, "{{ paths.conf_root }}/ r,")
@@ -137,7 +130,6 @@ def test_laravel_php_fpm_apparmor_has_minimal_capabilities():
 
 
 # ---- Laravel nginx config ----
-
 
 def test_laravel_nginx_prefers_php_over_html():
     c = _read("runtimes/laravel/assets/nginx/laravel-site-nginx.conf.j2")
@@ -168,7 +160,6 @@ def test_laravel_nginx_logs_under_runtime_socket_dir():
 
 
 # ---- Laravel build script ----
-
 
 def test_laravel_build_script_has_err_trap():
     c = _read("runtimes/laravel/deployment/02_run_build.sh")

@@ -6,10 +6,10 @@ from pathlib import Path
 INFRA_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = INFRA_DIR / "src"
 REPO_ROOT = INFRA_DIR.parent
-sys.path.insert(0, str(INFRA_DIR))
+sys.path.insert(0, str(SRC_DIR))
 
 PYTHON_BIN = sys.executable
-PYTHON_ENV = {**os.environ, "PYTHONPATH": str(INFRA_DIR)}
+PYTHON_ENV = {**os.environ, "PYTHONPATH": str(SRC_DIR)}
 
 
 def read(path):
@@ -53,7 +53,7 @@ def exec_module(path):
 
 def run(*args):
     result = subprocess.run(
-        [sys.executable, *args],
+        [sys.executable, "-m", "bonesinfra", *args],
         capture_output=True,
         text=True,
         timeout=10,

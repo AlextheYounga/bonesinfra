@@ -1,3 +1,5 @@
+from pyinfra.operations import apt
+
 BASE_SYSTEM_PACKAGES: list[str] = [
     "build-essential",
     "ca-certificates",
@@ -52,3 +54,14 @@ SUPPLEMENTARY_PACKAGES: list[str] = [
     "zip",
     "zsh",
 ]
+
+
+def install_system(packages):
+    apt.packages(
+        name="Install setup apt packages",
+        packages=packages,
+        present=True,
+        update=True,
+        cache_time=3600,
+        _sudo=True,
+    )

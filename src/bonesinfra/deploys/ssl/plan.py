@@ -4,13 +4,13 @@ from pathlib import Path
 from pyinfra import host
 from pyinfra.operations import files, server, systemd
 
-from src.utils import unflatten
+from bonesinfra.infra.utils import unflatten
 
 
 def deploy():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
-    here = Path(__file__).parent
+    here = Path(__file__).parent.parent.parent
 
     ssl_domain = data.get("ssl_domain")
     ssl_email = data.get("ssl_email")

@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "infra"
+name = "bonesinfra"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deployment automation for BonesDeploy"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -10,4 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-bones = "main:main"
+bonesinfra = "bonesinfra.__main__:main"
+
+[tool.setuptools.package-dir]
+"" = "src"

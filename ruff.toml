@@ -77,25 +77,32 @@ combine-as-imports = true
 "__init__.py" = ["F401", "D104"]
 "conftest.py" = ["D100", "D103"]
 "scripts/**/*.py" = ["T20"]
-"main.py" = [
+"src/bonesinfra/cli/*.py" = [
   "T20",     # CLI tool uses print for output/errors
   "PLC0415", # intentional lazy imports for CLI commands
 ]
-"src/pyinfra_runner.py" = [
+"src/bonesinfra/app/*.py" = [
+  "T20",     # app services print errors to stderr
+]
+"src/bonesinfra/infra/pyinfra_runner.py" = [
   "T20",     # print to stderr on failure
   "PLR0913", # run() takes 6 keyword args naturally
 ]
-"src/runtime.py" = [
+"src/bonesinfra/deploys/runtime/template_runtime.py" = [
   "PLC0415", # lazy import to avoid circular dependency
+  "BLE001",  # blind except on ImportError/KeyError
 ]
-"src/runtimes/__init__.py" = ["T20"]
-"src/runtimes/**/*.py" = [
+"src/bonesinfra/runtimes/__init__.py" = ["T20"]
+"src/bonesinfra/runtimes/**/*.py" = [
   "PLC0415", # pyinfra imports are deferred to deploy time
 ]
-"src/setup.py" = [
+"src/bonesinfra/deploys/setup/bonesremote.py" = [
   "S604",    # pyinfra.server.user with shell=True is standard
 ]
-"src/ssl.py" = [
+"src/bonesinfra/deploys/setup/users.py" = [
+  "S604",    # pyinfra.server.user with shell=True is standard
+]
+"src/bonesinfra/deploys/ssl/plan.py" = [
   "A005",    # intentional module name matching project domain
   "T20",     # print to stderr on error
 ]

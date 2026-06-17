@@ -4,12 +4,12 @@ import sys
 _REGISTRY = {}
 
 _MODULE_PATHS = {
-    "laravel": "src.runtimes.laravel.laravel",
-    "django": "src.runtimes.django.django",
-    "next": "src.runtimes.next.next",
-    "rails": "src.runtimes.rails.rails",
-    "sveltekit": "src.runtimes.sveltekit.svelte",
-    "vue": "src.runtimes.vue.vue",
+    "laravel": "bonesinfra.runtimes.laravel",
+    "django": "bonesinfra.runtimes.django.django",
+    "next": "bonesinfra.runtimes.next.next",
+    "rails": "bonesinfra.runtimes.rails.rails",
+    "sveltekit": "bonesinfra.runtimes.sveltekit.svelte",
+    "vue": "bonesinfra.runtimes.vue.vue",
 }
 
 
