@@ -7,6 +7,7 @@ _MODULE_PATHS = {
     "laravel": "bonesinfra.runtimes.laravel",
     "django": "bonesinfra.runtimes.django.django",
     "next": "bonesinfra.runtimes.next.next",
+    "nuxt": "bonesinfra.runtimes.nuxt.nuxt",
     "rails": "bonesinfra.runtimes.rails.rails",
     "sveltekit": "bonesinfra.runtimes.sveltekit.svelte",
     "vue": "bonesinfra.runtimes.vue.vue",
