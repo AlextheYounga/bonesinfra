@@ -1,4 +1,5 @@
 import importlib
+import sys
 
 _REGISTRY = {}
 
@@ -31,5 +32,6 @@ def list_runtimes():
 def get_runtime(name):
     module = _REGISTRY.get(name)
     if module is None:
-        raise KeyError(f"Unknown runtime: {name}. Available: {', '.join(list_runtimes())}")
+        print(f"Unknown runtime: {name}. Available: {', '.join(list_runtimes())}", file=sys.stderr)
+        sys.exit(1)
     return module

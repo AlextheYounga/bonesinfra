@@ -1,92 +1,46 @@
 #!/usr/bin/env python3
-"""BonesDeploy infra CLI entrypoint.
+"""BonesDeploy infra CLI."""
 
-Usage:
-    python main.py runtime list --json
-    python main.py runtime questions <runtime> --json
-    python main.py runtime defaults <runtime> --json
-    python main.py runtime apply --config .bones/bones.toml --runtime-config .bones/runtime.toml --ssh-user root
-    python main.py setup apply --config .bones/bones.toml  < data.json
-    python main.py ssl apply --config .bones/bones.toml  < data.json
-"""
-
-import argparse
 import json
 import sys
 from pathlib import Path
+
+import typer
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.runtimes import get_runtime, list_runtimes
 
-
-def _load_runtime(name):
-    try:
-        return get_runtime(name)
-    except KeyError as err:
-        print(str(err), file=sys.stderr)
-        sys.exit(1)
-
-
-def _output(data, as_json):
-    if as_json:
-        print(json.dumps(data))
-    elif isinstance(data, list):
-        for item in data:
-            print(item)
-    elif isinstance(data, dict):
-        for key, value in data.items():
-            print(f"{key}: {json.dumps(value)}")
+app = typer.Typer()
+runtime_app = typer.Typer()
+setup_app = typer.Typer()
+ssl_app = typer.Typer()
+app.add_typer(runtime_app, name="runtime", help="Runtime operations")
+app.add_typer(setup_app, name="setup", help="Setup operations")
+app.add_typer(ssl_app, name="ssl", help="SSL operations")
 
 
-def cmd_runtime_list(args):
-    runtimes = list_runtimes()
-    _output(runtimes, args.json)
+@runtime_app.command("list")
+def runtime_list():
+    """List available runtimes."""
+    print(json.dumps(list_runtimes()))
 
 
-def cmd_runtime_questions(args):
-    module = _load_runtime(args.runtime)
+@runtime_app.command("questions")
+def runtime_questions(
+    runtime: str = typer.Argument(help="Runtime name"),
+):
+    """Get runtime questions."""
+    module = get_runtime(runtime)
     questions = module.questions() if hasattr(module, "questions") else []
-    _output(questions, args.json)
+    print(json.dumps(questions))
 
 
-def cmd_runtime_defaults(args):
-    module = _load_runtime(args.runtime)
-    defaults = module.defaults() if hasattr(module, "defaults") else {}
-    _output(defaults, args.json)
-
-
-def _build_flat_data_from_stdin():
-    data = json.load(sys.stdin)
-    return data
-
-
-def cmd_setup_apply(args):
-    stdin_data = _build_flat_data_from_stdin()
-    hostname = stdin_data.pop("host", "")
-    ssh_user = stdin_data.pop("ssh_user", "root")
-    ssh_port = int(stdin_data.pop("ssh_port", 22))
-
-    if not hostname:
-        print("Error: missing host in deploy data", file=sys.stderr)
-        sys.exit(3)
-
-    from src.pyinfra_runner import run as run_deploy
-    from src.setup import deploy
-
-    run_deploy(
-        hostname=hostname,
-        ssh_user=ssh_user,
-        ssh_port=ssh_port,
-        data=stdin_data,
-        deploy=deploy,
-    )
-
-
-def cmd_runtime_apply(args):
+def _load_deploy_config(config_path, runtime_config_path, ssh_user):
+    from src.paths import DeploymentPaths
     from src.utils import load_toml
 
-    bones_cfg = load_toml(args.config)
+    bones_cfg = load_toml(config_path)
     data = bones_cfg.get("data", {})
     project_name = data.get("project_name", "")
     repo_path = data.get("repo_path", "")
@@ -94,15 +48,12 @@ def cmd_runtime_apply(args):
     web_root = data.get("web_root", "public")
     host = data.get("host", "")
     port = int(data.get("port", 22))
-    ssh_user = args.ssh_user
     runtime_cfg = {}
 
-    if args.runtime_config:
-        rpath = Path(args.runtime_config)
+    if runtime_config_path:
+        rpath = Path(runtime_config_path)
         if rpath.exists():
             runtime_cfg = load_toml(str(rpath))
-
-    from src.paths import DeploymentPaths
 
     paths = DeploymentPaths.new(project_name, repo_path, project_root, web_root)
 
@@ -123,6 +74,26 @@ def cmd_runtime_apply(args):
         if key not in flat_data:
             flat_data[key] = value
 
+    ssl_cfg = bones_cfg.get("ssl", {})
+    flat_data["ssl_domain"] = ssl_cfg.get("domain", "")
+    flat_data["ssl_email"] = ssl_cfg.get("email", "")
+
+    return host, ssh_user, port, flat_data
+
+
+@runtime_app.command("apply")
+def runtime_apply(
+    config: str = typer.Option(..., "--config", help="Path to bones.toml"),
+    runtime_config: str = typer.Option(..., "--runtime-config", help="Path to runtime.toml"),
+    ssh_user: str = typer.Option(..., "--ssh-user", help="SSH user for remote connection"),
+):
+    """Apply runtime configuration."""
+    host, ssh_user, port, flat_data = _load_deploy_config(config, runtime_config, ssh_user)
+
+    if not host:
+        print("Error: missing host in bones.toml", file=sys.stderr)
+        raise typer.Exit(3)
+
     from src.pyinfra_runner import run as run_deploy
     from src.runtime import deploy
 
@@ -135,72 +106,65 @@ def cmd_runtime_apply(args):
     )
 
 
-def cmd_ssl_apply(args):
-    stdin_data = _build_flat_data_from_stdin()
-    hostname = stdin_data.pop("host", "")
-    ssh_user = stdin_data.pop("ssh_user", "root")
-    ssh_port = int(stdin_data.pop("ssh_port", 22))
+@setup_app.command("apply")
+def setup_apply(
+    config: str = typer.Option(..., "--config", help="Path to bones.toml"),
+    ssh_user: str = typer.Option("root", "--ssh-user", help="SSH user for remote connection"),
+):
+    """Apply setup configuration."""
+    host, ssh_user, port, flat_data = _load_deploy_config(config, None, ssh_user)
 
-    if not hostname:
-        print("Error: missing host in deploy data", file=sys.stderr)
-        sys.exit(3)
+    if not host:
+        print("Error: missing host in bones.toml", file=sys.stderr)
+        raise typer.Exit(3)
+
+    from src.pyinfra_runner import run as run_deploy
+    from src.setup import deploy
+
+    run_deploy(
+        hostname=host,
+        ssh_user=ssh_user,
+        ssh_port=port,
+        data=flat_data,
+        deploy=deploy,
+    )
+
+
+@ssl_app.command("apply")
+def ssl_apply(
+    config: str = typer.Option(..., "--config", help="Path to bones.toml"),
+    ssh_user: str = typer.Option("root", "--ssh-user", help="SSH user for remote connection"),
+):
+    """Apply SSL configuration."""
+    host, ssh_user, port, flat_data = _load_deploy_config(config, None, ssh_user)
+
+    if not host:
+        print("Error: missing host in bones.toml", file=sys.stderr)
+        raise typer.Exit(3)
+
+    ssl_domain = flat_data.get("ssl_domain")
+    ssl_email = flat_data.get("ssl_email")
+    if not ssl_domain:
+        print("Error: ssl.domain is required in bones.toml", file=sys.stderr)
+        raise typer.Exit(3)
+    if not ssl_email:
+        print("Error: ssl.email is required in bones.toml", file=sys.stderr)
+        raise typer.Exit(3)
 
     from src.pyinfra_runner import run as run_deploy
     from src.ssl import deploy
 
     run_deploy(
-        hostname=hostname,
+        hostname=host,
         ssh_user=ssh_user,
-        ssh_port=ssh_port,
-        data=stdin_data,
+        ssh_port=port,
+        data=flat_data,
         deploy=deploy,
     )
 
 
-def _add_json_flag(parser):
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
-    return parser
-
-
 def main():
-    parser = argparse.ArgumentParser(description="BonesDeploy infra CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    runtime_parser = subparsers.add_parser("runtime", help="Runtime operations")
-    runtime_subparsers = runtime_parser.add_subparsers(dest="subcommand", required=True)
-
-    _add_json_flag(runtime_subparsers.add_parser("list", help="List available runtimes")).set_defaults(
-        func=cmd_runtime_list
-    )
-
-    questions_parser = _add_json_flag(runtime_subparsers.add_parser("questions", help="Get runtime questions"))
-    questions_parser.add_argument("runtime", help="Runtime name")
-    questions_parser.set_defaults(func=cmd_runtime_questions)
-
-    defaults_parser = _add_json_flag(runtime_subparsers.add_parser("defaults", help="Get runtime defaults"))
-    defaults_parser.add_argument("runtime", help="Runtime name")
-    defaults_parser.set_defaults(func=cmd_runtime_defaults)
-
-    runtime_apply_cmd = runtime_subparsers.add_parser("apply", help="Apply runtime configuration")
-    runtime_apply_cmd.add_argument("--config", required=True, help="Path to bones.toml")
-    runtime_apply_cmd.add_argument("--runtime-config", required=True, help="Path to runtime.toml")
-    runtime_apply_cmd.add_argument("--ssh-user", required=True, help="SSH user for remote connection")
-    runtime_apply_cmd.set_defaults(func=cmd_runtime_apply)
-
-    setup_parser = subparsers.add_parser("setup", help="Setup operations")
-    setup_apply = setup_parser.add_subparsers(dest="subcommand", required=True).add_parser("apply", help="Apply setup")
-    setup_apply.add_argument("--config", required=True, help="Path to bones.toml")
-    setup_apply.set_defaults(func=cmd_setup_apply)
-
-    ssl_parser = subparsers.add_parser("ssl", help="SSL operations")
-    ssl_apply = ssl_parser.add_subparsers(dest="subcommand", required=True).add_parser(
-        "apply", help="Apply SSL configuration"
-    )
-    ssl_apply.add_argument("--config", required=True, help="Path to bones.toml")
-    ssl_apply.set_defaults(func=cmd_ssl_apply)
-
-    args = parser.parse_args()
-    args.func(args)
+    app()
 
 
 if __name__ == "__main__":

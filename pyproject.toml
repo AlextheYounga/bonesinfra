@@ -6,4 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pyinfra>=3.8.0",
+    "typer>=0.26.7",
 ]
+
+[project.scripts]
+bones = "main:main"

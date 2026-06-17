@@ -80,7 +80,6 @@ combine-as-imports = true
 "main.py" = [
   "T20",     # CLI tool uses print for output/errors
   "PLC0415", # intentional lazy imports for CLI commands
-  "ARG001",  # cmd_* functions receive args via argparse API
 ]
 "src/pyinfra_runner.py" = [
   "T20",     # print to stderr on failure
@@ -89,6 +88,7 @@ combine-as-imports = true
 "src/runtime.py" = [
   "PLC0415", # lazy import to avoid circular dependency
 ]
+"src/runtimes/__init__.py" = ["T20"]
 "src/runtimes/**/*.py" = [
   "PLC0415", # pyinfra imports are deferred to deploy time
 ]
