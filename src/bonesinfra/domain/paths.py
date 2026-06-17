@@ -39,6 +39,8 @@ USR_LOCAL_BIN = "/usr/local/bin"
 APPARMOR_ENABLED_PARAM = "/sys/module/apparmor/parameters/enabled"
 APPARMOR_PROFILES = "/sys/kernel/security/apparmor/profiles"
 
+BONESDEPLOY_REPO = "https://github.com/AlextheYounga/bonesdeploy.git"
+
 
 def _parent_or_default(path: str, fallback: str) -> str:
     parent = Path(path).parent

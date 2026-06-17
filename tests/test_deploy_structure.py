@@ -21,6 +21,7 @@ LARAVEL_DEPLOY = helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py"
 
 # ---- setup plan ----
 
+
 def test_setup_plan_calls_all_steps():
     c = helpers.read(SETUP_PLAN)
     helpers.assert_contains(c, "packages.install_system")
@@ -50,8 +51,13 @@ def test_setup_plan_ordering():
 
 def test_setup_excludes_apparmor():
     for f in [
-        SETUP_PLAN, SETUP_PACKAGES, SETUP_USERS, SETUP_DIRECTORIES,
-        SETUP_PLACEHOLDER, SETUP_FIREWALL, SETUP_BONESREMOTE,
+        SETUP_PLAN,
+        SETUP_PACKAGES,
+        SETUP_USERS,
+        SETUP_DIRECTORIES,
+        SETUP_PLACEHOLDER,
+        SETUP_FIREWALL,
+        SETUP_BONESREMOTE,
     ]:
         c = helpers.read(f)
         helpers.assert_not_contains(c, "apparmor_parser")
@@ -77,6 +83,7 @@ def test_setup_uses_resolved_placeholder_paths():
 
 
 # ---- Firewall ----
+
 
 def test_setup_firewall_handles_ssh_cidrs():
     c = helpers.read(SETUP_FIREWALL)
@@ -113,6 +120,7 @@ def test_setup_firewall_status_gated_by_show_status():
 
 
 # ---- runtime plan ----
+
 
 def test_runtime_plan_calls_all_steps():
     c = helpers.read(RUNTIME_PLAN)
@@ -161,6 +169,7 @@ def test_runtime_uses_template_runtime():
 
 # ---- ssl plan ----
 
+
 def test_ssl_uses_certbot():
     c = helpers.read(SSL_PLAN)
     helpers.assert_contains(c, "certbot certonly")
@@ -195,6 +204,7 @@ def test_ssl_uses_current_web_root():
 
 
 # ---- Laravel-specific ordering ----
+
 
 def test_laravel_validates_php_fpm_before_start():
     c = helpers.read(LARAVEL_DEPLOY)

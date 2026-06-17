@@ -1,3 +1,4 @@
+from domain.paths import BONESDEPLOY_REPO
 from pyinfra.operations import server
 
 
@@ -5,9 +6,7 @@ def install():
     cargo_bin = "/root/.cargo/bin/cargo"
     server.shell(
         name="Install bonesremote binary",
-        commands=[
-            f"{cargo_bin} install --root /usr/local --git https://github.com/AlextheYounga/bonesdeploy.git bonesremote"
-        ],
+        commands=[f"{cargo_bin} install --root /usr/local --git {BONESDEPLOY_REPO} bonesremote"],
         _sudo=True,
     )
 
