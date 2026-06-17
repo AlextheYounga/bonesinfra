@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12"
 
 [options]
-exclude-newer = "2026-06-10T22:22:18.225752042Z"
+exclude-newer = "2026-06-10T23:55:07.495437689Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -96,12 +96,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "pyinfra" },
+    { name = "rich" },
     { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pyinfra", specifier = ">=3.8.0" },
+    { name = "rich", specifier = ">=15.0.0" },
     { name = "typer", specifier = ">=0.26.7" },
 ]
 
