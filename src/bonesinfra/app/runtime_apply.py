@@ -1,6 +1,6 @@
 import sys
 
-from bonesinfra.deploys.runtime.plan import deploy
+from bonesinfra.deploys.runtime.plan import deploy_runtime
 from bonesinfra.domain.context import DeployContext
 from bonesinfra.infra.pyinfra_runner import run as run_deploy
 
@@ -15,5 +15,5 @@ def apply(config_path: str, runtime_config_path: str, ssh_user: str) -> None:
         ssh_user=ctx.ssh_user,
         ssh_port=ctx.ssh_port,
         data=ctx.flat_data,
-        deploy=deploy,
+        deploy=deploy_runtime,
     )

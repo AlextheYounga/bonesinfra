@@ -7,7 +7,7 @@ from pyinfra.operations import files, server, systemd
 from bonesinfra.infra.utils import unflatten
 
 
-def deploy():
+def deploy_ssl():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
     here = Path(__file__).parent.parent.parent

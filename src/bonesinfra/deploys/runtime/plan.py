@@ -6,7 +6,7 @@ from bonesinfra.deploys.runtime import apparmor, doctor, nginx, packages, templa
 from bonesinfra.infra.utils import unflatten
 
 
-def deploy():
+def deploy_runtime():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
     here = Path(__file__).parent.parent.parent

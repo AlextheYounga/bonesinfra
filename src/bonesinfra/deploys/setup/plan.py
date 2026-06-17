@@ -7,7 +7,7 @@ from bonesinfra.deploys.setup.packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTAR
 from bonesinfra.infra.utils import unflatten
 
 
-def deploy():
+def deploy_setup():
     data = unflatten(host.data.dict())
     paths = data.get("paths", {})
     here = Path(__file__).parent.parent.parent
