@@ -45,8 +45,9 @@ class DeployContext:
         flat_data["web_root"] = web_root
         flat_data["repo_path"] = repo_path
         flat_data["deploy_user"] = data.get("deploy_user", "git")
-        flat_data["runtime_user"] = data.get("runtime_user", "www-data")
-        flat_data["runtime_group"] = data.get("runtime_group", "www-data")
+        runtime_identity = project_name or "www-data"
+        flat_data["runtime_user"] = data.get("runtime_user", runtime_identity)
+        flat_data["runtime_group"] = data.get("runtime_group", runtime_identity)
         flat_data["release_group"] = data.get("release_group", "deployers")
         flat_data["project_root_parent"] = paths.project_root_parent
         flat_data["ssh_port"] = port
