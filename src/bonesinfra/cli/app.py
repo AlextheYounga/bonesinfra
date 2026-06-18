@@ -29,9 +29,8 @@ def runtime_questions(
 def runtime_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
     runtime_config: str = typer.Option(..., "--runtime-config", help="Path to runtime.toml"),
-    ssh_user: str = typer.Option(..., "--ssh-user", help="SSH user for remote connection"),
 ):
-    runtime_apply.apply(config, runtime_config, ssh_user)
+    runtime_apply.apply(config, runtime_config)
 
 
 @setup_app.command("apply")

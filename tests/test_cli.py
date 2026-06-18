@@ -36,9 +36,10 @@ def test_setup_apply_rejects_missing_host():
     assert "missing host" in result.stderr.lower()
 
 
-def test_runtime_apply_requires_ssh_user():
+def test_runtime_apply_rejects_missing_host():
     result = _run_no_input("runtime", "apply", "--config", "/dev/null", "--runtime-config", "/dev/null")
-    assert result.returncode != 0, "Expected non-zero exit for missing --ssh-user"
+    assert result.returncode == 3, f"Expected exit 3 for missing host, got {result.returncode}"
+    assert "missing host" in result.stderr.lower()
 
 
 def test_ssl_apply_rejects_missing_host():
