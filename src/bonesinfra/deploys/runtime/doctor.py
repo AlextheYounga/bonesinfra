@@ -5,8 +5,8 @@ from pyinfra.operations import server
 
 def _user_env_command(user, command):
     q_user = quote(user)
-    home = f'$(getent passwd {q_user} | cut -d: -f6)'
-    return f'HOME={home} XDG_CONFIG_HOME={home}/.config {command}'
+    home = f"$(getent passwd {q_user} | cut -d: -f6)"
+    return f"HOME={home} XDG_CONFIG_HOME={home}/.config {command}"
 
 
 def run(data):

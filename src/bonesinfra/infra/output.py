@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import logging
 from collections.abc import Iterator
+from contextlib import contextmanager
 
+from pyinfra.api.output import set_echo, set_formatter
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
@@ -20,9 +21,8 @@ class _PyinfraLogHandler(logging.Handler):
 
 
 def setup_output() -> None:
-    from pyinfra.api.output import set_echo, set_formatter
-
     def bones_echo(message=None, **kwargs):
+        del kwargs
         if message is not None:
             _err.print(message, markup=True, highlight=False)
 

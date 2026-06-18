@@ -48,9 +48,14 @@ def run(
         print_done(success=False)
         sys.exit(1)
 
-    with ctx_state.use(state), ctx_config.use(config), ctx_inventory.use(inventory), ctx_host.use(target_host):
-        with activity("planning deploy operations"):
-            deploy()
+    with (
+        ctx_state.use(state),
+        ctx_config.use(config),
+        ctx_inventory.use(inventory),
+        ctx_host.use(target_host),
+        activity("planning deploy operations"),
+    ):
+        deploy()
 
     try:
         run_ops(state)

@@ -4,7 +4,7 @@ def questions():
             "key": "php_version",
             "type": "choice",
             "label": "PHP version",
-            "choices": ["8.2", "8.3", "8.4"],
+            "choices": ["8.2", "8.3", "8.4", "8.5"],
             "default": "8.5",
         },
         {
