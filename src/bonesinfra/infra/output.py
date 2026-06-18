@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -54,6 +55,8 @@ class BonesDeployCallback(BaseStateCallback):
 
 
 def setup_output() -> None:
+    os.environ["PYINFRA_PROGRESS"] = "off"
+
     def bones_echo(message=None, **kwargs):
         del kwargs
         if message is not None:
