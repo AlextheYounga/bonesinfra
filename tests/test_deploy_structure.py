@@ -82,6 +82,12 @@ def test_setup_uses_resolved_placeholder_paths():
     helpers.assert_contains(c2, "placeholder_index")
 
 
+def test_setup_avoids_usermod_for_existing_runtime_user():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "host.get_fact(Users)")
+    helpers.assert_contains(c, "gpasswd -a")
+
+
 # ---- Firewall ----
 
 

@@ -10,7 +10,7 @@ from pyinfra.api.exceptions import PyinfraError
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_config, ctx_host, ctx_inventory, ctx_state
 
-from bonesinfra.infra.output import print_banner, print_done, print_target, setup_output
+from bonesinfra.infra.output import activity, print_banner, print_done, print_target, setup_output
 
 
 def run(
@@ -49,7 +49,8 @@ def run(
         sys.exit(1)
 
     with ctx_state.use(state), ctx_config.use(config), ctx_inventory.use(inventory), ctx_host.use(target_host):
-        deploy()
+        with activity("planning deploy operations"):
+            deploy()
 
     try:
         run_ops(state)

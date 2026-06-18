@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import logging
+from collections.abc import Iterator
 
 from rich.console import Console
-from rich.logging import RichHandler
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -12,22 +14,39 @@ console = Console(stderr=True)
 _err = Console(stderr=True)
 
 
+class _PyinfraLogHandler(logging.Handler):
+    def emit(self, record):
+        console.print(self.format(record), markup=True, highlight=False)
+
+
 def setup_output() -> None:
     from pyinfra.api.output import set_echo, set_formatter
 
     def bones_echo(message=None, **kwargs):
         if message is not None:
-            _err.print(message, highlight=False)
+            _err.print(message, markup=True, highlight=False)
 
     def bones_format(text, *args, **kwargs):
-        return text
+        fg = args[0] if args else kwargs.get("fg")
+        styles = []
+        if kwargs.get("bold"):
+            styles.append("bold")
+        if fg:
+            styles.append(str(fg))
+
+        text = escape(str(text))
+        if not styles:
+            return text
+        return f"[{' '.join(styles)}]{text}[/]"
 
     set_echo(bones_echo)
     set_formatter(bones_format)
 
     pyinfra_logger = logging.getLogger("pyinfra")
     pyinfra_logger.handlers.clear()
-    pyinfra_logger.addHandler(RichHandler(console=console, show_time=False, show_path=False))
+    handler = _PyinfraLogHandler()
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    pyinfra_logger.addHandler(handler)
     pyinfra_logger.setLevel(logging.INFO)
     pyinfra_logger.propagate = False
 
@@ -54,3 +73,9 @@ def print_done(success: bool) -> None:
     else:
         console.print("☠  [bold red]deploy failed[/]")
     console.print()
+
+
+@contextmanager
+def activity(message: str) -> Iterator[None]:
+    with console.status(f"[bold cyan]☠ bonesdeploy[/] {message}", spinner="dots"):
+        yield
