@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from pyinfra.api.output import set_echo, set_formatter
+from pyinfra.api.state import BaseStateCallback, State
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
@@ -14,10 +15,42 @@ from rich.text import Text
 console = Console(stderr=True)
 _err = Console(stderr=True)
 
+_STATUS_STYLES = {
+    "Success": "bold green",
+    "No changes": "cyan",
+    "Failure": "bold red",
+}
+
 
 class _PyinfraLogHandler(logging.Handler):
     def emit(self, record):
         console.print(self.format(record), markup=True, highlight=False)
+
+
+class BonesDeployCallback(BaseStateCallback):
+    @staticmethod
+    def operation_end(state: State, op_hash: str) -> None:
+        op_meta = state.get_op_meta(op_hash)
+        op_name = ", ".join(op_meta.names) or "Operation"
+        status = "No changes"
+
+        for host in state.inventory:
+            try:
+                op_data = state.get_op_data_for_host(host, op_hash)
+            except KeyError:
+                continue
+
+            operation_meta = op_data.operation_meta
+            if not operation_meta.is_complete() or operation_meta.did_error():
+                status = "Failure"
+                break
+
+            if operation_meta.did_change():
+                status = "Success"
+
+        status_style = _STATUS_STYLES.get(status, "dim")
+        console.print(f"☠  {op_name}", end=" ")
+        console.print(f"[{status_style}]{status}[/{status_style}]")
 
 
 def setup_output() -> None:
@@ -46,8 +79,9 @@ def setup_output() -> None:
     pyinfra_logger.handlers.clear()
     handler = _PyinfraLogHandler()
     handler.setFormatter(logging.Formatter("%(message)s"))
+    handler.setLevel(logging.WARNING)
     pyinfra_logger.addHandler(handler)
-    pyinfra_logger.setLevel(logging.INFO)
+    pyinfra_logger.setLevel(logging.WARNING)
     pyinfra_logger.propagate = False
 
 
@@ -63,6 +97,11 @@ def print_target(hostname: str, user: str) -> None:
     info.add_column(style="bold yellow")
     info.add_row("target:", f"{user}@{hostname}")
     console.print(info)
+    console.print()
+
+
+def print_connected() -> None:
+    console.print("☠  [bold cyan]connected[/]")
     console.print()
 
 

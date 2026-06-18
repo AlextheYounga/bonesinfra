@@ -10,7 +10,15 @@ from pyinfra.api.exceptions import PyinfraError
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_config, ctx_host, ctx_inventory, ctx_state
 
-from bonesinfra.infra.output import activity, print_banner, print_done, print_target, setup_output
+from bonesinfra.infra.output import (
+    BonesDeployCallback,
+    activity,
+    print_banner,
+    print_connected,
+    print_done,
+    print_target,
+    setup_output,
+)
 
 
 def run(
@@ -43,10 +51,13 @@ def run(
     print_target(hostname, ssh_user)
 
     try:
-        connect_all(state)
+        with activity("connecting"):
+            connect_all(state)
     except PyinfraError:
         print_done(success=False)
         sys.exit(1)
+
+    print_connected()
 
     with (
         ctx_state.use(state),
@@ -56,6 +67,8 @@ def run(
         activity("planning deploy operations"),
     ):
         deploy()
+
+    state.add_callback_handler(BonesDeployCallback())
 
     try:
         run_ops(state)
