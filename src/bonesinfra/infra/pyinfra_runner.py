@@ -6,8 +6,11 @@ from typing import Any
 
 from pyinfra.api import Config, Inventory, State
 from pyinfra.api.connect import connect_all
+from pyinfra.api.exceptions import PyinfraError
 from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_config, ctx_host, ctx_inventory, ctx_state
+
+from bonesinfra.infra.output import print_banner, print_done, print_target, setup_output
 
 
 def run(
@@ -19,6 +22,8 @@ def run(
     data: dict[str, Any],
     deploy: Callable[[], None],
 ) -> None:
+    setup_output()
+
     data = dict(data)
     data["ssh_user"] = ssh_user
     data["ssh_port"] = int(data.get("ssh_port", ssh_port))
@@ -34,13 +39,26 @@ def run(
     state = State(inventory, config)
     target_host = next(iter(inventory))
 
-    connect_all(state)
+    print_banner()
+    print_target(hostname, ssh_user)
+
+    try:
+        connect_all(state)
+    except PyinfraError:
+        print_done(success=False)
+        sys.exit(1)
 
     with ctx_state.use(state), ctx_config.use(config), ctx_inventory.use(inventory), ctx_host.use(target_host):
         deploy()
 
-    run_ops(state)
+    try:
+        run_ops(state)
+    except PyinfraError:
+        print_done(success=False)
+        sys.exit(1)
 
     if state.failed_hosts:
-        print("pyinfra deploy completed with failures.", file=sys.stderr)
+        print_done(success=False)
         sys.exit(1)
+
+    print_done(success=True)
