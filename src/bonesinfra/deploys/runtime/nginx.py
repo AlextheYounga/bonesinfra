@@ -79,6 +79,8 @@ def setup(data, paths, here):
         _sudo=True,
     )
 
+
+def start_services(paths):
     systemd.service(
         name="Ensure nginx service is enabled and started",
         service="nginx",

@@ -21,6 +21,8 @@ def setup_pool(here, data, paths, php_version):
     runtime_group = data["runtime_group"]
     pool_config_path = f"/srv/conf/{project}/php-fpm.conf"
     php_fpm_socket_path = paths["runtime_php_fpm_socket"]
+    php_fpm_binary = f"/usr/sbin/php-fpm{php_version}"
+    apparmor_profile_name = f"bonesdeploy-{project}-php-fpm"
 
     files.directory(
         name="Ensure conf directory exists",
@@ -53,14 +55,26 @@ def setup_pool(here, data, paths, php_version):
         mode="0644",
         laravel_php_fpm_pool_config_path=pool_config_path,
         laravel_php_version_resolved=php_version,
-        apparmor_profile_name=f"bonesdeploy-{project}-php-fpm",
+        apparmor_profile_name=apparmor_profile_name,
         **data,
         _sudo=True,
     )
 
     server.shell(
+        name="Verify PHP-FPM binary exists",
+        commands=[f"test -x {php_fpm_binary}"],
+        _sudo=True,
+    )
+
+    server.shell(
         name="Validate PHP-FPM configuration",
-        commands=[f"/usr/sbin/php-fpm{php_version} --test --fpm-config {pool_config_path}"],
+        commands=[f"{php_fpm_binary} --test --fpm-config {pool_config_path}"],
+        _sudo=True,
+    )
+
+    server.shell(
+        name="Verify PHP-FPM AppArmor profile is loaded",
+        commands=[f"grep -q '^{apparmor_profile_name} ' /sys/kernel/security/apparmor/profiles"],
         _sudo=True,
     )
 

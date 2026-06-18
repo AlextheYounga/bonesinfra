@@ -18,6 +18,6 @@ def deploy():
     php_packages.install_php(php_version)
 
     php_fpm.setup_storage_directories(paths, data)
-    php_fpm.setup_pool(here, data, paths, php_version)
     apparmor.setup_php_fpm(data, here)
+    php_fpm.setup_pool(here, data, paths, php_version)
     nginx.setup(here, data, paths)

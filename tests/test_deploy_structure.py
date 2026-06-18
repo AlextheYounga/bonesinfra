@@ -140,6 +140,7 @@ def test_runtime_plan_calls_all_steps():
     helpers.assert_contains(c, "apparmor.setup")
     helpers.assert_contains(c, "nginx.setup")
     helpers.assert_contains(c, "template_runtime.load")
+    helpers.assert_contains(c, "nginx.start_services")
     helpers.assert_contains(c, "doctor.run")
 
 
@@ -157,7 +158,9 @@ def test_runtime_plan_ordering():
     helpers.assert_ordering(
         c,
         "packages.install_apt",
+        "nginx.setup",
         "template_runtime.load",
+        "nginx.start_services",
     )
 
 
@@ -243,7 +246,18 @@ def test_laravel_php_fpm_validates_before_enable():
     helpers.assert_ordering(
         c,
         "--test --fpm-config",
+        "Verify PHP-FPM AppArmor profile is loaded",
         "Enable and start per-project PHP-FPM service",
+    )
+
+
+def test_laravel_loads_apparmor_before_php_fpm_service_setup():
+    c = helpers.read(LARAVEL_DEPLOY)
+    helpers.assert_ordering(
+        c,
+        "php_fpm.setup_storage_directories",
+        "apparmor.setup_php_fpm",
+        "php_fpm.setup_pool",
     )
 
 
@@ -254,3 +268,8 @@ def test_laravel_creates_socket_dir_before_nginx_validation():
         "Ensure runtime socket directory exists before nginx validation",
         "nginx -t",
     )
+
+
+def test_laravel_nginx_does_not_restart_site_service_early():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
+    helpers.assert_not_contains(c, "Restart per-site nginx with Laravel config")

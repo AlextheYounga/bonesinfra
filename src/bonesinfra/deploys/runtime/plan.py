@@ -15,4 +15,5 @@ def deploy_runtime():
     apparmor.setup(data, paths, here)
     nginx.setup(data, paths, here)
     template_runtime.load(data)
+    nginx.start_services(paths)
     doctor.run(data)

@@ -1,8 +1,7 @@
-from pyinfra.operations import files, server, systemd
+from pyinfra.operations import files, server
 
 
 def setup(here, data, paths):
-    project = data["project_name"]
     runtime_user = data["runtime_user"]
     runtime_group = data["runtime_group"]
     php_fpm_socket_path = paths["runtime_php_fpm_socket"]
@@ -31,12 +30,5 @@ def setup(here, data, paths):
     server.shell(
         name="Validate nginx configuration with Laravel config",
         commands=[f"nginx -t -c {paths['site_nginx_config']}"],
-        _sudo=True,
-    )
-
-    systemd.service(
-        name="Restart per-site nginx with Laravel config",
-        service=f"{project}-nginx",
-        restarted=True,
         _sudo=True,
     )
