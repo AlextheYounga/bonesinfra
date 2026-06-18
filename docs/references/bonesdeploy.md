@@ -10792,10 +10792,7 @@ def run(
     if ssh_key:
         data["ssh_key"] = ssh_key
 
-    config = Config(SSH_USER=ssh_user, SSH_PORT=ssh_port)
-    if ssh_key:
-        config.SSH_KEY = ssh_key
-        config.SSH_STRICT_HOST_KEY_CHECKING = False
+    config = Config()
 
     inventory = Inventory(([(hostname, data)], {}))
     state = State(inventory, config)

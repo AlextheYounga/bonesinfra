@@ -9,6 +9,8 @@ Before writing any code, stop at the first rung that holds:
 5. Can this be one line? Make it one line.
 6. Only then: write the minimum code that works.
 
+When you are done, please run `ruff check .`. Do not ignore errors or warnings.
+
 Rules:
 
 - No abstractions that weren't explicitly requested.

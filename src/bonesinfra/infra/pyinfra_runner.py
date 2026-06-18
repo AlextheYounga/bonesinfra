@@ -34,12 +34,16 @@ def run(
     ssh_user = ctx.config.ssh_user
     ssh_port = int(ctx.config.port)
 
-    config = Config(SSH_USER=ssh_user, SSH_PORT=ssh_port)
+    host_data: dict[str, object] = {
+        "ssh_user": ssh_user,
+        "ssh_port": ssh_port,
+    }
     if ssh_key:
-        config.SSH_KEY = ssh_key
-        config.SSH_STRICT_HOST_KEY_CHECKING = False
+        host_data["ssh_key"] = ssh_key
 
-    inventory = Inventory(([(hostname, {})], {}))
+    config = Config()
+
+    inventory = Inventory(([(hostname, host_data)], {}))
     state = State(inventory, config)
     target_host = next(iter(inventory))
 
