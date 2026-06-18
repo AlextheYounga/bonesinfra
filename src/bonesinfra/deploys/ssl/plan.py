@@ -27,12 +27,16 @@ def deploy_ssl(ctx):
 
 
 def _render_router_config(ctx, paths, here, ssl_enabled, stage):
+    nginx_server_name = ctx.config.domain
+    if not nginx_server_name:
+        raise ValueError("domain is required for ssl nginx config")
+
     render(
         f"Render nginx config ({stage})",
         here / "assets/nginx/router.conf.j2",
         paths["nginx_site_available"],
         mode="0644",
-        nginx_server_name=ctx.config.domain,
+        nginx_server_name=nginx_server_name,
         nginx_ssl_enabled=ssl_enabled,
         **template_data(ctx, paths=paths),
     )

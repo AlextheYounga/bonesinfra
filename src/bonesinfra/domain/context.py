@@ -96,6 +96,7 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
     data["paths"] = paths
     data["ssl_domain"] = ctx.config.domain
     data["ssl_email"] = ctx.config.email
+    data["preview_domain"] = ctx.config.preview_domain
 
     for key, value in ctx.runtime.runtime_data.items():
         if key not in data:

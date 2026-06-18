@@ -219,9 +219,18 @@ def test_ssl_defines_nginx_inline():
     helpers.assert_contains(c, "nginx -t")
 
 
-def test_runtime_nginx_falls_back_when_ssl_domain_empty():
+def test_runtime_nginx_falls_back_when_domain_empty():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
-    helpers.assert_contains(c, 'ctx.config.domain or "_"')
+    helpers.assert_contains(c, "ctx.config.domain or ctx.config.preview_domain")
+    helpers.assert_contains(
+        c,
+        'raise ValueError("domain or preview_domain is required for nginx config")',
+    )
+
+
+def test_ssl_requires_real_domain_for_router_render():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/ssl/plan.py")
+    helpers.assert_contains(c, 'raise ValueError("domain is required for ssl nginx config")')
 
 
 def test_ssl_uses_current_web_root():

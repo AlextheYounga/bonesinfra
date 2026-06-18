@@ -44,7 +44,9 @@ def setup(ctx, paths, here):
         _sudo=True,
     )
 
-    nginx_server_name = ctx.config.domain or "_"
+    nginx_server_name = ctx.config.domain or ctx.config.preview_domain
+    if not nginx_server_name:
+        raise ValueError("domain or preview_domain is required for nginx config")
     nginx_ssl_enabled = bool(
         ctx.runtime.runtime_data.get("ssl_cert_path")
         and ctx.runtime.runtime_data.get("ssl_key_path")
