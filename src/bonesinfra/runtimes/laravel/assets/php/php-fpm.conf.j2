@@ -1,7 +1,7 @@
 [global]
 daemonize = no
 pid = {{ paths.runtime_socket_dir }}/php-fpm.pid
-error_log = {{ paths.runtime_socket_dir }}/php-fpm-error.log
+error_log = /var/log/bonesdeploy/{{ project_name }}/php-fpm-error.log
 log_level = notice
 
 [{{ laravel_php_fpm_pool_name }}]
@@ -26,7 +26,7 @@ catch_workers_output = yes
 decorate_workers_output = no
 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = {{ paths.runtime_socket_dir }}/php-worker-error.log
+php_admin_value[error_log] = /var/log/bonesdeploy/{{ project_name }}/php-worker-error.log
 
-access.log = {{ paths.runtime_socket_dir }}/php-fpm-access.log
-slowlog = {{ paths.runtime_socket_dir }}/php-fpm-slow.log
+access.log = /var/log/bonesdeploy/{{ project_name }}/php-fpm-access.log
+slowlog = /var/log/bonesdeploy/{{ project_name }}/php-fpm-slow.log

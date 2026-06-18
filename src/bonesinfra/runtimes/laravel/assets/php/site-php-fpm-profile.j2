@@ -38,6 +38,9 @@ profile {{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-php
   {{ paths.runtime_socket_dir }}/ rw,
   {{ paths.runtime_socket_dir }}/** rwk,
 
+  /var/log/bonesdeploy/{{ project_name }}/ rw,
+  /var/log/bonesdeploy/{{ project_name }}/** rwk,
+
   deny /root/** r,
   deny /etc/ssh/** r,
 }

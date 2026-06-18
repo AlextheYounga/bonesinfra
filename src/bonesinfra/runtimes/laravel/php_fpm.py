@@ -1,14 +1,7 @@
-from shlex import quote
-
 from pyinfra.operations import files, server, systemd
 
 from bonesinfra.domain.context import template_data
-
-
-def _user_env_command(user, command):
-    q_user = quote(user)
-    home = f"$(getent passwd {q_user} | cut -d: -f6)"
-    return f"HOME={home} XDG_CONFIG_HOME={home}/.config {command}"
+from bonesinfra.runtimes.common import logs, paths as common_paths, validation
 
 
 def setup_storage_directories(paths, ctx):
@@ -43,6 +36,9 @@ def setup_pool(here, ctx, paths, php_version):
         _sudo=True,
     )
 
+    common_paths.ensure_runtime_dirs(ctx)
+    logs.ensure(ctx)
+
     files.template(
         name="Deploy PHP-FPM pool config",
         src=str(here / "assets/php/php-fpm.conf.j2"),
@@ -76,22 +72,10 @@ def setup_pool(here, ctx, paths, php_version):
         _sudo=True,
     )
 
-    server.shell(
-        name="Validate PHP-FPM configuration",
-        commands=[f"{php_fpm_binary} --test --fpm-config {pool_config_path}"],
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Validate PHP-FPM configuration as runtime user",
-        commands=[
-            _user_env_command(
-                ctx.runtime.runtime_user,
-                f"{php_fpm_binary} --test --fpm-config {pool_config_path}",
-            )
-        ],
-        _sudo=True,
-        _sudo_user=ctx.runtime.runtime_user,
+    validation.run_as_runtime_user(
+        ctx,
+        "Validate PHP-FPM configuration as runtime user",
+        f"{php_fpm_binary} --test --fpm-config {pool_config_path}",
     )
 
     server.shell(

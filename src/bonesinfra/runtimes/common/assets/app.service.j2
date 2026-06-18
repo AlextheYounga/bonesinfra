@@ -1,5 +1,5 @@
 [Unit]
-Description=Per-site PHP-FPM for {{ project_name }}
+Description={{ runtime_label }} for {{ project_name }}
 After=network.target apparmor.service
 Requires=apparmor.service
 
@@ -11,33 +11,32 @@ SupplementaryGroups={{ release_group }}
 WorkingDirectory={{ paths.current }}
 RuntimeDirectory={{ project_name }}
 RuntimeDirectoryMode=0750
-StandardOutput=journal
-StandardError=journal
+EnvironmentFile=-{{ paths.conf_root }}/runtime.env
+ExecStart={{ runtime_exec }}
 
-ExecStart=/usr/sbin/php-fpm{{ laravel_php_version_resolved }} --nodaemonize --fpm-config {{ laravel_php_fpm_pool_config_path }}
-
-AppArmorProfile={{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-php-fpm") }}
+AppArmorProfile={{ apparmor_profile_name }}
 
 NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
 RestrictNamespaces=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN
+CapabilityBoundingSet=
 AmbientCapabilities=
 PrivateDevices=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
-RestrictAddressFamilies=AF_UNIX
+RestrictAddressFamilies={{ runtime_address_families | default("AF_UNIX") }}
 
-PrivateTmp=yes
-ProtectHome=yes
-ProtectSystem=strict
-
-ReadWritePaths={{ paths.runtime_socket_dir }} /var/log/bonesdeploy/{{ project_name }} {{ paths.current }}/storage {{ paths.current }}/bootstrap/cache
 ReadOnlyPaths={{ paths.current }}
+ReadWritePaths={{ paths.runtime_socket_dir }} {{ runtime_write_paths }} /var/log/bonesdeploy/{{ project_name }}
 
+StandardOutput=journal
+StandardError=journal
 Restart=always
 RestartSec=2
 

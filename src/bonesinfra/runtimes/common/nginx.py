@@ -1,0 +1,58 @@
+from pathlib import Path
+
+from pyinfra.operations import files, server
+
+from bonesinfra.domain.context import template_data
+
+
+def _ensure_runtime_socket_dir(ctx, paths):
+    files.directory(
+        name="Ensure runtime socket directory exists before nginx validation",
+        path=paths["runtime_socket_dir"],
+        user=ctx.runtime.runtime_user,
+        group=ctx.runtime.runtime_group,
+        mode="0750",
+        _sudo=True,
+    )
+
+
+def render_proxy(ctx, *, paths, socket_path=None, port=None):
+    here = Path(__file__).parent
+    app_proxy_target = f"http://unix:{socket_path}:" if socket_path else f"http://127.0.0.1:{port}"
+    files.template(
+        name="Deploy per-site app nginx config",
+        src=str(here / "assets/app-site-nginx.conf.j2"),
+        dest=paths["site_nginx_config"],
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0640",
+        app_proxy_target=app_proxy_target,
+        **template_data(ctx, paths=paths),
+        _sudo=True,
+    )
+    _ensure_runtime_socket_dir(ctx, paths)
+    server.shell(
+        name="Validate nginx configuration with app config",
+        commands=[f"nginx -t -c {paths['site_nginx_config']}"],
+        _sudo=True,
+    )
+
+
+def render_static(ctx, *, paths):
+    here = Path(__file__).parent
+    files.template(
+        name="Deploy per-site static nginx config",
+        src=str(here / "assets/static-site-nginx.conf.j2"),
+        dest=paths["site_nginx_config"],
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0640",
+        **template_data(ctx, paths=paths),
+        _sudo=True,
+    )
+    _ensure_runtime_socket_dir(ctx, paths)
+    server.shell(
+        name="Validate nginx configuration with static config",
+        commands=[f"nginx -t -c {paths['site_nginx_config']}"],
+        _sudo=True,
+    )
