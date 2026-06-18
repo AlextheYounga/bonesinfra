@@ -78,16 +78,30 @@ def test_router_config_uses_resolved_socket_path():
 
 
 def test_laravel_php_fpm_config_has_global_section():
-    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
     helpers.assert_contains(c, "[global]")
-    helpers.assert_not_contains(c, "error_log = /proc/self/fd/2")
     helpers.assert_contains(c, "daemonize = no")
+    helpers.assert_contains(c, "pid = {{ paths.runtime_socket_dir }}/php-fpm.pid")
+    helpers.assert_contains(c, "error_log = {{ paths.runtime_socket_dir }}/php-fpm-error.log")
+    helpers.assert_contains(c, "log_level = notice")
+    helpers.assert_not_contains(c, "/var/log/php-fpm.log")
 
 
 def test_laravel_php_fpm_config_uses_resolved_current_path():
-    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
     helpers.assert_contains(c, "chdir = {{ paths.current }}")
     helpers.assert_not_contains(c, "{{ project_root }}/current")
+
+
+def test_laravel_php_fpm_config_captures_worker_and_pool_logs():
+    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
+    helpers.assert_contains(c, "catch_workers_output = yes")
+    helpers.assert_contains(c, "decorate_workers_output = no")
+    helpers.assert_contains(c, "php_admin_flag[log_errors] = on")
+    helpers.assert_contains(c, "php_admin_value[error_log] = {{ paths.runtime_socket_dir }}/php-worker-error.log")
+    helpers.assert_contains(c, "access.log = {{ paths.runtime_socket_dir }}/php-fpm-access.log")
+    helpers.assert_contains(c, "slowlog = {{ paths.runtime_socket_dir }}/php-fpm-slow.log")
+    helpers.assert_not_contains(c, "/var/log/php-fpm.log")
 
 
 # ---- Laravel PHP-FPM systemd service ----

@@ -34,3 +34,9 @@ def test_laravel_questions_are_exposed():
 def test_laravel_deploy_accepts_ctx():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py")
     helpers.assert_contains(content, "def deploy(ctx):", "laravel deploy must accept ctx")
+
+
+def test_laravel_php_fpm_validates_as_runtime_user():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
+    helpers.assert_contains(content, "_sudo_user=ctx.runtime.runtime_user")
+    helpers.assert_contains(content, "Validate PHP-FPM configuration as runtime user")

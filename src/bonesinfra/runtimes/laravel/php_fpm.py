@@ -1,6 +1,14 @@
+from shlex import quote
+
 from pyinfra.operations import files, server, systemd
 
 from bonesinfra.domain.context import template_data
+
+
+def _user_env_command(user, command):
+    q_user = quote(user)
+    home = f"$(getent passwd {q_user} | cut -d: -f6)"
+    return f"HOME={home} XDG_CONFIG_HOME={home}/.config {command}"
 
 
 def setup_storage_directories(paths, ctx):
@@ -37,7 +45,7 @@ def setup_pool(here, ctx, paths, php_version):
 
     files.template(
         name="Deploy PHP-FPM pool config",
-        src=str(here / "assets/php/php-fpm-pool.conf.j2"),
+        src=str(here / "assets/php/php-fpm.conf.j2"),
         dest=pool_config_path,
         user="root",
         group="root",
@@ -72,6 +80,18 @@ def setup_pool(here, ctx, paths, php_version):
         name="Validate PHP-FPM configuration",
         commands=[f"{php_fpm_binary} --test --fpm-config {pool_config_path}"],
         _sudo=True,
+    )
+
+    server.shell(
+        name="Validate PHP-FPM configuration as runtime user",
+        commands=[
+            _user_env_command(
+                ctx.runtime.runtime_user,
+                f"{php_fpm_binary} --test --fpm-config {pool_config_path}",
+            )
+        ],
+        _sudo=True,
+        _sudo_user=ctx.runtime.runtime_user,
     )
 
     server.shell(
