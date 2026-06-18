@@ -172,8 +172,8 @@ def test_runtime_excludes_ssl_logic():
 def test_runtime_socket_dir_runtime_user_owned():
     c = helpers.read(RUNTIME_NGINX)
     helpers.assert_contains(c, 'path=paths["runtime_socket_dir"]')
-    helpers.assert_contains(c, 'user=ctx.runtime.runtime_user')
-    helpers.assert_contains(c, 'group=ctx.runtime.runtime_group')
+    helpers.assert_contains(c, "user=ctx.runtime.runtime_user")
+    helpers.assert_contains(c, "group=ctx.runtime.runtime_group")
     helpers.assert_contains(c, 'mode="0750"')
 
 

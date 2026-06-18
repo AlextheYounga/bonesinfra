@@ -19,7 +19,7 @@ def setup(ctx, paths, here):
         _sudo=True,
     )
 
-    apparmor_profile_name = f"bonesdeploy-{data['project_name']}-nginx"
+    apparmor_profile_name = f"bonesdeploy-{ctx.config.project_name}-nginx"
     apparmor_profile_path = f"/etc/apparmor.d/{apparmor_profile_name}"
 
     render(

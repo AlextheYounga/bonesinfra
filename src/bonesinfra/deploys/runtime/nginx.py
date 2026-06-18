@@ -45,7 +45,10 @@ def setup(ctx, paths, here):
     )
 
     nginx_server_name = ctx.config.domain or "_"
-    nginx_ssl_enabled = bool(ctx.runtime.runtime_data.get("ssl_cert_path") and ctx.runtime.runtime_data.get("ssl_key_path"))
+    nginx_ssl_enabled = bool(
+        ctx.runtime.runtime_data.get("ssl_cert_path")
+        and ctx.runtime.runtime_data.get("ssl_key_path")
+    )
 
     render(
         "Deploy router nginx config",

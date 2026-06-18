@@ -7,7 +7,6 @@ from typing import Any
 from bonesinfra.domain.paths import DeploymentPaths
 from bonesinfra.infra.toml_store import load_toml
 
-
 DEPLOY_USER = "git"
 
 DEFAULT_SSH_USER = "root"
@@ -78,7 +77,9 @@ class DeployContext:
 def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **extra: Any) -> dict[str, Any]:
     """Build flat template context from DeployContext for Jinja2 template rendering."""
     if paths is None:
-        p = DeploymentPaths.new(ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root)
+        p = DeploymentPaths.new(
+            ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root
+        )
         paths = p.__dict__
 
     data: dict[str, Any] = {}

@@ -27,8 +27,10 @@ def configure(ctx):
         port_num = port_aliases.get(port, port)
         cmds.append(f"ufw allow {port_num}/tcp")
 
-    cmds.append(f"ufw --force default {ctx.runtime.runtime_data.get('firewall_default_incoming_policy', 'deny')} incoming")
-    cmds.append(f"ufw --force default {ctx.runtime.runtime_data.get('firewall_default_outgoing_policy', 'allow')} outgoing")
+    incoming = ctx.runtime.runtime_data.get("firewall_default_incoming_policy", "deny")
+    outgoing = ctx.runtime.runtime_data.get("firewall_default_outgoing_policy", "allow")
+    cmds.append(f"ufw --force default {incoming} incoming")
+    cmds.append(f"ufw --force default {outgoing} outgoing")
     cmds.append("ufw --force enable")
 
     server.shell(

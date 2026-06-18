@@ -26,7 +26,7 @@ def questions():
     ]
 
 
-def deploy(ctx):
+def deploy(_):
     from pyinfra.operations import apt
 
     apt.packages(
