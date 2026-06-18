@@ -2,5 +2,5 @@ def questions():
     return []
 
 
-def deploy():
+def deploy(ctx):
     pass

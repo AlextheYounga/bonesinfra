@@ -1,5 +1,5 @@
-def load(data):
-    template = data.get("template")
+def load(ctx):
+    template = ctx.runtime.runtime_data.get("template")
     if not template:
         return
     try:
@@ -7,6 +7,6 @@ def load(data):
 
         mod = get_runtime(template)
         if hasattr(mod, "deploy"):
-            mod.deploy()
+            mod.deploy(ctx)
     except (ImportError, KeyError):
         pass

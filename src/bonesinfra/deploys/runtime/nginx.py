@@ -2,22 +2,23 @@ from pathlib import Path
 
 from pyinfra.operations import files, server, systemd
 
+from bonesinfra.domain.context import template_data
 from bonesinfra.infra.deploy_helpers import mkdir, render
 
 
-def setup(data, paths, here):
+def setup(ctx, paths, here):
     mkdir(
         name="Ensure socket directory exists",
         path=paths["runtime_socket_dir"],
-        user=data["runtime_user"],
-        group=data["runtime_group"],
+        user=ctx.runtime.runtime_user,
+        group=ctx.runtime.runtime_group,
         mode="0750",
     )
 
     mkdir(
         name="Ensure conf directory exists",
         path=paths["conf_root"],
-        group=data["runtime_group"],
+        group=ctx.runtime.runtime_group,
         mode="0750",
     )
 
@@ -25,9 +26,9 @@ def setup(data, paths, here):
         "Deploy per-site nginx config",
         here / "assets/nginx/site-nginx.conf.j2",
         paths["site_nginx_config"],
-        group=data["runtime_group"],
+        group=ctx.runtime.runtime_group,
         mode="0640",
-        **data,
+        **template_data(ctx, paths=paths),
     )
 
     render(
@@ -35,7 +36,7 @@ def setup(data, paths, here):
         here / "assets/nginx/site-nginx.service.j2",
         paths["systemd_site_nginx_service"],
         mode="0644",
-        **data,
+        **template_data(ctx, paths=paths),
     )
 
     systemd.daemon_reload(
@@ -43,8 +44,8 @@ def setup(data, paths, here):
         _sudo=True,
     )
 
-    nginx_server_name = data.get("ssl_domain") or "_"
-    nginx_ssl_enabled = bool(data.get("ssl_cert_path") and data.get("ssl_key_path"))
+    nginx_server_name = ctx.config.domain or "_"
+    nginx_ssl_enabled = bool(ctx.runtime.runtime_data.get("ssl_cert_path") and ctx.runtime.runtime_data.get("ssl_key_path"))
 
     render(
         "Deploy router nginx config",
@@ -53,9 +54,9 @@ def setup(data, paths, here):
         mode="0644",
         nginx_server_name=nginx_server_name,
         nginx_ssl_enabled=nginx_ssl_enabled,
-        nginx_ssl_certificate_path=data.get("ssl_cert_path", ""),
-        nginx_ssl_certificate_key_path=data.get("ssl_key_path", ""),
-        **data,
+        nginx_ssl_certificate_path=ctx.runtime.runtime_data.get("ssl_cert_path", ""),
+        nginx_ssl_certificate_key_path=ctx.runtime.runtime_data.get("ssl_key_path", ""),
+        **template_data(ctx, paths=paths),
     )
 
     files.link(

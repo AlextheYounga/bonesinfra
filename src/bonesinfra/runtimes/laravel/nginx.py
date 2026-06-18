@@ -1,9 +1,11 @@
 from pyinfra.operations import files, server
 
+from bonesinfra.domain.context import template_data
 
-def setup(here, data, paths):
-    runtime_user = data["runtime_user"]
-    runtime_group = data["runtime_group"]
+
+def setup(here, ctx, paths):
+    runtime_user = ctx.runtime.runtime_user
+    runtime_group = ctx.runtime.runtime_group
     php_fpm_socket_path = paths["runtime_php_fpm_socket"]
 
     files.template(
@@ -14,7 +16,7 @@ def setup(here, data, paths):
         group=runtime_group,
         mode="0640",
         laravel_php_fpm_socket_path=php_fpm_socket_path,
-        **data,
+        **template_data(ctx, paths=paths),
         _sudo=True,
     )
 

@@ -1,36 +1,40 @@
 import sys
 from pathlib import Path
 
-from pyinfra import host
 from pyinfra.operations import server, systemd
 
+from bonesinfra.domain.context import template_data
+from bonesinfra.domain.paths import DeploymentPaths
 from bonesinfra.infra.deploy_helpers import render
-from bonesinfra.infra.utils import unflatten
 
 
-def deploy_ssl():
-    data = unflatten(host.data.dict())
-    paths = data.get("paths", {})
+def deploy_ssl(ctx):
+    paths = DeploymentPaths.new(
+        ctx.config.project_name,
+        ctx.config.repo_path,
+        ctx.config.project_root,
+        ctx.runtime.web_root,
+    ).__dict__
     here = Path(__file__).parent.parent.parent
 
-    if not data.get("ssl_domain") or not data.get("ssl_email"):
+    if not ctx.config.domain or not ctx.config.email:
         print("Error: ssl_domain and ssl_email are required", file=sys.stderr)
         sys.exit(1)
 
-    _render_router_config(data, paths, here, ssl_enabled=False, stage="certbot challenge")
-    obtain_certificate(data, paths)
-    _render_router_config(data, paths, here, ssl_enabled=True, stage="SSL enable")
+    _render_router_config(ctx, paths, here, ssl_enabled=False, stage="certbot challenge")
+    obtain_certificate(ctx, paths)
+    _render_router_config(ctx, paths, here, ssl_enabled=True, stage="SSL enable")
 
 
-def _render_router_config(data, paths, here, ssl_enabled, stage):
+def _render_router_config(ctx, paths, here, ssl_enabled, stage):
     render(
         f"Render nginx config ({stage})",
         here / "assets/nginx/router.conf.j2",
         paths["nginx_site_available"],
         mode="0644",
-        nginx_server_name=data["ssl_domain"],
+        nginx_server_name=ctx.config.domain,
         nginx_ssl_enabled=ssl_enabled,
-        **data,
+        **template_data(ctx, paths=paths),
     )
 
     server.shell(
@@ -47,15 +51,15 @@ def _render_router_config(data, paths, here, ssl_enabled, stage):
     )
 
 
-def obtain_certificate(data, paths):
+def obtain_certificate(ctx, paths):
     server.shell(
         name="Obtain or renew certificate",
         commands=[
             "certbot certonly --non-interactive --agree-tos "
-            f"--email {data['ssl_email']} "
+            f"--email {ctx.config.email} "
             "--webroot "
             f"-w {paths['current_web_root']} "
-            f"-d {data['ssl_domain']} "
+            f"-d {ctx.config.domain} "
             "--keep-until-expiring"
         ],
         _sudo=True,

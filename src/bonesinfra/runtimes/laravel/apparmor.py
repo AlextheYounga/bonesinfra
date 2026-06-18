@@ -1,8 +1,10 @@
 from pyinfra.operations import files, server
 
+from bonesinfra.domain.context import template_data
 
-def setup_php_fpm(data, here):
-    project = data["project_name"]
+
+def setup_php_fpm(ctx, here):
+    project = ctx.config.project_name
     profile_name = f"bonesdeploy-{project}-php-fpm"
     profile_path = f"/etc/apparmor.d/{profile_name}"
 
@@ -14,7 +16,7 @@ def setup_php_fpm(data, here):
         group="root",
         mode="0644",
         apparmor_profile_name=profile_name,
-        **data,
+        **template_data(ctx),
         _sudo=True,
     )
 

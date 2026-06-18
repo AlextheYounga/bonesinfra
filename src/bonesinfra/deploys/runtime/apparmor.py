@@ -1,9 +1,10 @@
 from pyinfra.operations import server, systemd
 
+from bonesinfra.domain.context import template_data
 from bonesinfra.infra.deploy_helpers import render
 
 
-def setup(data, paths, here):
+def setup(ctx, paths, here):
     systemd.service(
         name="Ensure apparmor service is enabled and started",
         service="apparmor",
@@ -27,7 +28,7 @@ def setup(data, paths, here):
         apparmor_profile_path,
         mode="0644",
         apparmor_profile_name=apparmor_profile_name,
-        **data,
+        **template_data(ctx, paths=paths),
     )
 
     server.shell(

@@ -36,14 +36,12 @@ def runtime_apply_cmd(
 @setup_app.command("apply")
 def setup_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
-    ssh_user: str = typer.Option("root", "--ssh-user", help="SSH user for remote connection"),
 ):
-    setup_apply.apply(config, ssh_user)
+    setup_apply.apply(config)
 
 
 @ssl_app.command("apply")
 def ssl_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
-    ssh_user: str = typer.Option("root", "--ssh-user", help="SSH user for remote connection"),
 ):
-    ssl_apply.apply(config, ssh_user)
+    ssl_apply.apply(config)

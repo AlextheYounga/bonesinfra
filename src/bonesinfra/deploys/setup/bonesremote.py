@@ -18,12 +18,12 @@ def install():
     )
 
 
-def install_authorized_key(data):
-    if not data.get("deploy_authorized_key"):
+def install_authorized_key(ctx):
+    if not ctx.runtime.runtime_data.get("deploy_authorized_key"):
         return
     server.user(
         name="Ensure deploy user authorized key is installed",
-        user=data["deploy_user"],
-        public_keys=[data["deploy_authorized_key"]],
+        user=ctx.config.deploy_user,
+        public_keys=[ctx.runtime.runtime_data["deploy_authorized_key"]],
         _sudo=True,
     )

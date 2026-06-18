@@ -59,8 +59,8 @@ class DeployContext:
         runtime = RuntimeConfig(
             web_root=runtime_cfg.get("web_root", DEFAULT_WEB_ROOT),
             runtime_user=runtime_cfg.get("runtime_user", project_name),
-            runtime_group=runtime_cfg.get("runtime_user", project_name),
-            release_group=runtime_cfg.get("runtime_user", f"{project_name}-release"),
+            runtime_group=runtime_cfg.get("runtime_group", project_name),
+            release_group=runtime_cfg.get("release_group", f"{project_name}-release"),
             runtime_data=runtime_cfg,
         )
 
@@ -74,36 +74,34 @@ class DeployContext:
     def ssh_port(self) -> int:
         return int(self.config.port)
 
-    @property
-    def deploy_data(self) -> dict[str, Any]:
-        """Data dict for pyinfra host.data, assembled from structured config."""
-        paths = DeploymentPaths.new(
-            self.config.project_name,
-            self.config.repo_path,
-            self.config.project_root,
-            self.runtime.web_root,
-        )
 
-        data: dict[str, Any] = {}
-        data["project_name"] = self.config.project_name
-        data["project_root"] = self.config.project_root
-        data["web_root"] = self.runtime.web_root
-        data["repo_path"] = self.config.repo_path
-        data["deploy_user"] = self.config.deploy_user
-        data["runtime_user"] = self.config.runtime_user
-        data["runtime_group"] = self.config.runtime_group
-        data["release_group"] = self.config.release_group
-        data["project_root_parent"] = paths.project_root_parent
-        data["ssh_port"] = int(self.config.port)
-        data["paths"] = paths.__dict__
-        data["ssl_domain"] = self.config.domain
-        data["ssl_email"] = self.config.email
+def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **extra: Any) -> dict[str, Any]:
+    """Build flat template context from DeployContext for Jinja2 template rendering."""
+    if paths is None:
+        p = DeploymentPaths.new(ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root)
+        paths = p.__dict__
 
-        for key, value in self.runtime.runtime_data.items():
-            if key not in data:
-                data[key] = value
+    data: dict[str, Any] = {}
+    data["project_name"] = ctx.config.project_name
+    data["project_root"] = ctx.config.project_root
+    data["web_root"] = ctx.runtime.web_root
+    data["repo_path"] = ctx.config.repo_path
+    data["deploy_user"] = ctx.config.deploy_user
+    data["runtime_user"] = ctx.runtime.runtime_user
+    data["runtime_group"] = ctx.runtime.runtime_group
+    data["release_group"] = ctx.runtime.release_group
+    data["project_root_parent"] = paths.get("project_root_parent", "")
+    data["ssh_port"] = int(ctx.config.port)
+    data["paths"] = paths
+    data["ssl_domain"] = ctx.config.domain
+    data["ssl_email"] = ctx.config.email
 
-        return data
+    for key, value in ctx.runtime.runtime_data.items():
+        if key not in data:
+            data[key] = value
+
+    data.update(extra)
+    return data
 
 
 @dataclass

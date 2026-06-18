@@ -5,8 +5,8 @@ from bonesinfra.deploys.ssl.plan import deploy_ssl
 from bonesinfra.domain.context import DeployContext
 
 
-def apply(config_path: str, ssh_user: str = "root") -> None:
-    ctx = DeployContext.from_files(config_path, ssh_user=ssh_user)
+def apply(config_path: str) -> None:
+    ctx = DeployContext.from_files(config_path)
     if not ctx.host:
         print("Error: missing host in bones.toml", file=sys.stderr)
         sys.exit(3)

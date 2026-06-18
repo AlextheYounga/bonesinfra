@@ -12,26 +12,26 @@ def _user_env_command(user, command):
     return f"HOME={home} XDG_CONFIG_HOME={home}/.config {command}"
 
 
-def setup_repo_and_project(data, paths):
+def setup_repo_and_project(ctx, paths):
     mkdir(
         name="Ensure bare repo parent directory exists",
         path=paths["repo_parent"],
-        user=data["deploy_user"],
-        group=data["deploy_user"],
+        user=ctx.config.deploy_user,
+        group=ctx.config.deploy_user,
     )
 
     server.shell(
         name="Initialize bare git repo",
-        commands=[_user_env_command(data["deploy_user"], f"git init --bare {quote(paths['repo'])}")],
+        commands=[_user_env_command(ctx.config.deploy_user, f"git init --bare {quote(paths['repo'])}")],
         _sudo=True,
-        _sudo_user=data["deploy_user"],
+        _sudo_user=ctx.config.deploy_user,
     )
 
     mkdir(
         name="Ensure bare repo bones directory exists",
         path=paths["repo_bones"],
-        user=data["deploy_user"],
-        group=data["deploy_user"],
+        user=ctx.config.deploy_user,
+        group=ctx.config.deploy_user,
     )
 
     mkdir(
@@ -42,40 +42,40 @@ def setup_repo_and_project(data, paths):
 
     mkdir(
         name="Ensure project root with setgid for release group",
-        path=data["project_root"],
-        user=data["deploy_user"],
-        group=data["release_group"],
+        path=ctx.config.project_root,
+        user=ctx.config.deploy_user,
+        group=ctx.runtime.release_group,
         mode="2751",
     )
 
     mkdir(
         name="Ensure releases directory with setgid",
         path=paths["releases"],
-        user=data["deploy_user"],
-        group=data["release_group"],
+        user=ctx.config.deploy_user,
+        group=ctx.runtime.release_group,
         mode="2750",
     )
 
     mkdir(
         name="Ensure build directory (private to deploy user)",
-        path=str(Path(data["project_root"]) / "build"),
-        user=data["deploy_user"],
-        group=data["deploy_user"],
+        path=str(Path(ctx.config.project_root) / "build"),
+        user=ctx.config.deploy_user,
+        group=ctx.config.deploy_user,
         mode="0700",
     )
 
     mkdir(
         name="Ensure shared directory (owned by runtime user)",
         path=paths["shared"],
-        user=data["runtime_user"],
-        group=data["runtime_group"],
+        user=ctx.runtime.runtime_user,
+        group=ctx.runtime.runtime_group,
         mode="0711",
     )
 
     mkdir(
         name="Ensure placeholder release directory exists",
         path=paths["placeholder_web_root"],
-        user=data["deploy_user"],
-        group=data["release_group"],
+        user=ctx.config.deploy_user,
+        group=ctx.runtime.release_group,
         mode="0750",
     )

@@ -23,10 +23,10 @@ def _ensure_group_membership(user, group):
     )
 
 
-def ensure_users_and_groups(data):
+def ensure_users_and_groups(ctx):
     server.user(
         name="Ensure deploy user exists",
-        user=data["deploy_user"],
+        user=ctx.config.deploy_user,
         shell="/bin/bash",
         ensure_home=True,
         _sudo=True,
@@ -34,36 +34,36 @@ def ensure_users_and_groups(data):
 
     server.group(
         name="Ensure runtime group exists",
-        group=data["runtime_group"],
+        group=ctx.runtime.runtime_group,
         _sudo=True,
     )
 
     server.group(
         name="Ensure release-read group exists",
-        group=data["release_group"],
+        group=ctx.runtime.release_group,
         _sudo=True,
     )
 
-    existing_user = host.get_fact(Users).get(data["runtime_user"])
+    existing_user = host.get_fact(Users).get(ctx.runtime.runtime_user)
 
     if existing_user is None:
         server.user(
             name="Ensure runtime user exists with groups",
-            user=data["runtime_user"],
+            user=ctx.runtime.runtime_user,
             system=True,
             home="/nonexistent",
             shell="/usr/sbin/nologin",
             create_home=False,
-            groups=[data["runtime_group"], data["release_group"]],
+            groups=[ctx.runtime.runtime_group, ctx.runtime.release_group],
             _sudo=True,
         )
         return
 
     required_groups = []
-    for group in (data["runtime_group"], data["release_group"]):
+    for group in (ctx.runtime.runtime_group, ctx.runtime.release_group):
         if group not in required_groups:
             required_groups.append(group)
 
     for group in required_groups:
         if group != existing_user["group"] and group not in existing_user["groups"]:
-            _ensure_group_membership(data["runtime_user"], group)
+            _ensure_group_membership(ctx.runtime.runtime_user, group)

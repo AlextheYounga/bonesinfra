@@ -22,6 +22,6 @@ def test_runtimes_have_questions_and_deploy():
         assert callable(getattr(mod, "deploy", None)), f"{name}: missing deploy()"
 
 
-def test_laravel_uses_host_data():
+def test_laravel_deploy_accepts_ctx():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py")
-    helpers.assert_contains(content, "host.data", "laravel must use host.data")
+    helpers.assert_contains(content, "def deploy(ctx):", "laravel deploy must accept ctx")

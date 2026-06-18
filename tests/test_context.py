@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from bonesinfra.domain.context import DeployContext
+from bonesinfra.domain.context import DeployContext, template_data
 
 
 def test_runtime_identity_defaults_to_project_name():
@@ -11,7 +11,6 @@ def test_runtime_identity_defaults_to_project_name():
         config_path = Path(tmp) / "bones.toml"
         config_path.write_text(
             """
-[data]
 project_name = "lawsnipe"
 repo_path = "/home/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
@@ -23,11 +22,16 @@ host = "example.com"
 
     assert ctx.config.project_name == "lawsnipe"
     assert ctx.config.host == "example.com"
+    assert ctx.config.ssh_user == "root"
     assert ctx.runtime.web_root == "public"
-    assert ctx.flat_data["runtime_user"] == "lawsnipe"
-    assert ctx.flat_data["runtime_group"] == "lawsnipe"
-    assert ctx.ssh_user == "root"
+    assert ctx.runtime.runtime_user == "lawsnipe"
+    assert ctx.runtime.runtime_group == "lawsnipe"
+    assert ctx.runtime.release_group == "lawsnipe-release"
     assert ctx.ssh_port == 22
+
+    td = template_data(ctx)
+    assert td["runtime_user"] == "lawsnipe"
+    assert td["runtime_group"] == "lawsnipe"
 
 
 def test_runtime_identity_respects_explicit_override():
@@ -35,18 +39,23 @@ def test_runtime_identity_respects_explicit_override():
         config_path = Path(tmp) / "bones.toml"
         config_path.write_text(
             """
-[data]
 project_name = "lawsnipe"
 repo_path = "/home/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
+host = "example.com"
+""".lstrip()
+        )
+        runtime_config_path = Path(tmp) / "runtime.toml"
+        runtime_config_path.write_text(
+            """
 runtime_user = "lawsnipe-web"
 runtime_group = "lawsnipe-web"
 """.lstrip()
         )
 
-        ctx = DeployContext.from_files(str(config_path))
+        ctx = DeployContext.from_files(str(config_path), str(runtime_config_path))
 
     assert ctx.config.project_name == "lawsnipe"
     assert ctx.runtime.web_root == "public"
-    assert ctx.flat_data["runtime_user"] == "lawsnipe-web"
-    assert ctx.flat_data["runtime_group"] == "lawsnipe-web"
+    assert ctx.runtime.runtime_user == "lawsnipe-web"
+    assert ctx.runtime.runtime_group == "lawsnipe-web"

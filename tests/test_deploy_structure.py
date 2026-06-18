@@ -172,8 +172,8 @@ def test_runtime_excludes_ssl_logic():
 def test_runtime_socket_dir_runtime_user_owned():
     c = helpers.read(RUNTIME_NGINX)
     helpers.assert_contains(c, 'path=paths["runtime_socket_dir"]')
-    helpers.assert_contains(c, 'user=data["runtime_user"]')
-    helpers.assert_contains(c, 'group=data["runtime_group"]')
+    helpers.assert_contains(c, 'user=ctx.runtime.runtime_user')
+    helpers.assert_contains(c, 'group=ctx.runtime.runtime_group')
     helpers.assert_contains(c, 'mode="0750"')
 
 
@@ -221,7 +221,7 @@ def test_ssl_defines_nginx_inline():
 
 def test_runtime_nginx_falls_back_when_ssl_domain_empty():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
-    helpers.assert_contains(c, 'data.get("ssl_domain") or "_"')
+    helpers.assert_contains(c, 'ctx.config.domain or "_"')
 
 
 def test_ssl_uses_current_web_root():

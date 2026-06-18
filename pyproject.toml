@@ -27,3 +27,8 @@ bonesinfra = [
     "runtimes/**/deployment/*.sh",
     "runtimes/**/runtime.toml",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

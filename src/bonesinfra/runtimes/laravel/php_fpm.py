@@ -1,9 +1,11 @@
 from pyinfra.operations import files, server, systemd
 
+from bonesinfra.domain.context import template_data
 
-def setup_storage_directories(paths, data):
-    runtime_user = data["runtime_user"]
-    runtime_group = data["runtime_group"]
+
+def setup_storage_directories(paths, ctx):
+    runtime_user = ctx.runtime.runtime_user
+    runtime_group = ctx.runtime.runtime_group
     subdirs = ["logs", "framework/cache", "framework/sessions", "framework/views"]
     for subdir in subdirs:
         files.directory(
@@ -16,9 +18,9 @@ def setup_storage_directories(paths, data):
         )
 
 
-def setup_pool(here, data, paths, php_version):
-    project = data["project_name"]
-    runtime_group = data["runtime_group"]
+def setup_pool(here, ctx, paths, php_version):
+    project = ctx.config.project_name
+    runtime_group = ctx.runtime.runtime_group
     pool_config_path = f"/srv/conf/{project}/php-fpm.conf"
     php_fpm_socket_path = paths["runtime_php_fpm_socket"]
     php_fpm_binary = f"/usr/sbin/php-fpm{php_version}"
@@ -42,7 +44,7 @@ def setup_pool(here, data, paths, php_version):
         mode="0644",
         laravel_php_fpm_pool_name=project,
         laravel_php_fpm_socket_path=php_fpm_socket_path,
-        **data,
+        **template_data(ctx, paths=paths),
         _sudo=True,
     )
 
@@ -56,7 +58,7 @@ def setup_pool(here, data, paths, php_version):
         laravel_php_fpm_pool_config_path=pool_config_path,
         laravel_php_version_resolved=php_version,
         apparmor_profile_name=apparmor_profile_name,
-        **data,
+        **template_data(ctx, paths=paths),
         _sudo=True,
     )
 
