@@ -82,10 +82,12 @@ Expected private command shapes:
 ```sh
 bonesinfra runtime list
 bonesinfra runtime questions <runtime>
-bonesinfra setup apply --config <bones.toml> [--ssh-user root]
-bonesinfra runtime apply --config <bones.toml> --runtime-config <runtime.toml> --ssh-user <user>
-bonesinfra ssl apply --config <bones.toml> [--ssh-user root]
+bonesinfra setup apply --config <bones.toml>
+bonesinfra runtime apply --config <bones.toml> --runtime-config <runtime.toml>
+bonesinfra ssl apply --config <bones.toml>
 ```
+
+`ssh_user` is read from `bones.toml` (`ssh_user` key, default `"root"`) instead of a CLI flag.
 
 This command surface is an internal contract with `bonesdeploy`.
 
@@ -166,8 +168,8 @@ CLI should stay thin.
 Example:
 
 ```python
-def setup_apply_cmd(config: str, ssh_user: str = "root"):
-    setup_apply.apply(config, ssh_user)
+def setup_apply_cmd(config: str):
+    setup_apply.apply(config)
 ```
 
 ## `app/`
@@ -185,14 +187,16 @@ app/runtime_catalog.py
 
 Responsibilities:
 
-- load deploy context
+- load deploy context via `DeployContext.from_files()`
 - validate use-case-level requirements
 - call the correct deploy plan
-- call the pyinfra runner through `app.apply`
+- call the pyinfra runner through `apply.run_plan()`
 
 App code may know that setup uses `deploys.setup.plan`.
 
 App code should not contain raw pyinfra operations.
+
+`apply.run_plan()` passes `ctx: DeployContext` directly to `pyinfra_runner.run()` — no flat dict involved.
 
 ## `domain/`
 
@@ -203,19 +207,25 @@ Examples:
 ```text
 domain/context.py
 domain/paths.py
-domain/runtime.py
-domain/questions.py
 ```
 
 Responsibilities:
 
 - represent deploy context
 - represent derived deployment paths
-- represent runtime questions/defaults
 - normalize config data
+- provide `template_data()` helper for Jinja2 rendering
 - keep data-shaping logic testable
 
 Domain code should not import pyinfra.
+
+`domain/context.py` defines three dataclasses:
+
+- **`BonesConfig`**: strictly typed fields from `bones.toml` (top-level keys: `project_name`, `host`, `ssh_user`, `domain`, `email`, `deploy_user`, etc.)
+- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, `release_group`, plus `runtime_data` dict for dynamic runtime.toml keys
+- **`DeployContext`**: wraps `config: BonesConfig` + `runtime: RuntimeConfig` — the single object passed through to deploy plans
+
+No flat dict. No `host.data` side-channel.
 
 ## `infra/`
 
@@ -273,16 +283,18 @@ Deploy plan files should read like stories.
 Example:
 
 ```python
-def deploy_setup():
-    install_system_packages()
-    install_rust()
-    ensure_users_and_groups()
-    setup_repo_and_project_dirs()
-    seed_placeholder_release()
-    install_authorized_key()
-    setup_firewall()
-    install_bonesremote()
+def deploy_setup(ctx):     # ctx: DeployContext
+    install_system_packages(ctx)
+    ensure_users_and_groups(ctx)
+    setup_repo_and_project_dirs(ctx)
+    seed_placeholder_release(ctx)
+    setup_firewall(ctx)
+    install_bonesremote(ctx)
 ```
+
+Sub-modules receive `(ctx, paths)` — no flat dict.
+
+Deploy plans derive `paths` from `DeploymentPaths.new(ctx.config.project_root)` and pass it to sub-modules along with `ctx`.
 
 Raw pyinfra operations should live in focused modules.
 
@@ -308,14 +320,9 @@ Each runtime should expose a consistent interface.
 Recommended interface:
 
 ```python
-def questions() -> list[dict]:
-    ...
-
-def defaults() -> dict:
-    ...
-
-def deploy() -> None:
-    ...
+def questions() -> list[dict]: ...
+def defaults() -> dict: ...
+def deploy(ctx) -> None: ...      # ctx: DeployContext
 ```
 
 A runtime may have a no-op deploy, but it should be explicit.
@@ -328,34 +335,43 @@ Avoid silent runtime import failure.
 
 `DeployContext` is the main object passed from app services into pyinfra plans.
 
-It should represent:
+It wraps two typed dataclasses:
 
-```text
-host
-ssh_user
-ssh_port
-flat_data
+```python
+@dataclass
+class DeployContext:
+    config: BonesConfig      # strictly typed fields from bones.toml
+    runtime: RuntimeConfig   # runtime identity + dynamic runtime.toml keys
 ```
 
-`flat_data` is the data passed into pyinfra host data.
+## BonesConfig
 
-It should include fields such as:
+Typed fields read from top-level `bones.toml` keys:
 
 ```text
-project_name
-project_root
-web_root
-repo_path
-deploy_user
-runtime_user
-runtime_group
-release_group
-project_root_parent
-ssh_port
-paths
-ssl_domain
-ssl_email
+project_name, host, ssh_user, port, repo_path, project_root,
+branch, preview_domain, releases_keep, ssl_enabled, domain, email,
+remote_name, deploy_user
 ```
+
+## RuntimeConfig
+
+```text
+web_root           # docroot (default "public")
+runtime_user       # process user for nginx/php-fpm (default: project_name)
+runtime_group      # process group (default: project_name)
+release_group      # release-read group (default: "{project_name}-release")
+runtime_data       # dict — all other keys from runtime.toml
+```
+
+## template_data()
+
+For Jinja2 template rendering, use `template_data(ctx, *, paths=None, **extra)`.
+It assembles a flat dict from the typed fields (project_name, runtime_user, paths, etc.)
+and merges `runtime.runtime_data` for dynamic keys.
+
+No `flat_data` property on `DeployContext`. No `host.data` side-channel.
+Plan files receive `ctx` directly as a function parameter.
 
 
 # Runtime Catalog
@@ -405,8 +421,8 @@ Expected `runtime questions` response:
     "key": "php_version",
     "type": "choice",
     "label": "PHP version",
-    "choices": ["8.2", "8.3", "8.4"],
-    "default": "8.3"
+    "choices": ["8.2", "8.3", "8.4", "8.5"],
+    "default": "8.5"
   }
 ]
 ```
@@ -423,13 +439,14 @@ It should:
 
 - create pyinfra config
 - create inventory
-- attach host data
 - connect
-- execute deploy plan
+- execute deploy plan with `ctx: DeployContext`
 - run operations
 - return nonzero exit on pyinfra failure
 
 It should not know about Laravel, SSL, nginx, config files, or runtime selection.
+
+The runner no longer attaches a flat data dict to `host.data`. It calls `deploy(ctx)` directly, passing the typed `DeployContext`. Plan files receive the context as a parameter and pass it to sub-modules.
 
 ---
 
@@ -553,9 +570,10 @@ Suggested tests:
 - domain/ files do not import pyinfra
 - app/ files do not import pyinfra.operations
 - runtime registry imports every declared runtime
-- every runtime exposes questions/defaults/deploy or explicit no-op deploy
+- every runtime exposes `questions`/`defaults`/`deploy(ctx)` or explicit no-op deploy
 - runtime question JSON matches contract schema
-- deploy context fixture parses
+- deploy context parses typed dataclasses correctly
+- `template_data()` produces expected flat dict keys
 - no sys.path mutation
 - no source file over 300-400 lines
 ```
@@ -606,7 +624,7 @@ bonesremote owns release deployment
 The current target is clarity, not cleverness.
 
 ```text
-Typer CLI -> app service -> DeployContext -> pyinfra runner -> deploy plan -> grouped operations
+Typer CLI -> app service -> DeployContext.from_files() -> apply.run_plan() -> pyinfra_runner.run(ctx) -> deploy plan -> grouped operations
 ```
 
 Keep files small.
