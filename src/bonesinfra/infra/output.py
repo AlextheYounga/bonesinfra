@@ -10,6 +10,7 @@ from pyinfra.api.state import BaseStateCallback, State
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
+from rich.status import Status
 from rich.table import Table
 from rich.text import Text
 
@@ -29,8 +30,28 @@ class _PyinfraLogHandler(logging.Handler):
 
 
 class BonesDeployCallback(BaseStateCallback):
+    _status: Status | None = None
+
+    @classmethod
+    def _stop_status(cls) -> None:
+        if cls._status is not None:
+            cls._status.stop()
+            cls._status = None
+
+    @staticmethod
+    def operation_start(state: State, op_hash: str) -> None:
+        BonesDeployCallback._stop_status()
+        op_meta = state.get_op_meta(op_hash)
+        op_name = ", ".join(op_meta.names) or "Operation"
+        BonesDeployCallback._status = console.status(
+            f"[bold cyan]☠[/]  Running operation: [bold]{escape(op_name)}[/]",
+            spinner="dots",
+        )
+        BonesDeployCallback._status.start()
+
     @staticmethod
     def operation_end(state: State, op_hash: str) -> None:
+        BonesDeployCallback._stop_status()
         op_meta = state.get_op_meta(op_hash)
         op_name = ", ".join(op_meta.names) or "Operation"
         status = "No changes"
@@ -106,6 +127,10 @@ def print_target(hostname: str, user: str) -> None:
 def print_connected() -> None:
     console.print("☠  [bold cyan]connected[/]")
     console.print()
+
+
+def stop_live_output() -> None:
+    BonesDeployCallback._stop_status()
 
 
 def print_done(success: bool) -> None:

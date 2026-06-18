@@ -18,6 +18,7 @@ from bonesinfra.infra.output import (
     print_done,
     print_target,
     setup_output,
+    stop_live_output,
 )
 
 
@@ -73,11 +74,14 @@ def run(
     try:
         run_ops(state)
     except PyinfraError:
+        stop_live_output()
         print_done(success=False)
         sys.exit(1)
 
     if state.failed_hosts:
+        stop_live_output()
         print_done(success=False)
         sys.exit(1)
 
+    stop_live_output()
     print_done(success=True)
