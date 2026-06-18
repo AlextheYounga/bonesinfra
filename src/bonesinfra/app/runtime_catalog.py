@@ -7,4 +7,4 @@ def list_all() -> list[str]:
 
 def get_questions(runtime_name: str) -> list[dict]:
     module = get_runtime(runtime_name)
-    return module.questions() if hasattr(module, "questions") else []
+    return module.questions()

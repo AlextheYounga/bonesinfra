@@ -1,6 +1,7 @@
-"""Every runtime module must export questions() and deploy()."""
-
 import importlib
+
+from bonesinfra.app import runtime_catalog
+from bonesinfra.runtimes import list_runtimes
 
 from . import helpers
 
@@ -20,6 +21,14 @@ def test_runtimes_have_questions_and_deploy():
         mod = importlib.import_module(module_path)
         assert callable(getattr(mod, "questions", None)), f"{name}: missing questions()"
         assert callable(getattr(mod, "deploy", None)), f"{name}: missing deploy()"
+
+
+def test_runtime_registry_is_explicit():
+    assert list_runtimes() == sorted(RUNTIMES_MODULES)
+
+
+def test_laravel_questions_are_exposed():
+    assert runtime_catalog.get_questions("laravel")
 
 
 def test_laravel_deploy_accepts_ctx():
