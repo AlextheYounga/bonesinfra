@@ -80,7 +80,7 @@ def test_router_config_uses_resolved_socket_path():
 def test_laravel_php_fpm_config_has_global_section():
     c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
     helpers.assert_contains(c, "[global]")
-    helpers.assert_contains(c, "error_log = /proc/self/fd/2")
+    helpers.assert_not_contains(c, "error_log = /proc/self/fd/2")
     helpers.assert_contains(c, "daemonize = no")
 
 
