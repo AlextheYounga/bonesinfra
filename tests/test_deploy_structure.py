@@ -216,6 +216,11 @@ def test_ssl_defines_nginx_inline():
     helpers.assert_contains(c, "nginx -t")
 
 
+def test_runtime_nginx_falls_back_when_ssl_domain_empty():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
+    helpers.assert_contains(c, 'data.get("ssl_domain") or "_"')
+
+
 def test_ssl_uses_current_web_root():
     c = helpers.read(SSL_PLAN)
     helpers.assert_contains(c, "current_web_root")

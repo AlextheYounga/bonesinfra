@@ -43,7 +43,7 @@ def setup(data, paths, here):
         _sudo=True,
     )
 
-    nginx_server_name = data.get("ssl_domain", "_")
+    nginx_server_name = data.get("ssl_domain") or "_"
     nginx_ssl_enabled = bool(data.get("ssl_cert_path") and data.get("ssl_key_path"))
 
     render(
