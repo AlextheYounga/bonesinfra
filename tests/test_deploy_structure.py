@@ -88,6 +88,12 @@ def test_setup_avoids_usermod_for_existing_runtime_user():
     helpers.assert_contains(c, "gpasswd -a")
 
 
+def test_setup_deploy_user_commands_set_user_home():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_contains(c, "XDG_CONFIG_HOME={home}/.config")
+    helpers.assert_contains(c, "getent passwd")
+
+
 # ---- Firewall ----
 
 
@@ -171,6 +177,12 @@ def test_runtime_socket_dir_runtime_user_owned():
 def test_runtime_uses_template_runtime():
     c = helpers.read(RUNTIME_TEMPLATE)
     helpers.assert_contains(c, "get_runtime(template)")
+
+
+def test_runtime_doctor_deploy_user_commands_set_user_home():
+    c = helpers.read(RUNTIME_DOCTOR)
+    helpers.assert_contains(c, "XDG_CONFIG_HOME={home}/.config")
+    helpers.assert_contains(c, "getent passwd")
 
 
 # ---- ssl plan ----

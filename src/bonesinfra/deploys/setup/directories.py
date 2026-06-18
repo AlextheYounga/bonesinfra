@@ -1,8 +1,15 @@
 from pathlib import Path
+from shlex import quote
 
 from pyinfra.operations import server
 
 from bonesinfra.infra.deploy_helpers import mkdir
+
+
+def _user_env_command(user, command):
+    q_user = quote(user)
+    home = f'$(getent passwd {q_user} | cut -d: -f6)'
+    return f'HOME={home} XDG_CONFIG_HOME={home}/.config {command}'
 
 
 def setup_repo_and_project(data, paths):
@@ -15,7 +22,7 @@ def setup_repo_and_project(data, paths):
 
     server.shell(
         name="Initialize bare git repo",
-        commands=[f"git init --bare {paths['repo']}"],
+        commands=[_user_env_command(data["deploy_user"], f"git init --bare {quote(paths['repo'])}")],
         _sudo=True,
         _sudo_user=data["deploy_user"],
     )
