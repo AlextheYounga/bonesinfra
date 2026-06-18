@@ -11,6 +11,6 @@ def run_plan(deploy, ctx):
         hostname=ctx.host,
         ssh_user=ctx.ssh_user,
         ssh_port=ctx.ssh_port,
-        data=ctx.flat_data,
+        data=ctx.deploy_data,
         deploy=deploy,
     )

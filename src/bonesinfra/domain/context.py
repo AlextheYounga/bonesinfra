@@ -8,28 +8,30 @@ from bonesinfra.domain.paths import DeploymentPaths
 from bonesinfra.infra.toml_store import load_toml
 
 
+DEPLOY_USER = "git"
+
+DEFAULT_SSH_USER = "root"
+DEFAULT_SSH_PORT = "22"
+DEFAULT_WEB_ROOT = "public"
+
+
 @dataclass
 class DeployContext:
-    host: str
-    ssh_user: str
-    ssh_port: int
-    flat_data: dict[str, Any] = field(default_factory=dict)
+    config: BonesConfig
+    runtime: RuntimeConfig
 
     @classmethod
     def from_files(
         cls,
         config_path: str,
         runtime_config_path: str | None = None,
-        ssh_user: str = "root",
     ) -> DeployContext:
         bones_cfg = load_toml(config_path)
-        data = bones_cfg.get("data", {})
-        project_name = data.get("project_name", "")
-        repo_path = data.get("repo_path", "")
-        project_root = data.get("project_root", "")
-        web_root = data.get("web_root", "public")
-        host = data.get("host", "")
-        port = int(data.get("port", 22))
+        project_name = bones_cfg.get("project_name", "")
+        repo_path = bones_cfg.get("repo_path", "")
+        project_root = bones_cfg.get("project_root", "")
+        host = bones_cfg.get("host", "")
+        port = int(bones_cfg.get("port", DEFAULT_SSH_PORT))
 
         runtime_cfg = {}
         if runtime_config_path:
@@ -37,28 +39,95 @@ class DeployContext:
             if rpath.exists():
                 runtime_cfg = load_toml(str(rpath))
 
-        paths = DeploymentPaths.new(project_name, repo_path, project_root, web_root)
+        config = BonesConfig(
+            remote_name=bones_cfg.get("remote_name", ""),
+            project_name=project_name,
+            ssh_user=bones_cfg.get("ssh_user", DEFAULT_SSH_USER),
+            host=host,
+            port=str(port),
+            repo_path=repo_path,
+            project_root=project_root,
+            branch=bones_cfg.get("branch", ""),
+            preview_domain=bones_cfg.get("preview_domain", ""),
+            releases_keep=int(bones_cfg.get("releases_keep", 5)),
+            ssl_enabled=bones_cfg.get("ssl_enabled", False),
+            domain=bones_cfg.get("domain", ""),
+            email=bones_cfg.get("email", ""),
+            deploy_user=DEPLOY_USER,
+        )
 
-        flat_data: dict[str, Any] = {}
-        flat_data["project_name"] = project_name
-        flat_data["project_root"] = project_root
-        flat_data["web_root"] = web_root
-        flat_data["repo_path"] = repo_path
-        flat_data["deploy_user"] = data.get("deploy_user", "git")
-        runtime_identity = project_name or "www-data"
-        flat_data["runtime_user"] = data.get("runtime_user", runtime_identity)
-        flat_data["runtime_group"] = data.get("runtime_group", runtime_identity)
-        flat_data["release_group"] = data.get("release_group", "deployers")
-        flat_data["project_root_parent"] = paths.project_root_parent
-        flat_data["ssh_port"] = port
-        flat_data["paths"] = paths.__dict__
+        runtime = RuntimeConfig(
+            web_root=runtime_cfg.get("web_root", DEFAULT_WEB_ROOT),
+            runtime_user=runtime_cfg.get("runtime_user", project_name),
+            runtime_group=runtime_cfg.get("runtime_user", project_name),
+            release_group=runtime_cfg.get("runtime_user", f"{project_name}-release"),
+            runtime_data=runtime_cfg,
+        )
 
-        for key, value in runtime_cfg.items():
-            if key not in flat_data:
-                flat_data[key] = value
+        return cls(config=config, runtime=runtime)
 
-        ssl_cfg = bones_cfg.get("ssl", {})
-        flat_data["ssl_domain"] = ssl_cfg.get("domain", "")
-        flat_data["ssl_email"] = ssl_cfg.get("email", "")
+    @property
+    def host(self) -> str:
+        return self.config.host
 
-        return cls(host=host, ssh_user=ssh_user, ssh_port=port, flat_data=flat_data)
+    @property
+    def ssh_port(self) -> int:
+        return int(self.config.port)
+
+    @property
+    def deploy_data(self) -> dict[str, Any]:
+        """Data dict for pyinfra host.data, assembled from structured config."""
+        paths = DeploymentPaths.new(
+            self.config.project_name,
+            self.config.repo_path,
+            self.config.project_root,
+            self.runtime.web_root,
+        )
+
+        data: dict[str, Any] = {}
+        data["project_name"] = self.config.project_name
+        data["project_root"] = self.config.project_root
+        data["web_root"] = self.runtime.web_root
+        data["repo_path"] = self.config.repo_path
+        data["deploy_user"] = self.config.deploy_user
+        data["runtime_user"] = self.config.runtime_user
+        data["runtime_group"] = self.config.runtime_group
+        data["release_group"] = self.config.release_group
+        data["project_root_parent"] = paths.project_root_parent
+        data["ssh_port"] = int(self.config.port)
+        data["paths"] = paths.__dict__
+        data["ssl_domain"] = self.config.domain
+        data["ssl_email"] = self.config.email
+
+        for key, value in self.runtime.runtime_data.items():
+            if key not in data:
+                data[key] = value
+
+        return data
+
+
+@dataclass
+class BonesConfig:
+    remote_name: str
+    project_name: str
+    ssh_user: str
+    host: str
+    port: str
+    repo_path: str
+    project_root: str
+    branch: str
+    preview_domain: str
+    releases_keep: int
+    ssl_enabled: bool
+    domain: str
+    email: str
+    deploy_user: str
+
+
+@dataclass
+class RuntimeConfig:
+    web_root: str
+    runtime_user: str
+    runtime_group: str
+    release_group: str
+    runtime_data: dict[str, Any] = field(default_factory=dict)

@@ -357,53 +357,6 @@ ssl_domain
 ssl_email
 ```
 
-Runtime config values may be merged into `flat_data`.
-
-`paths` should contain derived deployment paths.
-
-Long-term, this shape should be covered by a contract fixture shared with `bonesdeploy`.
-
----
-
-# Rust/Python Contract
-
-BonesInfra speaks a private contract with BonesDeploy.
-
-The contract should define:
-
-- command names
-- stdin JSON shape
-- stdout JSON shape
-- runtime list response
-- runtime questions response
-- runtime defaults response
-- deploy context shape
-- error/exit behavior
-
-Recommended files:
-
-```text
-contracts/
-├── bonesinfra-api.md
-├── bonesinfra-contract.toml
-├── schemas/
-│   ├── deploy-context.schema.json
-│   ├── runtime-list.schema.json
-│   ├── runtime-questions.schema.json
-│   └── runtime-defaults.schema.json
-└── fixtures/
-    ├── bones.toml
-    ├── runtime.laravel.toml
-    ├── deploy-context.setup.json
-    ├── deploy-context.runtime.json
-    └── deploy-context.ssl.json
-```
-
-Both `bonesdeploy` and `bonesinfra` should test against the same contract fixtures.
-
-Do not let Rust and Python agree only by coincidence.
-
----
 
 # Runtime Catalog
 
