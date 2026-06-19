@@ -1,0 +1,172 @@
+=== Command: sudo nginx -T | grep -n "server_name" ===
+27:	# server_names_hash_bucket_size 64;
+28:	# server_name_in_redirect off;
+196:    server_name lawsnipe-178-104-218-5.nip.io;
+
+=== Command: sudo nginx -T | grep -n "lawsnipe-178-104-218-5.nip.io" ===
+196:    server_name lawsnipe-178-104-218-5.nip.io;
+
+=== Command: ls -la /etc/nginx/sites-enabled ===
+total 8
+drwxr-xr-x 2 root root 4096 Jun 19 01:01 .
+drwxr-xr-x 8 root root 4096 Jun 19 00:55 ..
+lrwxrwxrwx 1 root root   40 Jun 19 01:01 lawsnipe.conf -> /etc/nginx/sites-available/lawsnipe.conf
+
+=== Command: curl -sv -H 'Host: lawsnipe-178-104-218-5.nip.io' http://127.0.0.1/ ===
+*   Trying 127.0.0.1:80...
+* Connected to 127.0.0.1 (127.0.0.1) port 80
+* using HTTP/1.x
+> GET / HTTP/1.1
+> Host: lawsnipe-178-104-218-5.nip.io
+> User-Agent: curl/8.14.1
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 200 OK
+< Server: nginx
+< Date: Fri, 19 Jun 2026 01:34:48 GMT
+< Content-Type: text/html
+< Content-Length: 615
+< Last-Modified: Fri, 19 Jun 2026 00:55:09 GMT
+< Connection: keep-alive
+< ETag: "6a34936d-267"
+< Accept-Ranges: bytes
+<
+{ [615 bytes data]
+* Connection #0 to host 127.0.0.1 left intact
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+=== Command: curl -sv http://lawsnipe-178-104-218-5.nip.io/ ===
+* Host lawsnipe-178-104-218-5.nip.io:80 was resolved.
+* IPv6: (none)
+* IPv4: 178.104.218.5
+*   Trying 178.104.218.5:80...
+* Connected to lawsnipe-178-104-218-5.nip.io (178.104.218.5) port 80
+* using HTTP/1.x
+> GET / HTTP/1.1
+> Host: lawsnipe-178-104-218-5.nip.io
+> User-Agent: curl/8.14.1
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 200 OK
+< Server: nginx
+< Date: Fri, 19 Jun 2026 01:34:48 GMT
+< Content-Type: text/html
+< Content-Length: 615
+< Last-Modified: Fri, 19 Jun 2026 00:55:09 GMT
+< Connection: keep-alive
+< ETag: "6a34936d-267"
+< Accept-Ranges: bytes
+<
+{ [615 bytes data]
+* Connection #0 to host lawsnipe-178-104-218-5.nip.io left intact
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is provided.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+=== Command: cat /etc/nginx/sites-available/lawsnipe.conf ===
+server {
+    listen 80;
+    listen [::]:80;
+    server_name lawsnipe-178-104-218-5.nip.io;
+
+    location / {
+        proxy_pass http://unix:/run/lawsnipe/nginx/nginx.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /srv/sites/lawsnipe/current/public;
+        try_files $uri =404;
+    }
+}
+
+=== Command: cat /srv/conf/lawsnipe/nginx.conf ===
+worker_processes 1;
+pid /run/lawsnipe/nginx/nginx.pid;
+error_log /run/lawsnipe/nginx/error.log notice;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    access_log /run/lawsnipe/nginx/access.log;
+    client_body_temp_path /run/lawsnipe/nginx/client_body;
+    proxy_temp_path /run/lawsnipe/nginx/proxy;
+    fastcgi_temp_path /run/lawsnipe/nginx/fastcgi;
+    uwsgi_temp_path /run/lawsnipe/nginx/uwsgi;
+    scgi_temp_path /run/lawsnipe/nginx/scgi;
+
+    server {
+        listen unix:/run/lawsnipe/nginx/nginx.sock;
+        root /srv/sites/lawsnipe/current/public;
+        index index.php index.html;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location ~ ^/index\.php(/|$) {
+            fastcgi_pass unix:/run/php/php8.5-fpm-lawsnipe.sock;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_param DOCUMENT_ROOT $realpath_root;
+            internal;
+        }
+
+        location ~ \.php$ {
+            return 404;
+        }
+
+        location ^~ /.well-known/acme-challenge/ {
+            try_files $uri =404;
+        }
+    }
+}
