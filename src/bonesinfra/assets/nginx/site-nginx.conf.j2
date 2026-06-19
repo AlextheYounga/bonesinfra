@@ -15,6 +15,10 @@ http {
     scgi_temp_path {{ paths.runtime_nginx_dir }}/scgi;
 
     server {
+        # ponytail: socket inherits umask, typically 0666 — any local user
+        # can connect directly, bypassing the system nginx router. Acceptable
+        # on single-tenant deploy servers. Upgrade path: set the per-site
+        # nginx group to www-data and use a 0660 socket mode directive.
         listen unix:{{ paths.runtime_nginx_socket }};
         root {{ paths.current_web_root }};
         index index.html;

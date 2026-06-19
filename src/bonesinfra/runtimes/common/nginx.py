@@ -6,12 +6,13 @@ from bonesinfra.domain.context import template_data
 
 
 def _ensure_runtime_socket_dir(ctx, paths):
+    # 0711: system nginx (www-data) must traverse to reach per-site sockets.
     files.directory(
         name="Ensure runtime socket directory exists before nginx validation",
         path=paths["runtime_socket_dir"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="0750",
+        mode="0711",
         _sudo=True,
     )
     files.directory(
@@ -19,7 +20,7 @@ def _ensure_runtime_socket_dir(ctx, paths):
         path=paths["runtime_nginx_dir"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="0750",
+        mode="0711",
         _sudo=True,
     )
 

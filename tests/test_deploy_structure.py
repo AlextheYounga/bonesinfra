@@ -216,7 +216,9 @@ def test_runtime_socket_dir_runtime_user_owned():
     helpers.assert_contains(c, 'path=paths["runtime_nginx_dir"]')
     helpers.assert_contains(c, "user=ctx.runtime.runtime_user")
     helpers.assert_contains(c, "group=ctx.runtime.runtime_group")
-    helpers.assert_contains(c, 'mode="0750"')
+    # 0711: system nginx (www-data) must traverse /run/<project>/ and
+    # /run/<project>/nginx/ to reach the per-site nginx socket. 0750 causes 502.
+    helpers.assert_contains(c, 'mode="0711"')
 
 
 def test_runtime_uses_template_runtime():
@@ -326,3 +328,44 @@ def test_laravel_nginx_validates_without_creating_runtime_dir():
 def test_laravel_nginx_does_not_restart_site_service_early():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
     helpers.assert_not_contains(c, "Restart per-site nginx with Laravel config")
+
+
+# ---- Runtime directory traversal for system nginx (www-data) ----
+
+
+def test_runtime_socket_dir_is_traversable_by_system_nginx():
+    """Regression: /run/<project>/ must be 0711, not 0750, so system nginx
+    (www-data) can traverse it to reach /run/<project>/nginx/nginx.sock.
+
+    0750 caused 502 on every public request after the per-site nginx layout
+    change moved the socket under /run/<project>/nginx/.
+    """
+    runtime_nginx = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
+    # Both runtime dir mkdirs must use 0711; the conf dir (0750) is unrelated.
+    socket_dir_block = runtime_nginx.split('path=paths["runtime_socket_dir"]')[1].split(")")[0]
+    helpers.assert_contains(socket_dir_block, 'mode="0711"')
+    nginx_dir_block = runtime_nginx.split('path=paths["runtime_nginx_dir"]')[1].split(")")[0]
+    helpers.assert_contains(nginx_dir_block, 'mode="0711"')
+
+    common_paths = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/paths.py")
+    helpers.assert_contains(common_paths, 'mode="0711"')
+    helpers.assert_not_contains(common_paths, 'mode="0750"')
+
+    common_nginx = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/nginx.py")
+    helpers.assert_contains(common_nginx, 'mode="0711"')
+    helpers.assert_not_contains(common_nginx, 'mode="0750"')
+
+
+def test_site_nginx_service_runtime_dir_is_traversable():
+    """The per-site nginx RuntimeDirectory must be 0711 so www-data can
+    traverse into /run/<project>/nginx/ to reach the socket."""
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/nginx/site-nginx.service.j2")
+    helpers.assert_contains(c, "RuntimeDirectoryMode=0711")
+    helpers.assert_not_contains(c, "RuntimeDirectoryMode=0750")
+
+
+def test_app_service_runtime_dir_stays_private():
+    """App runtime dirs stay 0750 — only the per-site nginx (same runtime
+    user) needs to reach app sockets, so no world traversal is required."""
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/assets/app.service.j2")
+    helpers.assert_contains(c, "RuntimeDirectoryMode=0750")

@@ -7,12 +7,14 @@ from bonesinfra.infra.deploy_helpers import mkdir, render
 
 
 def setup(ctx, paths, here):
+    # 0711: system nginx (www-data) needs traversal to reach the per-site
+    # nginx socket at /run/<project>/nginx/nginx.sock. 0750 would block it.
     mkdir(
         name="Ensure socket directory exists",
         path=paths["runtime_socket_dir"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="0750",
+        mode="0711",
     )
 
     mkdir(
@@ -20,7 +22,7 @@ def setup(ctx, paths, here):
         path=paths["runtime_nginx_dir"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="0750",
+        mode="0711",
     )
 
     mkdir(
