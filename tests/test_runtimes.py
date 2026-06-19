@@ -36,21 +36,47 @@ def test_laravel_deploy_accepts_ctx():
     helpers.assert_contains(content, "def deploy(ctx):", "laravel deploy must accept ctx")
 
 
-def test_laravel_php_fpm_validates_as_runtime_user():
+def test_laravel_php_fpm_uses_distro_pool_model():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
-    helpers.assert_contains(content, "validation.run_as_runtime_user")
-    helpers.assert_contains(content, "Validate PHP-FPM configuration as runtime user")
+    helpers.assert_contains(content, "php_fpm_pool.render_pool")
+    helpers.assert_contains(content, "php_fpm_pool.validate_php_fpm")
+    helpers.assert_contains(content, "php_fpm_pool.reload_php_fpm")
 
 
-def test_laravel_php_fpm_does_not_validate_as_root():
-    """Regression guard: php-fpm --test must never run as root.
-
-    Root-owned validation created root-owned log files the runtime user
-    could not write. Validation must go through validation.run_as_runtime_user.
-    """
+def test_laravel_php_fpm_does_not_use_custom_service():
+    """Regression guard: Laravel must not render or start a per-project
+    php-fpm systemd service, nor validate via a custom --fpm-config."""
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
-    assert content.count("--test --fpm-config") == 1
-    helpers.assert_not_contains(content, "_user_env_command")
+    helpers.assert_not_contains(content, "site-php-fpm.service.j2")
+    helpers.assert_not_contains(content, "-php-fpm.service")
+    helpers.assert_not_contains(content, "--fpm-config")
+    helpers.assert_not_contains(content, "apparmor")
+
+
+def test_laravel_deploy_does_not_setup_php_fpm_apparmor():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py")
+    helpers.assert_not_contains(content, "apparmor.setup_php_fpm")
+    helpers.assert_not_contains(content, "apparmor")
+
+
+def test_common_php_fpm_pool_socket_path_is_distro_standard():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/php_fpm_pool.py")
+    helpers.assert_contains(content, '"/run/php"')
+    helpers.assert_contains(content, "fpm/pool.d/{project}.conf")
+    helpers.assert_contains(content, "php-fpm{php_version} --test")
+    helpers.assert_contains(content, "php{php_version}-fpm")
+
+
+def test_common_php_fpm_pool_ensures_bonesdeploy_log_dir():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/php_fpm_pool.py")
+    helpers.assert_contains(content, "logs.ensure(ctx)")
+
+
+def test_laravel_nginx_uses_distro_php_socket_and_no_runtime_chown():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
+    helpers.assert_contains(content, "php_fpm_pool.socket_path")
+    helpers.assert_not_contains(content, "runtime_socket_dir")
+    helpers.assert_not_contains(content, "files.directory")
 
 
 def test_common_validation_runs_as_runtime_user_not_root():

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from bonesinfra.domain.paths import DeploymentPaths
-from bonesinfra.runtimes.laravel import apparmor, nginx, php_fpm, php_packages, php_repo
+from bonesinfra.runtimes.laravel import nginx, php_fpm, php_packages, php_repo
 
 
 def deploy(ctx):
@@ -18,6 +18,5 @@ def deploy(ctx):
     php_packages.install_php(php_version)
 
     php_fpm.setup_storage_directories(paths, ctx)
-    apparmor.setup_php_fpm(ctx, here)
     php_fpm.setup_pool(here, ctx, paths, php_version)
-    nginx.setup(here, ctx, paths)
+    nginx.setup(here, ctx, paths, php_version)

@@ -77,101 +77,46 @@ def test_router_config_uses_resolved_socket_path():
 # ---- Laravel PHP-FPM pool config ----
 
 
-def test_laravel_php_fpm_config_has_global_section():
-    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
-    helpers.assert_contains(c, "[global]")
-    helpers.assert_contains(c, "daemonize = no")
-    helpers.assert_contains(c, "pid = {{ paths.runtime_socket_dir }}/php-fpm.pid")
-    helpers.assert_contains(c, "error_log = /var/log/bonesdeploy/{{ project_name }}/php-fpm-error.log")
-    helpers.assert_contains(c, "log_level = notice")
+def test_laravel_php_fpm_pool_has_no_global_section():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_not_contains(c, "[global]")
+    helpers.assert_not_contains(c, "daemonize")
     helpers.assert_not_contains(c, "/var/log/php-fpm.log")
 
 
-def test_laravel_php_fpm_config_does_not_log_under_run():
-    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
-    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}/php-fpm-error.log")
-    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}/php-worker-error.log")
-    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}/php-fpm-access.log")
-    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}/php-fpm-slow.log")
+def test_laravel_php_fpm_pool_uses_distro_run_php_socket():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_contains(c, "listen = {{ laravel_php_fpm_socket_path }}")
+    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}")
+    helpers.assert_not_contains(c, "/run/{{ project_name }}")
 
 
-def test_laravel_php_fpm_config_uses_resolved_current_path():
-    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
-    helpers.assert_contains(c, "chdir = {{ paths.current }}")
-    helpers.assert_not_contains(c, "{{ project_root }}/current")
+def test_laravel_php_fpm_pool_listens_as_www_data():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_contains(c, "listen.owner = www-data")
+    helpers.assert_contains(c, "listen.group = www-data")
+    helpers.assert_contains(c, "listen.mode = 0660")
 
 
-def test_laravel_php_fpm_config_captures_worker_and_pool_logs():
-    c = _read("runtimes/laravel/assets/php/php-fpm.conf.j2")
-    helpers.assert_contains(c, "catch_workers_output = yes")
-    helpers.assert_contains(c, "decorate_workers_output = no")
-    helpers.assert_contains(c, "php_admin_flag[log_errors] = on")
-    helpers.assert_contains(
-        c,
-        "php_admin_value[error_log] = /var/log/bonesdeploy/{{ project_name }}/php-worker-error.log",
-    )
+def test_laravel_php_fpm_pool_runs_as_runtime_user():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_contains(c, "user = {{ runtime_user }}")
+    helpers.assert_contains(c, "group = {{ runtime_group }}")
+
+
+def test_laravel_php_fpm_pool_logs_under_bonesdeploy():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}/php-worker-error.log")
     helpers.assert_contains(c, "access.log = /var/log/bonesdeploy/{{ project_name }}/php-fpm-access.log")
     helpers.assert_contains(c, "slowlog = /var/log/bonesdeploy/{{ project_name }}/php-fpm-slow.log")
-    helpers.assert_not_contains(c, "/var/log/php-fpm.log")
+    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}")
 
 
-# ---- Laravel PHP-FPM systemd service ----
-
-
-def test_laravel_php_fpm_service_runs_as_runtime_user():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm.service.j2")
-    helpers.assert_contains(c, "User={{ runtime_user }}")
-    helpers.assert_contains(c, "Group={{ runtime_group }}")
-    helpers.assert_contains(c, "SupplementaryGroups={{ release_group }}")
-    helpers.assert_contains(
-        c,
-        "ExecStart=/usr/sbin/php-fpm{{ laravel_php_version_resolved }} "
-        "--nodaemonize --fpm-config {{ laravel_php_fpm_pool_config_path }}",
-    )
-    helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}")
-    helpers.assert_contains(c, "RuntimeDirectoryMode=0750")
-    helpers.assert_contains(c, "StandardOutput=journal")
-    helpers.assert_contains(c, "StandardError=journal")
-
-
-def test_laravel_php_fpm_service_grants_required_capabilities():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm.service.j2")
-    helpers.assert_contains(c, "CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN")
-    helpers.assert_contains(c, "AmbientCapabilities=")
-
-
-def test_laravel_php_fpm_service_writes_logs_and_cache_dirs():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm.service.j2")
-    helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}")
-    helpers.assert_contains(c, "{{ paths.current }}/storage")
-    helpers.assert_contains(c, "{{ paths.current }}/bootstrap/cache")
-
-
-# ---- Laravel PHP-FPM AppArmor profile ----
-
-
-def test_laravel_php_fpm_apparmor_allows_site_conf_root():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm-profile.j2")
-    helpers.assert_contains(c, "{{ paths.conf_root }}/ r,")
-    helpers.assert_contains(c, "{{ paths.conf_root }}/** r,")
-
-
-def test_laravel_php_fpm_apparmor_allows_log_dir():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm-profile.j2")
-    helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}/ rw,")
-    helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}/** rwk,")
-
-
-def test_laravel_php_fpm_apparmor_has_minimal_capabilities():
-    c = _read("runtimes/laravel/assets/php/site-php-fpm-profile.j2")
-    helpers.assert_contains(c, "capability chown,")
-    helpers.assert_contains(c, "capability setgid,")
-    helpers.assert_contains(c, "capability setuid,")
-    helpers.assert_not_contains(c, "capability dac_override,")
-    helpers.assert_not_contains(c, "capability dac_read_search,")
-    helpers.assert_not_contains(c, "capability fsetid,")
-    for line in c.splitlines():
-        assert line.strip() != "/ rw,", "Must not allow root filesystem read-write"
+def test_laravel_php_fpm_pool_uses_resolved_current_path():
+    c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
+    helpers.assert_contains(c, "chdir = {{ paths.current }}")
+    helpers.assert_contains(c, "catch_workers_output = yes")
+    helpers.assert_contains(c, "php_admin_flag[log_errors] = on")
 
 
 # ---- Laravel nginx config ----

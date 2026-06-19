@@ -250,33 +250,35 @@ def test_laravel_validates_php_fpm_before_start():
     )
 
 
-def test_laravel_php_fpm_validates_before_enable():
+def test_laravel_validates_php_fpm_before_reload():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
     helpers.assert_ordering(
         c,
-        "--test --fpm-config",
-        "Verify PHP-FPM AppArmor profile is loaded",
-        "Enable and start per-project PHP-FPM service",
+        "php_fpm_pool.render_pool",
+        "php_fpm_pool.validate_php_fpm",
+        "php_fpm_pool.reload_php_fpm",
     )
 
 
-def test_laravel_loads_apparmor_before_php_fpm_service_setup():
+def test_laravel_deploy_does_not_setup_php_fpm_apparmor():
     c = helpers.read(LARAVEL_DEPLOY)
+    helpers.assert_not_contains(c, "apparmor")
     helpers.assert_ordering(
         c,
         "php_fpm.setup_storage_directories",
-        "apparmor.setup_php_fpm",
         "php_fpm.setup_pool",
+        "nginx.setup",
     )
 
 
-def test_laravel_creates_socket_dir_before_nginx_validation():
+def test_laravel_nginx_validates_without_creating_runtime_dir():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
     helpers.assert_ordering(
         c,
-        "Ensure runtime socket directory exists before nginx validation",
+        "laravel-site-nginx.conf.j2",
         "nginx -t",
     )
+    helpers.assert_not_contains(c, "runtime_socket_dir")
 
 
 def test_laravel_nginx_does_not_restart_site_service_early():

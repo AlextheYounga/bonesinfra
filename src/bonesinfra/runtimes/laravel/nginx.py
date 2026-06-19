@@ -1,12 +1,12 @@
 from pyinfra.operations import files, server
 
 from bonesinfra.domain.context import template_data
+from bonesinfra.runtimes.common import php_fpm_pool
 
 
-def setup(here, ctx, paths):
-    runtime_user = ctx.runtime.runtime_user
+def setup(here, ctx, paths, php_version):
     runtime_group = ctx.runtime.runtime_group
-    php_fpm_socket_path = paths["runtime_php_fpm_socket"]
+    php_fpm_socket_path = php_fpm_pool.socket_path(ctx.config.project_name, php_version)
 
     files.template(
         name="Deploy Laravel-specific per-site nginx config",
@@ -17,15 +17,6 @@ def setup(here, ctx, paths):
         mode="0640",
         laravel_php_fpm_socket_path=php_fpm_socket_path,
         **template_data(ctx, paths=paths),
-        _sudo=True,
-    )
-
-    files.directory(
-        name="Ensure runtime socket directory exists before nginx validation",
-        path=paths["runtime_socket_dir"],
-        user=runtime_user,
-        group=runtime_group,
-        mode="0750",
         _sudo=True,
     )
 
