@@ -41,7 +41,7 @@ BonesInfra owns:
 - runtime provisioning
 - SSL provisioning
 - runtime catalog
-- runtime questions/defaults
+- runtime questions
 - framework-specific infrastructure
 - Jinja2 templates used by provisioning
 - runtime package installation
@@ -59,7 +59,6 @@ BonesInfra does not own:
 - release pruning
 - source checkout
 - build workspace lifecycle
-- deployment script execution
 
 Those belong to `bonesdeploy` and `bonesremote`.
 
@@ -321,7 +320,6 @@ Recommended interface:
 
 ```python
 def questions() -> list[dict]: ...
-def defaults() -> dict: ...
 def deploy(ctx) -> None: ...      # ctx: DeployContext
 ```
 

@@ -1,36 +1,23 @@
-# kit/infra
+# bonesinfra
 
-This directory contains the three pyinfra deploy scripts that drive `bonesdeploy remote setup|runtime|ssl`, plus Jinja2 template assets. Every file is embedded into the `bonesdeploy` binary and written to `<project>/.bones/infra/` during `bonesdeploy init` and `bonesdeploy remote runtime`.
+Hidden Python provisioning engine for BonesDeploy.
 
-## Deploy Scripts
+It handles pyinfra-based setup, runtime, and SSL provisioning. BonesDeploy owns TOML creation and uses this package as the private execution layer.
 
-### `setup.py` — Machine Bootstrap
-Runs once per project as root. Provisions the bare Git repo, placeholder release, system users (deploy + service), firewall (UFW), and builds/installs `bonesremote` from source.
+## Interface
 
-### `runtime.py` — Per-Site Runtime
-Runs as the deploy user. Installs template-specific packages (via loading `../runtime/operations.py`), deploys AppArmor profile, nginx router config, per-site nginx config, and per-site systemd service.
+- `bonesinfra runtime list`
+- `bonesinfra runtime questions <runtime>`
+- `bonesinfra setup apply --config <bones.toml>`
+- `bonesinfra runtime apply --config <bones.toml> --runtime-config <runtime.toml>`
+- `bonesinfra ssl apply --config <bones.toml>`
 
-### `ssl.py` — TLS Certificates
-Runs as root. Obtains certbot certificates via webroot challenge and re-renders the nginx router with TLS enabled.
+## Runtime metadata
 
-## Jinja2 Templates
+Runtime modules expose `questions()` so BonesDeploy can prompt users and write `runtime.toml` on the Rust side.
 
-### `assets/apparmor/project-nginx-profile.j2`
-Per-project AppArmor profile template. Variables: `socket_path`, `conf_root`, `runtime_binaries`, `project_root`, `current_web_root`.
+## Notes
 
-### `assets/nginx/router.conf.j2`
-Top-level nginx server block for the project domain. Two modes: HTTP-only (for certbot challenges) and HTTPS (post-SSL). Variables: `server_name`, `site_nginx_config`, `socket_path`, `ssl_enabled`, `ssl_cert_path`, `ssl_cert_key_path`.
-
-### `assets/nginx/site-nginx.conf.j2`
-Per-site upstream nginx config that proxies to the project's Unix socket. Included by `router.conf.j2`. Variables: `socket_path`, `nginx_runtime_group`.
-
-### `assets/nginx/site-nginx.service.j2`
-Per-project systemd service unit for the site-local nginx. Variables: `project_name`, `conf_root` (`/srv/conf/<project>/nginx.conf`), `apparmor_profile_path`.
-
-## Data Format
-
-All deploy scripts receive data via pyinfra `--data key=value` CLI flags. Nested objects (like `DeploymentPaths`) are flattened to dotted keys (e.g. `--data paths.repo=/home/git/myapp.git`). Each script calls `_unflatten(host.data.dict())` to reconstruct nested dicts for template rendering. Direct access uses `DEPLOY_DATA["key"]` or `DEPLOY_DATA.get("key")`.
-
-## Python Dependencies
-
-Defined in `pyproject.toml`. Not embedded — the user's local `pyinfra` installation handles dependency resolution. The `.venv/` and `__pycache__/` directories are excluded from embedding.
+- `bonesinfra` reads `bones.toml` and `runtime.toml`.
+- It does not create those files.
+- It does not own deployment scripts.

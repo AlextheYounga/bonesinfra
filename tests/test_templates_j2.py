@@ -150,30 +150,6 @@ def test_laravel_nginx_logs_under_runtime_nginx_dir():
     helpers.assert_not_contains(c, "access_log stderr")
 
 
-# ---- Laravel build script ----
-
-
-def test_laravel_build_script_has_err_trap():
-    c = _read("runtimes/laravel/deployment/02_run_build.sh")
-    helpers.assert_contains(c, "trap '")
-    helpers.assert_contains(c, "ERR")
-    helpers.assert_contains(c, "$LINENO")
-    helpers.assert_contains(c, "$BASH_COMMAND")
-
-
-def test_laravel_build_script_labels_each_phase():
-    c = _read("runtimes/laravel/deployment/02_run_build.sh")
-    for label in [
-        "Installing Composer dependencies",
-        "Entering Laravel maintenance mode",
-        "Installing frontend dependencies",
-        "Building frontend assets",
-        "Running migrations",
-        "Rebuilding Laravel caches",
-    ]:
-        helpers.assert_contains(c, label)
-
-
 # ---- Common app service template ----
 
 

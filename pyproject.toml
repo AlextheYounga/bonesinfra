@@ -24,8 +24,6 @@ bonesinfra = "bonesinfra.__main__:main"
 bonesinfra = [
     "assets/**/*.j2",
     "runtimes/**/assets/**/*.j2",
-    "runtimes/**/deployment/*.sh",
-    "runtimes/**/runtime.toml",
 ]
 
 [dependency-groups]

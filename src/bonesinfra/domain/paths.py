@@ -18,7 +18,6 @@ BONES_TOML = "bones.toml"
 NGINX_CONF = "nginx.conf"
 INDEX_HTML = "index.html"
 GIT_HEAD = "HEAD"
-DEPLOYMENT_DIR = "deployment"
 RELEASES_DIR = "releases"
 SHARED_DIR = "shared"
 BUILD_DIR = "build"
@@ -56,7 +55,6 @@ class DeploymentPaths:
     repo_head: str
     repo_bones: str
     repo_bones_toml: str
-    repo_deployment: str
     site_nginx_config: str
     conf_root: str
     project_root: str
@@ -111,7 +109,6 @@ class DeploymentPaths:
             repo_bones=str(repo_bones),
             repo_bones_toml=str(repo_bones / BONES_TOML),
             site_nginx_config=str(conf_root / NGINX_CONF),
-            repo_deployment=str(repo_bones / DEPLOYMENT_DIR),
             conf_root=str(conf_root),
             project_root=project_root,
             project_root_parent=_parent_or_default(project_root, DEFAULT_PROJECT_ROOT_PARENT),
