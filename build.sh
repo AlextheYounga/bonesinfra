@@ -9,7 +9,12 @@ if [ ! -x "$VENV/bin/python" ]; then
   "$PYTHON" -m venv "$VENV"
 fi
 
-"$VENV/bin/python" -m pip install --upgrade pyinstaller
+if [ ! -x "$VENV/bin/pip" ]; then
+  "$VENV/bin/python" -m ensurepip --upgrade
+fi
+
+"$VENV/bin/python" -m pip install --upgrade pip
+"$VENV/bin/python" -m pip install --upgrade --group dev "$ROOT"
 
 exec "$VENV/bin/python" -m PyInstaller \
   --clean \
