@@ -16,14 +16,3 @@ def install():
         commands=["/usr/local/bin/bonesremote init"],
         _sudo=True,
     )
-
-
-def install_authorized_key(ctx):
-    if not ctx.runtime.runtime_data.get("deploy_authorized_key"):
-        return
-    server.user(
-        name="Ensure deploy user authorized key is installed",
-        user=ctx.config.deploy_user,
-        public_keys=[ctx.runtime.runtime_data["deploy_authorized_key"]],
-        _sudo=True,
-    )

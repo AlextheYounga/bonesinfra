@@ -21,5 +21,5 @@ def deploy_setup(ctx):
     directories.setup_repo_and_project(ctx, paths)
     placeholder.seed(ctx, paths, here)
     firewall.configure(ctx)
-    bonesremote.install_authorized_key(ctx)
+    users.install_authorized_key(ctx)
     bonesremote.install()

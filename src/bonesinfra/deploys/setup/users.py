@@ -67,3 +67,22 @@ def ensure_users_and_groups(ctx):
     for group in required_groups:
         if group != existing_user["group"] and group not in existing_user["groups"]:
             _ensure_group_membership(ctx.runtime.runtime_user, group)
+
+
+def install_authorized_key(ctx):
+    deploy_user = ctx.config.deploy_user
+    ssh_user = ctx.config.ssh_user
+    server.shell(
+        name=f"Copy {ssh_user} SSH key to deploy user {deploy_user}",
+        commands=[
+            f"install -d -o {deploy_user} -g {deploy_user} -m 0700 /home/{deploy_user}/.ssh",
+            (
+                f'src=$(eval echo ~{ssh_user}/.ssh/authorized_keys); '
+                f'[ -f "$src" ] || {{ echo "ERROR: $src not found" >&2; exit 1; }}; '
+                f'cp "$src" /home/{deploy_user}/.ssh/authorized_keys'
+            ),
+            f"chown {deploy_user}:{deploy_user} /home/{deploy_user}/.ssh/authorized_keys",
+            f"chmod 0600 /home/{deploy_user}/.ssh/authorized_keys",
+        ],
+        _sudo=True,
+    )

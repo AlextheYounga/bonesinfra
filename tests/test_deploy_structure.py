@@ -30,7 +30,7 @@ def test_setup_plan_calls_all_steps():
     helpers.assert_contains(c, "directories.setup_repo_and_project")
     helpers.assert_contains(c, "placeholder.seed")
     helpers.assert_contains(c, "firewall.configure")
-    helpers.assert_contains(c, "bonesremote.install_authorized_key")
+    helpers.assert_contains(c, "users.install_authorized_key")
     helpers.assert_contains(c, "bonesremote.install")
 
 
