@@ -9,7 +9,7 @@ User={{ runtime_user }}
 Group={{ runtime_group }}
 SupplementaryGroups={{ release_group }}
 WorkingDirectory={{ paths.current }}
-RuntimeDirectory={{ project_name }}
+RuntimeDirectory={{ project_name }}/nginx
 RuntimeDirectoryMode=0750
 StandardOutput=journal
 StandardError=journal
@@ -35,7 +35,7 @@ PrivateTmp=yes
 ProtectHome=yes
 ProtectSystem=strict
 
-ReadWritePaths={{ paths.runtime_socket_dir }}
+ReadWritePaths={{ paths.runtime_nginx_dir }}
 ReadOnlyPaths={{ paths.current }} {{ paths.site_nginx_config }}
 
 Restart=always

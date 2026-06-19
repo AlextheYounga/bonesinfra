@@ -76,6 +76,7 @@ class DeploymentPaths:
     systemd_site_nginx_service: str
     apparmor_profile_path: str
     runtime_socket_dir: str
+    runtime_nginx_dir: str
     runtime_nginx_socket: str
     runtime_nginx_pid: str
     runtime_php_fpm_socket: str
@@ -99,6 +100,7 @@ class DeploymentPaths:
         placeholder_release = Path(project_root) / RELEASES_DIR / PLACEHOLDER_RELEASE_NAME
         current = Path(project_root) / CURRENT_LINK
         runtime_socket_dir = Path(RUNTIME_SOCKET_PARENT) / project_name
+        runtime_nginx_dir = runtime_socket_dir / "nginx"
         repo_bones = Path(repo_path) / BONES_DIR
         conf_root = Path(DEFAULT_CONF_ROOT_PARENT) / project_name
 
@@ -128,8 +130,9 @@ class DeploymentPaths:
             systemd_site_nginx_service=str(Path(ETC_SYSTEMD_SYSTEM) / f"{project_name}-nginx.service"),
             apparmor_profile_path=str(Path(ETC_APPARMOR_D) / f"bonesdeploy-{project_name}-nginx"),
             runtime_socket_dir=str(runtime_socket_dir),
-            runtime_nginx_socket=str(runtime_socket_dir / NGINX_SOCKET),
-            runtime_nginx_pid=str(runtime_socket_dir / NGINX_PID),
+            runtime_nginx_dir=str(runtime_nginx_dir),
+            runtime_nginx_socket=str(runtime_nginx_dir / NGINX_SOCKET),
+            runtime_nginx_pid=str(runtime_nginx_dir / NGINX_PID),
             runtime_php_fpm_socket=str(runtime_socket_dir / PHP_FPM_SOCKET),
             sudoers_path=str(Path(ETC_SUDOERS_D) / "bonesdeploy"),
             usr_local_bin=USR_LOCAL_BIN,

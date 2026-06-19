@@ -39,7 +39,7 @@ def questions():
 
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
-    socket_path = f"{paths['runtime_socket_dir']}/gunicorn.sock"
+    socket_path = f"{paths['runtime_socket_dir']}/gunicorn/gunicorn.sock"
     wsgi_module = ctx.runtime.runtime_data.get("wsgi_module", "config.wsgi:application")
     static_root = f"{paths['current']}/{ctx.runtime.runtime_data.get('static_root', 'staticfiles')}"
     media_root = f"{paths['current']}/{ctx.runtime.runtime_data.get('media_root', 'media')}"
@@ -70,4 +70,4 @@ def deploy(ctx):
         runtime_write_paths=writable,
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
-    service.enable_and_start(ctx, "gunicorn")
+    service.enable_and_start(ctx, "gunicorn", apparmor_profile_name=apparmor_profile_name)

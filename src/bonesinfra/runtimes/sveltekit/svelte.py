@@ -7,7 +7,7 @@ def questions():
 
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
-    socket_path = f"{paths['runtime_socket_dir']}/sveltekit.sock"
+    socket_path = f"{paths['runtime_socket_dir']}/sveltekit/sveltekit.sock"
     origin = f"https://{ctx.config.domain}" if ctx.config.domain else "https://localhost"
     node.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
@@ -37,4 +37,4 @@ def deploy(ctx):
         runtime_write_paths=[],
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
-    service.enable_and_start(ctx, "sveltekit")
+    service.enable_and_start(ctx, "sveltekit", apparmor_profile_name=apparmor_profile_name)

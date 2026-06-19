@@ -25,6 +25,7 @@ def render_app_profile(  # noqa: PLR0913
         group="root",
         mode="0644",
         apparmor_profile_name=profile_name,
+        apparmor_runtime=runtime,
         apparmor_exec_paths=apparmor_exec_paths,
         apparmor_writable_paths=apparmor_writable_paths,
         apparmor_network=apparmor_network,
@@ -34,6 +35,11 @@ def render_app_profile(  # noqa: PLR0913
     server.shell(
         name=f"Load {runtime} AppArmor profile",
         commands=[f"apparmor_parser -r -T -W {profile_path}"],
+        _sudo=True,
+    )
+    server.shell(
+        name=f"Enforce {runtime} AppArmor profile",
+        commands=[f"aa-enforce {profile_name}"],
         _sudo=True,
     )
     return profile_name

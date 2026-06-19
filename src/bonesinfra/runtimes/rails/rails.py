@@ -33,7 +33,7 @@ def questions():
 
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
-    socket_path = f"{paths['runtime_socket_dir']}/puma.sock"
+    socket_path = f"{paths['runtime_socket_dir']}/puma/puma.sock"
     runtime_write_paths = [
         f"{paths['current']}/tmp",  # noqa: S108
         f"{paths['current']}/log",
@@ -65,4 +65,4 @@ def deploy(ctx):
         runtime_write_paths=runtime_write_paths,
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
-    service.enable_and_start(ctx, "puma")
+    service.enable_and_start(ctx, "puma", apparmor_profile_name=apparmor_profile_name)

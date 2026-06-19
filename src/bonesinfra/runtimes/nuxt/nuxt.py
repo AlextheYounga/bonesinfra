@@ -7,7 +7,7 @@ def questions():
 
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
-    socket_path = f"{paths['runtime_socket_dir']}/nuxt.sock"
+    socket_path = f"{paths['runtime_socket_dir']}/nuxt/nuxt.sock"
     node.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)
@@ -36,4 +36,4 @@ def deploy(ctx):
         runtime_write_paths=[],
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
-    service.enable_and_start(ctx, "nuxt")
+    service.enable_and_start(ctx, "nuxt", apparmor_profile_name=apparmor_profile_name)

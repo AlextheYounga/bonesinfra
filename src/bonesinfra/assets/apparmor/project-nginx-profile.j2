@@ -32,8 +32,16 @@ profile {{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-ngi
   {{ paths.repo_bones_toml }} r,
   {{ paths.site_nginx_config }} r,
 
-  {{ paths.runtime_socket_dir }}/ rw,
-  {{ paths.runtime_socket_dir }}/** rwk,
+  {{ paths.runtime_nginx_dir }}/ rw,
+  {{ paths.runtime_nginx_dir }}/** rwk,
+
+  # ponytail: glob grant on app sockets — per-app profiles are leaf-scoped,
+  # but the per-site nginx must reach every app socket under /run/<project>/.
+  # Upgrade path: enumerate explicit socket paths per runtime when runtimes
+  # become dynamic.
+  {{ paths.runtime_socket_dir }}/ r,
+  {{ paths.runtime_socket_dir }}/*/ r,
+  {{ paths.runtime_socket_dir }}/*/*.sock rw,
 
   # repo_path defaults to /home/{{ deploy_user }}/<project>.git, so global /home denies
   # would block bonesremote reading config and nginx config from repo-local bones files.

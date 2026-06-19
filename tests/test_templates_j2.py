@@ -58,10 +58,10 @@ def test_nginx_service_waits_for_apparmor():
 # ---- Base nginx config ----
 
 
-def test_site_nginx_config_logs_under_runtime_socket_dir():
+def test_site_nginx_config_logs_under_runtime_nginx_dir():
     c = _read("assets/nginx/site-nginx.conf.j2")
-    helpers.assert_contains(c, "error_log {{ paths.runtime_socket_dir }}/error.log")
-    helpers.assert_contains(c, "access_log {{ paths.runtime_socket_dir }}/access.log")
+    helpers.assert_contains(c, "error_log {{ paths.runtime_nginx_dir }}/error.log")
+    helpers.assert_contains(c, "access_log {{ paths.runtime_nginx_dir }}/access.log")
     helpers.assert_not_contains(c, "access_log stderr")
 
 
@@ -138,15 +138,15 @@ def test_laravel_nginx_uses_resolved_path_manifest():
     helpers.assert_contains(c, "pid {{ paths.runtime_nginx_pid }}")
     helpers.assert_contains(c, "listen unix:{{ paths.runtime_nginx_socket }}")
     helpers.assert_contains(c, "root {{ paths.current_web_root }}")
-    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/")
+    helpers.assert_contains(c, "{{ paths.runtime_nginx_dir }}/")
     helpers.assert_not_contains(c, "/run/{{ project_name }}")
     helpers.assert_not_contains(c, "{{ project_root }}/current/{{ web_root }}")
 
 
-def test_laravel_nginx_logs_under_runtime_socket_dir():
+def test_laravel_nginx_logs_under_runtime_nginx_dir():
     c = _read("runtimes/laravel/assets/nginx/laravel-site-nginx.conf.j2")
-    helpers.assert_contains(c, "error_log {{ paths.runtime_socket_dir }}/error.log")
-    helpers.assert_contains(c, "access_log {{ paths.runtime_socket_dir }}/access.log")
+    helpers.assert_contains(c, "error_log {{ paths.runtime_nginx_dir }}/error.log")
+    helpers.assert_contains(c, "access_log {{ paths.runtime_nginx_dir }}/access.log")
     helpers.assert_not_contains(c, "access_log stderr")
 
 
@@ -183,7 +183,7 @@ def test_common_app_service_runs_as_runtime_user():
     helpers.assert_contains(c, "Group={{ runtime_group }}")
     helpers.assert_contains(c, "SupplementaryGroups={{ release_group }}")
     helpers.assert_contains(c, "WorkingDirectory={{ paths.current }}")
-    helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}")
+    helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}/{{ runtime_name }}")
     helpers.assert_contains(c, "RuntimeDirectoryMode=0750")
     helpers.assert_contains(c, "EnvironmentFile=-{{ paths.conf_root }}/runtime.env")
     helpers.assert_contains(c, "ExecStart={{ runtime_exec }}")
@@ -214,7 +214,7 @@ def test_common_app_service_writes_to_runtime_and_logs_dirs():
     helpers.assert_contains(c, "ReadOnlyPaths={{ paths.current }}")
     helpers.assert_contains(
         c,
-        "ReadWritePaths={{ paths.runtime_socket_dir }} "
+        "ReadWritePaths={{ paths.runtime_socket_dir }}/{{ runtime_name }} "
         "{{ runtime_write_paths }} /var/log/bonesdeploy/{{ project_name }}",
     )
     helpers.assert_contains(c, "StandardOutput=journal")
@@ -238,10 +238,10 @@ def test_common_app_nginx_proxies_to_socket():
     helpers.assert_contains(c, 'proxy_set_header Connection ""')
 
 
-def test_common_app_nginx_logs_under_runtime_socket_dir():
+def test_common_app_nginx_logs_under_runtime_nginx_dir():
     c = _read("runtimes/common/assets/app-site-nginx.conf.j2")
-    helpers.assert_contains(c, "error_log {{ paths.runtime_socket_dir }}/error.log")
-    helpers.assert_contains(c, "access_log {{ paths.runtime_socket_dir }}/access.log")
+    helpers.assert_contains(c, "error_log {{ paths.runtime_nginx_dir }}/error.log")
+    helpers.assert_contains(c, "access_log {{ paths.runtime_nginx_dir }}/access.log")
     helpers.assert_not_contains(c, "access_log stderr")
 
 
@@ -272,8 +272,8 @@ def test_common_apparmor_profile_includes_exec_paths():
 
 def test_common_apparmor_profile_allows_runtime_and_log_dirs():
     c = _read("runtimes/common/assets/app-profile.j2")
-    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/ rw,")
-    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/** rwk,")
+    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/{{ apparmor_runtime }}/ rw,")
+    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/{{ apparmor_runtime }}/** rwk,")
     helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}/ rw,")
     helpers.assert_contains(c, "/var/log/bonesdeploy/{{ project_name }}/** rwk,")
 

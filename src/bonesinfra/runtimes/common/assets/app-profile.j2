@@ -24,8 +24,8 @@ profile {{ apparmor_profile_name }} flags=(attach_disconnected,mediate_deleted) 
   {{ write_path }}/** rwk,
 {% endfor %}
 
-  {{ paths.runtime_socket_dir }}/ rw,
-  {{ paths.runtime_socket_dir }}/** rwk,
+  {{ paths.runtime_socket_dir }}/{{ apparmor_runtime }}/ rw,
+  {{ paths.runtime_socket_dir }}/{{ apparmor_runtime }}/** rwk,
 
   /var/log/bonesdeploy/{{ project_name }}/ rw,
   /var/log/bonesdeploy/{{ project_name }}/** rwk,

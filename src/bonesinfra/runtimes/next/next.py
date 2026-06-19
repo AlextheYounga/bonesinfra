@@ -38,4 +38,4 @@ def deploy(ctx):
         runtime_address_families="AF_UNIX AF_INET",
     )
     nginx.render_proxy(ctx, paths=paths, port=port)
-    service.enable_and_start(ctx, "next")
+    service.enable_and_start(ctx, "next", apparmor_profile_name=apparmor_profile_name)

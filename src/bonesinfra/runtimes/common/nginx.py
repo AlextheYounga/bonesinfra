@@ -14,6 +14,14 @@ def _ensure_runtime_socket_dir(ctx, paths):
         mode="0750",
         _sudo=True,
     )
+    files.directory(
+        name="Ensure nginx runtime directory exists before nginx validation",
+        path=paths["runtime_nginx_dir"],
+        user=ctx.runtime.runtime_user,
+        group=ctx.runtime.runtime_group,
+        mode="0750",
+        _sudo=True,
+    )
 
 
 def render_proxy(ctx, *, paths, socket_path=None, port=None):

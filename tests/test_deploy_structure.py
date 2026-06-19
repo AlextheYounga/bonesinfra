@@ -153,6 +153,47 @@ def test_runtime_applies_apparmor_and_nginx():
     helpers.assert_contains(c2, "per-site nginx")
 
 
+def test_common_apparmor_enforces_after_load():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/apparmor.py")
+    helpers.assert_ordering(
+        c,
+        "apparmor_parser -r",
+        "aa-enforce",
+    )
+
+
+def test_common_service_verifies_profile_attached():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/service.py")
+    helpers.assert_contains(c, "validation.verify_profile_attached")
+    helpers.assert_contains(c, "apparmor_profile_name=None")
+
+
+def test_common_validation_verifies_proc_attr_current():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/validation.py")
+    helpers.assert_contains(c, "def verify_profile_attached")
+    helpers.assert_contains(c, "attr/current")
+    helpers.assert_contains(c, "MainPID")
+
+
+def test_app_service_uses_per_service_runtime_directory_leaf():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/assets/app.service.j2")
+    helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}/{{ runtime_name }}")
+
+
+def test_site_nginx_service_uses_nginx_runtime_directory_leaf():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/nginx/site-nginx.service.j2")
+    helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}/nginx")
+    helpers.assert_contains(c, "ReadWritePaths={{ paths.runtime_nginx_dir }}")
+
+
+def test_project_nginx_profile_grants_nginx_dir_and_app_sockets():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/apparmor/project-nginx-profile.j2")
+    helpers.assert_contains(c, "{{ paths.runtime_nginx_dir }}/ rw,")
+    helpers.assert_contains(c, "{{ paths.runtime_nginx_dir }}/** rwk,")
+    helpers.assert_contains(c, "{{ paths.runtime_socket_dir }}/*/*.sock rw,")
+    helpers.assert_not_contains(c, "{{ paths.runtime_socket_dir }}/** rwk,")
+
+
 def test_runtime_plan_ordering():
     c = helpers.read(RUNTIME_PLAN)
     helpers.assert_ordering(
@@ -172,6 +213,7 @@ def test_runtime_excludes_ssl_logic():
 def test_runtime_socket_dir_runtime_user_owned():
     c = helpers.read(RUNTIME_NGINX)
     helpers.assert_contains(c, 'path=paths["runtime_socket_dir"]')
+    helpers.assert_contains(c, 'path=paths["runtime_nginx_dir"]')
     helpers.assert_contains(c, "user=ctx.runtime.runtime_user")
     helpers.assert_contains(c, "group=ctx.runtime.runtime_group")
     helpers.assert_contains(c, 'mode="0750"')

@@ -157,6 +157,23 @@ def test_django_uses_gunicorn_unix_socket():
     helpers.assert_not_contains(content, "python3-gunicorn")
 
 
+def test_app_runtimes_use_per_service_socket_leaf():
+    """Each app runtime must place its socket in its own leaf dir under
+    /run/<project>/<runtime>/, not in the shared /run/<project>/."""
+    for slug, rel in [
+        ("gunicorn", "bonesinfra/runtimes/django/django.py"),
+        ("puma", "bonesinfra/runtimes/rails/rails.py"),
+        ("nuxt", "bonesinfra/runtimes/nuxt/nuxt.py"),
+        ("sveltekit", "bonesinfra/runtimes/sveltekit/svelte.py"),
+    ]:
+        content = helpers.read(helpers.SRC_DIR / rel)
+        helpers.assert_contains(
+            content,
+            f"runtime_socket_dir']}}/{slug}/{slug}.sock",
+            msg=slug,
+        )
+
+
 def test_rails_uses_puma_unix_socket():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py")
     helpers.assert_contains(content, "bundle exec puma")

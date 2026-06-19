@@ -21,3 +21,25 @@ def run_as_runtime_user(ctx, name, command):
         _sudo=True,
         _sudo_user=user,
     )
+
+
+def verify_profile_attached(service_name, profile_name, *, name=None):
+    """Verify the service's main PID is confined to the expected AppArmor profile.
+
+    A loaded-but-unattached profile is a silent isolation failure: the service
+    runs unrestricted. Reads /proc/<MainPID>/attr/current and fails if the
+    profile name is not present. Deliberately run as root (needs /proc access
+    to other users' attr and systemctl show).
+    """
+    q_service = quote(service_name)
+    q_profile = quote(profile_name)
+    cmd = (
+        f"pid=$(systemctl show -p MainPID --value {q_service}); "
+        f'[ "$pid" != "0" ] && [ -n "$pid" ] && '
+        f'grep -q "{q_profile}" /proc/$pid/attr/current'
+    )
+    server.shell(
+        name=name or f"Verify {service_name} attached to {profile_name}",
+        commands=[cmd],
+        _sudo=True,
+    )

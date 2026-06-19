@@ -16,6 +16,14 @@ def setup(ctx, paths, here):
     )
 
     mkdir(
+        name="Ensure nginx runtime directory exists",
+        path=paths["runtime_nginx_dir"],
+        user=ctx.runtime.runtime_user,
+        group=ctx.runtime.runtime_group,
+        mode="0750",
+    )
+
+    mkdir(
         name="Ensure conf directory exists",
         path=paths["conf_root"],
         group=ctx.runtime.runtime_group,
