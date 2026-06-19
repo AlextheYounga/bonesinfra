@@ -369,3 +369,15 @@ def test_app_service_runtime_dir_stays_private():
     user) needs to reach app sockets, so no world traversal is required."""
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/assets/app.service.j2")
     helpers.assert_contains(c, "RuntimeDirectoryMode=0750")
+
+
+def test_runtime_nginx_reloads_after_config_change():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
+    helpers.assert_ordering(
+        c,
+        "Enable router nginx site",
+        "nginx -t",
+        "Ensure nginx service is enabled and started",
+        "Ensure per-site nginx service is enabled and started",
+        "systemctl reload nginx",
+    )

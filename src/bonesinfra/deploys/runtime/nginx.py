@@ -114,3 +114,11 @@ def start_services(paths):
         daemon_reload=True,
         _sudo=True,
     )
+
+    # ponytail: reload only after the per-site nginx socket exists, so the
+    # router never flips over to a missing upstream and briefly serves 502s.
+    server.shell(
+        name="Reload nginx to apply site config changes",
+        commands=["systemctl reload nginx"],
+        _sudo=True,
+    )
