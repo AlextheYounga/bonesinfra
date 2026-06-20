@@ -71,7 +71,6 @@ bonesdeploy
 │   │       │   ├── mod.rs
 │   │       │   ├── pull_state.rs
 │   │       │   ├── push_state.rs
-│   │       │   ├── remote_data.rs
 │   │       │   ├── remote_runtime.rs
 │   │       │   ├── remote_setup.rs
 │   │       │   ├── remote_ssl.rs
@@ -2918,7 +2917,6 @@ pub mod init_project;
 pub mod manage;
 pub mod pull_state;
 pub mod push_state;
-pub mod remote_data;
 pub mod remote_runtime;
 pub mod remote_setup;
 pub mod remote_ssl;
@@ -3098,92 +3096,7 @@ pub(crate) fn sync_bones_directory(cfg: &config::Bones) -> Result<()> {
 
 ```
 
-`crates/bonesdeploy/src/commands/remote_data.rs`:
 
-```rs
-use anyhow::Result;
-use serde_json::{Map, Value};
-use shared::config as shared_config;
-use shared::paths::{ssl_certificate_key_path, ssl_certificate_path};
-
-use crate::config;
-
-pub(super) fn base(cfg: &config::Bones, web_root: &str) -> Result<Map<String, Value>> {
-    let paths = cfg.deployment_paths(web_root);
-    let mut vars = Map::new();
-
-    vars.insert(String::from("ssh_port"), Value::String(cfg.port.clone()));
-    vars.insert(String::from("deploy_user"), Value::String(shared_config::default_deploy_user()));
-    vars.insert(String::from("runtime_user"), Value::String(shared_config::runtime_user_for(&cfg.project_name)));
-    vars.insert(String::from("runtime_group"), Value::String(shared_config::runtime_group_for(&cfg.project_name)));
-    vars.insert(String::from("release_group"), Value::String(shared_config::release_group_for(&cfg.project_name)));
-    vars.insert(String::from("project_root_parent"), Value::String(paths.project_root_parent.clone()));
-    vars.insert(String::from("project_root"), Value::String(cfg.project_root.clone()));
-    vars.insert(String::from("web_root"), Value::String(web_root.to_string()));
-    vars.insert(String::from("project_name"), Value::String(cfg.project_name.clone()));
-    vars.insert(String::from("preview_domain"), Value::String(cfg.preview_domain.clone()));
-    vars.insert(String::from("repo_path"), Value::String(cfg.repo_path.clone()));
-    vars.insert(String::from("paths"), serde_json::to_value(paths)?);
-
-    Ok(vars)
-}
-
-pub fn ssl(cfg: &config::Bones, web_root: &str, domain: &str, email: &str) -> Result<Value> {
-    let mut vars = base(cfg, web_root)?;
-    vars.insert(String::from("ssl_domain"), Value::String(domain.to_string()));
-    vars.insert(String::from("ssl_email"), Value::String(email.to_string()));
-    vars.insert(String::from("nginx_ssl_certificate_path"), Value::String(ssl_certificate_path(domain)));
-    vars.insert(String::from("nginx_ssl_certificate_key_path"), Value::String(ssl_certificate_key_path(domain)));
-    Ok(Value::Object(vars))
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::config::Bones;
-
-    use super::{base, ssl};
-
-    fn test_cfg() -> Bones {
-        Bones {
-            project_name: String::from("test"),
-            repo_path: String::from("/home/git/test.git"),
-            project_root: String::from("/srv/test"),
-            host: String::from("example.com"),
-            port: String::from("22"),
-            branch: String::from("master"),
-            remote_name: String::from("production"),
-            deploy_on_push: true,
-            ..Default::default()
-        }
-    }
-
-    /// Passes the SSL domain and email into the deploy data sent to bonesinfra
-    #[test]
-    fn ssl_data_includes_domain_and_email() -> anyhow::Result<()> {
-        let cfg = test_cfg();
-        let vars = ssl(&cfg, "public", "app.example.com", "ops@example.com")?;
-
-        assert_eq!(vars.get("ssl_domain"), Some(&serde_json::Value::String(String::from("app.example.com"))));
-        assert_eq!(vars.get("ssl_email"), Some(&serde_json::Value::String(String::from("ops@example.com"))));
-        Ok(())
-    }
-
-    #[test]
-    fn base_data_includes_preview_domain() -> anyhow::Result<()> {
-        let mut cfg = test_cfg();
-        cfg.preview_domain = String::from("test-example-com.nip.io");
-
-        let vars = base(&cfg, "public")?;
-
-        assert_eq!(
-            vars.get("preview_domain"),
-            Some(&serde_json::Value::String(String::from("test-example-com.nip.io")))
-        );
-        Ok(())
-    }
-}
-
-```
 
 `crates/bonesdeploy/src/commands/remote_runtime.rs`:
 
@@ -3233,43 +3146,21 @@ pub fn run() -> Result<()> {
 ```rs
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use console::style;
-use serde_json::Value;
 
-use shared::config as shared_config;
 use shared::paths;
 
-use super::remote_data;
-use crate::config;
 use crate::infra::bonesinfra_cli;
-use crate::infra::bootstrap_ssh;
 
 pub fn run() -> Result<()> {
     let bones_toml = Path::new(paths::LOCAL_BONES_TOML);
-    let cfg = config::load(bones_toml)?;
-    let runtime = shared_config::load_runtime(Path::new(paths::LOCAL_BONES_DIR))?;
-
-    let ssh_user = bootstrap_ssh::resolve(Some(&cfg.ssh_user));
-
-    let mut deploy_data = Value::Object(remote_data::base(&cfg, &runtime.web_root)?);
-    let host = cfg.host;
-    if let Value::Object(ref mut map) = deploy_data {
-        map.insert(String::from("ssh_user"), Value::String(ssh_user));
-        map.insert(String::from("host"), Value::String(host));
-    }
-
-    let json = serde_json::to_string(&deploy_data).context("Failed to serialize deploy data")?;
-    bonesinfra_cli::run_with_stdin(
-        &["setup", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")],
-        &json,
-    )?;
+    bonesinfra_cli::run(&["setup", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")])?;
 
     println!("{} Remote setup complete.", style("Done!").green().bold());
 
     Ok(())
 }
-
 ```
 
 `crates/bonesdeploy/src/commands/remote_ssl.rs`:
@@ -3277,24 +3168,19 @@ pub fn run() -> Result<()> {
 ```rs
 use std::path::Path;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use console::style;
-use serde_json::Value;
 
-use shared::config as shared_config;
 use shared::paths;
 
 use super::push_state;
-use super::remote_data;
 use crate::config;
 use crate::infra::bonesinfra_cli;
-use crate::infra::bootstrap_ssh;
 use crate::ui::prompts;
 
 pub fn run(domain: Option<String>, email: Option<String>) -> Result<()> {
     let bones_toml = Path::new(paths::LOCAL_BONES_TOML);
     let mut cfg = config::load(bones_toml)?;
-    let runtime = shared_config::load_runtime(Path::new(paths::LOCAL_BONES_DIR))?;
 
     if let Some(value) = domain {
         cfg.domain = value.trim().to_string();
@@ -3330,19 +3216,7 @@ pub fn run(domain: Option<String>, email: Option<String>) -> Result<()> {
         style(&cfg.domain).cyan(),
     );
 
-    let ssh_user = bootstrap_ssh::resolve(Some(&cfg.ssh_user));
-    let mut deploy_data = remote_data::ssl(&cfg, &runtime.web_root, &cfg.domain, &cfg.email)?;
-    if let Value::Object(ref mut map) = deploy_data {
-        map.insert(String::from("ssh_user"), Value::String(ssh_user));
-        map.insert(String::from("host"), Value::String(cfg.host.clone()));
-        map.insert(String::from("ssh_port"), Value::String(cfg.port.clone()));
-    }
-
-    let json = serde_json::to_string(&deploy_data).context("Failed to serialize deploy data")?;
-    bonesinfra_cli::run_with_stdin(
-        &["ssl", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")],
-        &json,
-    )?;
+    bonesinfra_cli::run(&["ssl", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")])?;
 
     config::save(&cfg, bones_toml)?;
     push_state::sync_bones_directory(&cfg)?;
@@ -3351,7 +3225,6 @@ pub fn run(domain: Option<String>, email: Option<String>) -> Result<()> {
 
     Ok(())
 }
-
 ```
 
 `crates/bonesdeploy/src/commands/rollback.rs`:
@@ -4321,9 +4194,8 @@ mod tests {
 `crates/bonesdeploy/src/infra/bonesinfra_cli.rs`:
 
 ```rs
-use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
@@ -4331,14 +4203,9 @@ use serde_json::Value;
 pub fn run(args: &[&str]) -> Result<String> {
     let executable = super::bonesinfra::executable_path()?;
 
-    run_interactive(&executable, args, None)
+    run_interactive(&executable, args)
 }
 
-pub fn run_with_stdin(args: &[&str], stdin_json: &str) -> Result<String> {
-    let executable = super::bonesinfra::executable_path()?;
-
-    run_interactive(&executable, args, Some(stdin_json))
-}
 pub fn run_json(args: &[&str]) -> Result<Value> {
     let executable = super::bonesinfra::executable_path()?;
     let stdout = run_captured(&executable, args)?;
@@ -4355,23 +4222,13 @@ fn base_command(executable: &Path) -> Command {
     cmd
 }
 
-fn run_interactive(executable: &Path, args: &[&str], stdin_json: Option<&str>) -> Result<String> {
+fn run_interactive(executable: &Path, args: &[&str]) -> Result<String> {
     let mut command = base_command(executable);
     command.args(args);
-    if stdin_json.is_some() {
-        command.stdin(Stdio::piped());
-    }
 
-    let mut child = command
+    let status = command
         .spawn()
-        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), executable.display()))?;
-
-    if let Some(stdin_json) = stdin_json {
-        let mut stdin = child.stdin.take().context("Failed to capture bonesinfra stdin")?;
-        stdin.write_all(stdin_json.as_bytes()).context("Failed to write JSON data to bonesinfra stdin")?;
-    }
-
-    let status = child
+        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), executable.display()))?
         .wait()
         .with_context(|| format!("Failed to wait on bonesinfra {} from {}", args.join(" "), executable.display()))?;
 
@@ -13858,7 +13715,7 @@ I've audited the workspace. Below is a refactor plan that follows AGENTS.md (laz
 
 ### Pass 2 — Collapse wrappers and the `Constants` Java-ism
 6. Delete `config::Constants` in both crates; use `shared::paths::*` consts directly.
-7. Delete one-line forwarders: `init_project::collect`, `init_project::collect_non_interactive` (cfg-test), `bonesinfra::checkout_path`, `remote_data::setup`, `config::default_project_root_for`, `release_state::{deployment_paths, build_root, shared_dir, current_link}`, `wire_release::{shared_path_exists, release_path_is_resolved}` (identical dup).
+7. Delete one-line forwarders: `init_project::collect`, `init_project::collect_non_interactive` (cfg-test), `bonesinfra::checkout_path`, `config::default_project_root_for`, `release_state::{deployment_paths, build_root, shared_dir, current_link}`, `wire_release::{shared_path_exists, release_path_is_resolved}` (identical dup).
 8. Delete single-use wrapper structs: `InitOutcome` (return `bool`), `NonInteractiveValues`, `PullTarget` (use existing `git::RemoteConnectionDetails`).
 9. Delete `release/scripts.rs` generic abstraction; `run_deployment_script` writes directly to `io::stdout()`/`io::stderr()`; rewrite the 4 tests as plain asserts against captured output (no `Cursor`/`Arc<Mutex>`/`TeeWriter`).
 10. Delete `prompts::confirm_with_lines`; use `inquire::Confirm` (already a dep, already used in the file).
@@ -13938,10 +13795,6 @@ use_small_heuristics = "Max"
 - Escapes embedded single quotes safely for remote shell execution. (shell_quote_single_escapes_embedded_single_quotes)
 - Returns an explicit empty string for empty input, not a zero-length argument. (shell_quote_single_handles_empty_string)
 - Wraps a plain value in single quotes to prevent whitespace and token splitting. (shell_quote_single_wraps_plain_value_in_single_quotes)
-
-## `crates/bonesdeploy/src/commands/remote_data.rs`
-- base data includes preview domain. (base_data_includes_preview_domain)
-- Passes the SSL domain and email into the deploy data sent to the infra CLI. (ssl_data_includes_domain_and_email)
 
 ## `crates/bonesdeploy/src/commands/tests/test_init_project.rs`
 - Requires a host when neither seed config nor CLI provide one. (collect_non_interactive_requires_host_when_seed_and_cli_are_missing_it)
