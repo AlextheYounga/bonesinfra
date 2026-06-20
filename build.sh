@@ -15,13 +15,3 @@ fi
 
 "$VENV/bin/python" -m pip install --upgrade pip
 "$VENV/bin/python" -m pip install --upgrade --group dev "$ROOT"
-
-exec "$VENV/bin/python" -m PyInstaller \
-  --clean \
-  --noconfirm \
-  --onefile \
-  --name bonesinfra \
-  --paths "$ROOT/src" \
-  --collect-data bonesinfra \
-  --collect-submodules pyinfra \
-  "$ROOT/src/bonesinfra/__main__.py"

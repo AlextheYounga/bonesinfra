@@ -84,11 +84,11 @@ bonesdeploy
 │   │       ├── config.rs
 │   │       ├── infra
 │   │       │   ├── bonesinfra.rs
+│   │       │   ├── bonesinfra_cli.rs
 │   │       │   ├── bootstrap_ssh.rs
 │   │       │   ├── embedded.rs
 │   │       │   ├── git.rs
 │   │       │   ├── mod.rs
-│   │       │   ├── python.rs
 │   │       │   ├── rsync.rs
 │   │       │   └── ssh.rs
 │   │       ├── main.rs
@@ -688,7 +688,7 @@ cp ./target/release/bonesremote ./bin/
 ```toml
 [package]
 name = "bonesdeploy"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 
 [dependencies]
@@ -1183,19 +1183,129 @@ paths = [
 
 set -Eeuo pipefail
 
-export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-NVM_INSTALL_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh"
+trap 'status=$?; echo "[bonesdeploy] Failed at line $LINENO: $BASH_COMMAND (status $status)" >&2; exit "$status"' ERR
 
-if [ -s "$NVM_DIR/nvm.sh" ]; then
+[ -f artisan ] || { echo "[bonesdeploy] artisan not found; skipping Laravel build dependency install."; exit 0; }
+[ -f package.json ] || { echo "[bonesdeploy] package.json not found; skipping Node install."; exit 0; }
+
+: "${PROJECT_ROOT:?PROJECT_ROOT must be set by bonesremote}"
+
+NODE_DIR="$PROJECT_ROOT/build/node"
+NODE_BIN="$NODE_DIR/bin/node"
+
+command -v curl >/dev/null 2>&1 || { echo "[bonesdeploy] curl not found" >&2; exit 1; }
+command -v tar >/dev/null 2>&1 || { echo "[bonesdeploy] tar not found" >&2; exit 1; }
+
+read_node_version() {
+  if [ -n "${BONES_NODE_VERSION:-}" ]; then
+    printf '%s\n' "$BONES_NODE_VERSION"
+    return
+  fi
+
+  if [ -f .node-version ]; then
+    head -n 1 .node-version
+    return
+  fi
+
+  if [ -f .nvmrc ]; then
+    head -n 1 .nvmrc
+    return
+  fi
+
+  if [ -f .tool-versions ]; then
+    awk '$1 == "nodejs" || $1 == "node" { print $2; exit }' .tool-versions
+    return
+  fi
+
+  if command -v php >/dev/null 2>&1; then
+    php -r '
+      $p = json_decode(file_get_contents("package.json"), true) ?: [];
+
+      if (isset($p["volta"]["node"])) {
+          echo $p["volta"]["node"];
+          exit;
+      }
+
+      if (isset($p["engines"]["node"])) {
+          echo $p["engines"]["node"];
+          exit;
+      }
+    '
+  fi
+}
+
+raw_version="$(read_node_version | head -n 1 | sed 's/#.*$//' | tr -d '\r' | xargs || true)"
+version="${raw_version#v}"
+
+if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  cat >&2 <<'EOF'
+[bonesdeploy] Laravel frontend build requires an exact pinned Node version.
+
+Add one of these to the project:
+  .node-version        example: 24.17.0
+  .nvmrc              example: 24.17.0
+  .tool-versions      example: nodejs 24.17.0
+  package.json volta  example: "volta": { "node": "24.17.0" }
+
+Or set:
+  BONES_NODE_VERSION=24.17.0
+
+Aliases and ranges are intentionally rejected:
+  node
+  latest
+  lts/*
+  24
+  >=20
+EOF
+  exit 1
+fi
+
+ensure_corepack() {
+  export PATH="$NODE_DIR/bin:$PATH"
+
+  if ! command -v corepack >/dev/null 2>&1; then
+    echo "[bonesdeploy] corepack not found in Node install; installing corepack..."
+    npm install -g corepack@latest
+  fi
+
+  corepack enable --install-directory "$NODE_DIR/bin" 2>/dev/null || true
+}
+
+if [ -x "$NODE_BIN" ] && "$NODE_BIN" --version | grep -qx "v$version"; then
+  echo "[bonesdeploy] Node v${version} already installed."
+  ensure_corepack
   exit 0
 fi
 
-if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$NVM_INSTALL_URL" | PROFILE=/dev/null NVM_DIR="$NVM_DIR" bash
-else
-  echo "curl or wget is required to install nvm."
-  exit 1
-fi
+arch="$(uname -m)"
+case "$arch" in
+  x86_64)  node_arch="x64" ;;
+  aarch64) node_arch="arm64" ;;
+  *) echo "[bonesdeploy] Unsupported architecture for Node binary install: $arch" >&2; exit 1 ;;
+esac
+
+url="https://nodejs.org/dist/v${version}/node-v${version}-linux-${node_arch}.tar.xz"
+tmp="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
+
+echo "[bonesdeploy] Installing Node v${version}..."
+echo "[bonesdeploy] Downloading $url"
+
+mkdir -p "$(dirname "$NODE_DIR")"
+
+curl -fsSL --retry 3 --retry-delay 2 "$url" | tar -xJ -C "$tmp"
+
+rm -rf "$NODE_DIR"
+mv "$tmp/node-v${version}-linux-${node_arch}" "$NODE_DIR"
+
+ensure_corepack
+
+echo "[bonesdeploy] Node installed: $(node --version)"
+echo "[bonesdeploy] npm installed:  $(npm --version)"
 ```
 
 `crates/bonesdeploy/runtimes/laravel/deployment/02_run_build.sh`:
@@ -1207,65 +1317,213 @@ set -Eeuo pipefail
 
 trap 'status=$?; echo "[bonesdeploy] Failed at line $LINENO: $BASH_COMMAND (status $status)" >&2; exit "$status"' ERR
 
-[ -f artisan ] || { echo "artisan not found"; exit 1; }
-command -v php >/dev/null 2>&1 || { echo "php not found"; exit 1; }
-command -v composer >/dev/null 2>&1 || { echo "composer not found"; exit 1; }
+[ -f artisan ] || { echo "[bonesdeploy] artisan not found" >&2; exit 1; }
 
-# Install PHP dependencies first — artisan requires vendor/autoload.php
+command -v php >/dev/null 2>&1 || { echo "[bonesdeploy] php not found" >&2; exit 1; }
+command -v composer >/dev/null 2>&1 || { echo "[bonesdeploy] composer not found" >&2; exit 1; }
+
+: "${PROJECT_ROOT:?PROJECT_ROOT must be set by bonesremote}"
+
+export COMPOSER_ALLOW_SUPERUSER="${COMPOSER_ALLOW_SUPERUSER:-1}"
+export CI=1
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+artisan_command_exists() {
+  local command_name="$1"
+  php artisan list --raw 2>/dev/null | awk '{ print $1 }' | grep -qx "$command_name"
+}
+
+package_json_value() {
+  local php_expr="$1"
+
+  php -r '
+    $p = json_decode(file_get_contents("package.json"), true) ?: [];
+    '"$php_expr"'
+  ' 2>/dev/null || true
+}
+
+detect_package_manager() {
+  local package_manager
+
+  package_manager="$(package_json_value '
+    $pm = $p["packageManager"] ?? "";
+    if ($pm) {
+        echo explode("@", $pm)[0];
+    }
+  ')"
+
+  if [ -n "$package_manager" ]; then
+    printf '%s\n' "$package_manager"
+    return
+  fi
+
+  if [ -f pnpm-lock.yaml ]; then
+    echo "pnpm"
+  elif [ -f yarn.lock ]; then
+    echo "yarn"
+  elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+    echo "npm"
+  else
+    echo "npm"
+  fi
+}
+
+has_build_script() {
+  [ -f package.json ] || return 1
+
+  [ "$(package_json_value '
+    echo isset($p["scripts"]["build"]) ? "1" : "0";
+  ')" = "1" ]
+}
+
+run_frontend_build() {
+  [ -f package.json ] || {
+    echo "[bonesdeploy] package.json not found; skipping frontend build."
+    return
+  }
+
+  has_build_script || {
+    echo "[bonesdeploy] package.json has no build script; skipping frontend build."
+    return
+  }
+
+  export PATH="$PROJECT_ROOT/build/node/bin:$PATH"
+
+  command -v node >/dev/null 2>&1 || {
+    echo "[bonesdeploy] node not found. Did 01_install_build_deps.sh run?" >&2
+    exit 1
+  }
+
+  if ! command -v corepack >/dev/null 2>&1; then
+    echo "[bonesdeploy] corepack not found; installing corepack..."
+    npm install -g corepack@latest
+  fi
+
+  corepack enable --install-directory "$(dirname "$(command -v node)")" 2>/dev/null || true
+
+  local package_manager
+  package_manager="$(detect_package_manager)"
+
+  echo "[bonesdeploy] Node: $(node --version)"
+  echo "[bonesdeploy] npm:  $(npm --version)"
+  echo "[bonesdeploy] Frontend package manager: $package_manager"
+
+  case "$package_manager" in
+    npm)
+      if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+        echo "[bonesdeploy] Installing frontend dependencies with npm ci..."
+        npm ci --include=dev
+      else
+        echo "[bonesdeploy] package-lock.json not found; falling back to npm install..."
+        npm install
+      fi
+
+      echo "[bonesdeploy] Building frontend assets with npm..."
+      npm run build
+      ;;
+
+    pnpm)
+      if [ -f pnpm-lock.yaml ]; then
+        echo "[bonesdeploy] Installing frontend dependencies with pnpm frozen lockfile..."
+        corepack pnpm install --frozen-lockfile --prod=false
+      else
+        echo "[bonesdeploy] pnpm-lock.yaml not found; falling back to non-frozen pnpm install..."
+        corepack pnpm install --prod=false
+      fi
+
+      echo "[bonesdeploy] Building frontend assets with pnpm..."
+      corepack pnpm run build
+      ;;
+
+    yarn)
+      local yarn_version
+      yarn_version="$(corepack yarn --version 2>/dev/null || true)"
+
+      if [[ "$yarn_version" == 1.* ]]; then
+        echo "[bonesdeploy] Installing frontend dependencies with Yarn classic..."
+        corepack yarn install --frozen-lockfile
+      else
+        echo "[bonesdeploy] Installing frontend dependencies with Yarn modern..."
+        corepack yarn install --immutable
+      fi
+
+      echo "[bonesdeploy] Building frontend assets with yarn..."
+      corepack yarn run build
+      ;;
+
+    *)
+      echo "[bonesdeploy] Unsupported package manager: $package_manager" >&2
+      exit 1
+      ;;
+  esac
+}
+
+enter_maintenance_mode() {
+  if [ "${BONES_LARAVEL_MAINTENANCE:-1}" = "0" ]; then
+    echo "[bonesdeploy] Maintenance mode disabled by BONES_LARAVEL_MAINTENANCE=0."
+    return
+  fi
+
+  echo "[bonesdeploy] Entering Laravel maintenance mode..."
+
+  if php artisan down --render="errors::503"; then
+    return
+  fi
+
+  php artisan down
+}
+
+exit_maintenance_mode() {
+  php artisan up || true
+}
+
 echo "[bonesdeploy] Installing Composer dependencies..."
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
-# Maintenance mode once the app can boot
-echo "[bonesdeploy] Entering Laravel maintenance mode..."
-php artisan down --render="errors::503"
-trap 'php artisan up || true' EXIT
-
-# Frontend build
-if [ -f "./.nvmrc" ]; then
-  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-  if [ -s "$NVM_DIR/nvm.sh" ]; then
-    # shellcheck disable=SC1090
-    source "$NVM_DIR/nvm.sh"
-  elif [ -s "$HOME/.config/nvm/nvm.sh" ]; then
-    # shellcheck disable=SC1090
-    source "$HOME/.config/nvm/nvm.sh"
-  fi
-  nvm install
-fi
-
-command -v pnpm >/dev/null 2>&1 || {
-  echo "pnpm not found. Install it globally or enable it via corepack before deploy."
-  exit 1
-}
-
-echo "[bonesdeploy] Installing frontend dependencies..."
-pnpm install --frozen-lockfile
-echo "[bonesdeploy] Building frontend assets..."
-pnpm run build
-
-if php artisan list | grep -q 'wayfinder:generate'; then
+# Generate frontend route/action files before Vite compiles the JS/TS bundle.
+if artisan_command_exists "wayfinder:generate"; then
+  echo "[bonesdeploy] Generating Wayfinder files..."
   php artisan wayfinder:generate
 fi
 
+run_frontend_build
+
+enter_maintenance_mode
+trap exit_maintenance_mode EXIT
+
 if [ ! -f .env ] || ! grep -Eq '^APP_KEY=base64:' .env; then
+  echo "[bonesdeploy] Generating Laravel APP_KEY..."
   php artisan key:generate --force
 fi
 
-echo "[bonesdeploy] Running migrations..."
-php artisan migrate --force
+echo "[bonesdeploy] Ensuring Laravel storage link exists..."
+php artisan storage:link --force || true
 
-# Clear old caches and rebuild them back-to-back
+if [ "${BONES_LARAVEL_SKIP_MIGRATIONS:-0}" = "1" ]; then
+  echo "[bonesdeploy] Skipping migrations because BONES_LARAVEL_SKIP_MIGRATIONS=1."
+else
+  echo "[bonesdeploy] Running migrations..."
+  php artisan migrate --force
+fi
+
 echo "[bonesdeploy] Rebuilding Laravel caches..."
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan event:cache || true
-php artisan queue:restart || true
+
+if artisan_command_exists "event:cache"; then
+  php artisan event:cache || true
+fi
+
+if artisan_command_exists "queue:restart"; then
+  php artisan queue:restart || true
+fi
 
 php artisan up
 trap - EXIT
 
+echo "[bonesdeploy] Laravel build complete."
 ```
 
 `crates/bonesdeploy/runtimes/laravel/runtime.toml`:
@@ -2292,9 +2550,10 @@ use crate::commands::init_config;
 pub use crate::commands::init_config::InitArgs;
 use crate::commands::remote_setup;
 use crate::config;
+use crate::infra::bonesinfra;
+use crate::infra::bonesinfra_cli;
 use crate::infra::embedded;
 use crate::infra::git;
-use crate::infra::python;
 use crate::ui::prompts;
 use shared::config::{default_deploy_user, release_group_for, runtime_group_for, runtime_user_for};
 use shared::paths;
@@ -2302,8 +2561,14 @@ use shared::paths;
 pub fn run(args: &InitArgs) -> Result<bool> {
     git::ensure_git_repository()?;
 
+    println!("Preparing local bonesinfra...");
+    bonesinfra::prefetch()?;
+    println!("Local bonesinfra ready.");
+
     let bones_dir = Path::new(paths::LOCAL_BONES_DIR);
-    let is_fresh = !bones_dir.exists();
+    let had_bones_entry = fs::symlink_metadata(bones_dir).is_ok();
+    let has_live_bones_dir = bones_dir.exists();
+    let is_fresh = !has_live_bones_dir;
 
     let mut initial_project_name: Option<String> = None;
 
@@ -2319,6 +2584,10 @@ pub fn run(args: &InitArgs) -> Result<bool> {
         fs::create_dir_all(&config_dir)?;
         embedded::scaffold(&config_dir)?;
 
+        if had_bones_entry {
+            fs::remove_file(bones_dir)
+                .with_context(|| format!("Failed to remove stale {} symlink", bones_dir.display()))?;
+        }
         unix_fs::symlink(&config_dir, bones_dir)?;
         println!("Symlinked .bones -> {}", config_dir.display());
 
@@ -2386,7 +2655,7 @@ fn seed_runtime_config(args: &InitArgs, project_name: &str, bones_dir: &Path, ru
         let answers = if args.non_interactive {
             serde_json::Value::Object(defaults.clone())
         } else {
-            let questions = python::runtime_questions(template_name)?;
+            let questions = bonesinfra_cli::runtime_questions(template_name)?;
             prompts::prompt_runtime_questions(&questions, &serde_json::Value::Object(defaults.clone()))?
         };
         let mut map = answers.as_object().cloned().unwrap_or(defaults);
@@ -2923,8 +3192,8 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 
+use crate::infra::bonesinfra_cli;
 use crate::infra::git;
-use crate::infra::python;
 use crate::ui::prompts;
 use shared::paths;
 
@@ -2942,9 +3211,9 @@ pub fn run() -> Result<()> {
     }
 
     let bones_toml = Path::new(paths::LOCAL_BONES_TOML);
-    println!("Applying runtime using hidden bonesinfra ...");
+    println!("Applying runtime using local bonesinfra ...");
 
-    python::run(&[
+    bonesinfra_cli::run(&[
         "runtime",
         "apply",
         "--config",
@@ -2973,8 +3242,8 @@ use shared::paths;
 
 use super::remote_data;
 use crate::config;
+use crate::infra::bonesinfra_cli;
 use crate::infra::bootstrap_ssh;
-use crate::infra::python;
 
 pub fn run() -> Result<()> {
     let bones_toml = Path::new(paths::LOCAL_BONES_TOML);
@@ -2991,7 +3260,7 @@ pub fn run() -> Result<()> {
     }
 
     let json = serde_json::to_string(&deploy_data).context("Failed to serialize deploy data")?;
-    python::run_python_with_stdin(
+    bonesinfra_cli::run_with_stdin(
         &["setup", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")],
         &json,
     )?;
@@ -3018,8 +3287,8 @@ use shared::paths;
 use super::push_state;
 use super::remote_data;
 use crate::config;
+use crate::infra::bonesinfra_cli;
 use crate::infra::bootstrap_ssh;
-use crate::infra::python;
 use crate::ui::prompts;
 
 pub fn run(domain: Option<String>, email: Option<String>) -> Result<()> {
@@ -3070,7 +3339,7 @@ pub fn run(domain: Option<String>, email: Option<String>) -> Result<()> {
     }
 
     let json = serde_json::to_string(&deploy_data).context("Failed to serialize deploy data")?;
-    python::run_python_with_stdin(
+    bonesinfra_cli::run_with_stdin(
         &["ssl", "apply", "--config", bones_toml.to_str().unwrap_or(".bones/bones.toml")],
         &json,
     )?;
@@ -3317,6 +3586,24 @@ fn init_rerun_preserves_existing_bones_assets() -> Result<()> {
 
         assert!(sentinel.is_file());
         assert_eq!(fs::read_to_string(&sentinel)?, original);
+
+        Ok(())
+    })
+}
+
+/// Repairs a dangling .bones symlink instead of failing with EEXIST.
+#[test]
+fn init_repairs_dangling_bones_symlink() -> Result<()> {
+    with_temp_repo(|repo_dir, home_dir| {
+        let config_root = home_dir.join(".config/bonesdeploy");
+        fs::create_dir_all(&config_root)?;
+        std::os::unix::fs::symlink(config_root.join("missing.bones"), repo_dir.join(".bones"))?;
+
+        run(&init_args())?;
+
+        let bones_dir = repo_dir.join(".bones");
+        assert!(bones_dir.join("bones.toml").is_file());
+        assert_eq!(fs::read_link(&bones_dir)?, paths::bones_config_root().join("atlas.bones"));
 
         Ok(())
     })
@@ -3869,45 +4156,50 @@ use shared::paths;
 const REPOSITORY_URL: &str = "https://github.com/AlextheYounga/bonesinfra.git";
 const CHECKOUT_DIR: &str = "bonesinfra";
 
-pub(super) fn checkout_path() -> Result<PathBuf> {
+pub fn prefetch() -> Result<()> {
+    ensure_available().map(|_| ())
+}
+
+pub(super) fn executable_path() -> Result<PathBuf> {
     ensure_available()
 }
 
 fn ensure_available() -> Result<PathBuf> {
     let checkout = checkout_dir();
-    let pyproject = checkout.join("pyproject.toml");
-    if pyproject.is_file() {
-        return Ok(checkout);
-    }
+    let venv_python = checkout.join(".venv").join("bin").join("python");
 
-    if fs::symlink_metadata(&checkout).is_ok() {
-        reset_checkout(&checkout)?;
-    }
-
-    install_checkout(&checkout)?;
-
-    if !pyproject.is_file() {
-        let contents: Vec<_> = fs::read_dir(&checkout)
-            .into_iter()
-            .flatten()
-            .filter_map(Result::ok)
-            .map(|e| e.path().display().to_string())
-            .collect();
-        if contents.is_empty() {
-            bail!(
-                "Git clone succeeded but checkout is empty at {}. The repository may have no default branch.",
-                checkout.display()
-            );
+    if let Ok(metadata) = fs::symlink_metadata(&checkout) {
+        if !metadata.file_type().is_dir() {
+            reset_checkout(&checkout)?;
         }
-        bail!(
-            "Installed bonesinfra checkout at {}, but {} is missing.\nContents of checkout:\n  {}",
-            checkout.display(),
-            pyproject.display(),
-            contents.join("\n  ")
-        );
     }
 
-    Ok(checkout)
+    if !checkout.is_dir() {
+        install_checkout(&checkout)?;
+    }
+
+    setup_venv(&checkout)?;
+
+    if venv_python.is_file() {
+        return Ok(venv_python);
+    }
+
+    let contents: Vec<_> = fs::read_dir(&checkout)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .map(|e| e.path().display().to_string())
+        .collect();
+    if contents.is_empty() {
+        bail!("bonesinfra setup finished but checkout is empty at {}.", checkout.display());
+    }
+
+    bail!(
+        "bonesinfra setup finished at {}, but {} is missing.\nContents of checkout:\n  {}",
+        checkout.display(),
+        venv_python.display(),
+        contents.join("\n  ")
+    );
 }
 
 fn reset_checkout(checkout: &Path) -> Result<()> {
@@ -3933,17 +4225,54 @@ fn install_checkout(checkout: &Path) -> Result<()> {
     let status = Command::new("git")
         .args(["clone", "--depth", "1", REPOSITORY_URL, &checkout.to_string_lossy()])
         .status()
-        .context("Failed to run git clone for hidden bonesinfra checkout")?;
+        .context("Failed to run git clone for bonesinfra install")?;
 
     if !status.success() {
-        bail!("Failed to install hidden bonesinfra checkout from {} into {}.", REPOSITORY_URL, checkout.display());
+        bail!("Failed to install bonesinfra from {} into {}.", REPOSITORY_URL, checkout.display());
+    }
+
+    Ok(())
+}
+
+fn setup_venv(checkout: &Path) -> Result<()> {
+    let venv_python = checkout.join(".venv").join("bin").join("python");
+
+    if !venv_python.is_file() {
+        let status = Command::new("python3")
+            .args(["-m", "venv", ".venv"])
+            .current_dir(checkout)
+            .status()
+            .with_context(|| format!("Failed to create venv in {}", checkout.display()))?;
+
+        if !status.success() {
+            bail!("Failed to create venv in {}.", checkout.display());
+        }
+    }
+
+    let status = Command::new(&venv_python)
+        .args(["-m", "pip", "install", "--upgrade", "pip"])
+        .status()
+        .with_context(|| format!("Failed to upgrade pip in {}", checkout.display()))?;
+
+    if !status.success() {
+        bail!("Failed to upgrade pip in {}.", checkout.display());
+    }
+
+    let status = Command::new(&venv_python)
+        .args(["-m", "pip", "install", "-e", "."])
+        .current_dir(checkout)
+        .status()
+        .with_context(|| format!("Failed to install bonesinfra dependencies in {}", checkout.display()))?;
+
+    if !status.success() {
+        bail!("Failed to install bonesinfra dependencies in {}.", checkout.display());
     }
 
     Ok(())
 }
 
 fn checkout_dir() -> PathBuf {
-    paths::bones_state_root().join(CHECKOUT_DIR)
+    paths::bones_config_root().join(CHECKOUT_DIR)
 }
 
 #[cfg(test)]
@@ -3957,8 +4286,8 @@ mod tests {
     use super::{checkout_dir, reset_checkout};
 
     #[test]
-    fn checkout_dir_lives_under_bones_state_root() {
-        assert_eq!(checkout_dir(), paths::bones_state_root().join("bonesinfra"));
+    fn checkout_dir_lives_under_bones_config_root() {
+        assert_eq!(checkout_dir(), paths::bones_config_root().join("bonesinfra"));
     }
 
     #[test]
@@ -3982,6 +4311,117 @@ mod tests {
         reset_checkout(&checkout)?;
 
         assert!(!checkout.exists());
+        Ok(())
+    }
+
+}
+
+```
+
+`crates/bonesdeploy/src/infra/bonesinfra_cli.rs`:
+
+```rs
+use std::io::Write;
+use std::path::Path;
+use std::process::{Command, Stdio};
+
+use anyhow::{Context, Result, bail};
+use serde_json::Value;
+
+pub fn run(args: &[&str]) -> Result<String> {
+    let executable = super::bonesinfra::executable_path()?;
+
+    run_interactive(&executable, args, None)
+}
+
+pub fn run_with_stdin(args: &[&str], stdin_json: &str) -> Result<String> {
+    let executable = super::bonesinfra::executable_path()?;
+
+    run_interactive(&executable, args, Some(stdin_json))
+}
+pub fn run_json(args: &[&str]) -> Result<Value> {
+    let executable = super::bonesinfra::executable_path()?;
+    let stdout = run_captured(&executable, args)?;
+    parse_json_output(&stdout)
+}
+
+fn parse_json_output(stdout: &str) -> Result<Value> {
+    serde_json::from_str(stdout).context("Failed to parse JSON output from bonesinfra")
+}
+
+fn base_command(executable: &Path) -> Command {
+    let mut cmd = Command::new(executable);
+    cmd.args(["-m", "bonesinfra"]);
+    cmd
+}
+
+fn run_interactive(executable: &Path, args: &[&str], stdin_json: Option<&str>) -> Result<String> {
+    let mut command = base_command(executable);
+    command.args(args);
+    if stdin_json.is_some() {
+        command.stdin(Stdio::piped());
+    }
+
+    let mut child = command
+        .spawn()
+        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), executable.display()))?;
+
+    if let Some(stdin_json) = stdin_json {
+        let mut stdin = child.stdin.take().context("Failed to capture bonesinfra stdin")?;
+        stdin.write_all(stdin_json.as_bytes()).context("Failed to write JSON data to bonesinfra stdin")?;
+    }
+
+    let status = child
+        .wait()
+        .with_context(|| format!("Failed to wait on bonesinfra {} from {}", args.join(" "), executable.display()))?;
+
+    if !status.success() {
+        bail!("bonesinfra failed");
+    }
+
+    Ok(String::new())
+}
+
+fn run_captured(executable: &Path, args: &[&str]) -> Result<String> {
+    let output = base_command(executable)
+        .args(args)
+        .output()
+        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), executable.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("bonesinfra failed:\n{}", stderr.trim());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Returns the questions for a given runtime from bonesinfra.
+pub fn runtime_questions(runtime: &str) -> Result<Value> {
+    run_json(&["runtime", "questions", runtime])
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use anyhow::Result;
+
+    use super::{base_command, parse_json_output};
+
+    #[test]
+    fn base_command_launches_venv_python_with_module_flag() {
+        let command = base_command(Path::new("/tmp/bonesinfra/.venv/bin/python"));
+
+        assert_eq!(command.get_program().to_string_lossy(), "/tmp/bonesinfra/.venv/bin/python");
+        let args: Vec<_> = command.get_args().map(|a| a.to_string_lossy().to_string()).collect();
+        assert_eq!(args, vec!["-m", "bonesinfra"]);
+    }
+
+    #[test]
+    fn parse_json_output_reads_cli_stdout() -> Result<()> {
+        let parsed = parse_json_output("[\"django\",\"rails\"]")?;
+        assert_eq!(parsed, serde_json::json!(["django", "rails"]));
         Ok(())
     }
 }
@@ -4462,116 +4902,12 @@ mod tests {
 
 ```rs
 pub mod bonesinfra;
+pub mod bonesinfra_cli;
 pub mod bootstrap_ssh;
 pub mod embedded;
 pub mod git;
-pub mod python;
 pub mod rsync;
 pub mod ssh;
-
-```
-
-`crates/bonesdeploy/src/infra/python.rs`:
-
-```rs
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, Stdio};
-
-use anyhow::{Context, Result, bail};
-use serde_json::Value;
-
-/// Runs the hidden bonesinfra entrypoint with the provided args.
-pub fn run(args: &[&str]) -> Result<String> {
-    let checkout = super::bonesinfra::checkout_path()?;
-
-    let output = base_command(&checkout)
-        .current_dir(&checkout)
-        .args(args)
-        .output()
-        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), checkout.display()))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("bonesinfra failed:\n{}", stderr.trim());
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-/// Runs the hidden bonesinfra entrypoint with JSON piped to stdin.
-pub fn run_python_with_stdin(args: &[&str], stdin_json: &str) -> Result<String> {
-    let checkout = super::bonesinfra::checkout_path()?;
-
-    let mut child = base_command(&checkout)
-        .current_dir(&checkout)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("Failed to run bonesinfra {} from {}", args.join(" "), checkout.display()))?;
-
-    let mut stdin = child.stdin.take().context("Failed to capture python3 stdin")?;
-    stdin.write_all(stdin_json.as_bytes()).context("Failed to write JSON data to python3 stdin")?;
-
-    let output = child
-        .wait_with_output()
-        .with_context(|| format!("Failed to wait on bonesinfra {} from {}", args.join(" "), checkout.display()))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("bonesinfra failed:\n{}", stderr.trim());
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-pub fn run_python_json(args: &[&str]) -> Result<Value> {
-    let stdout = run(args)?;
-    parse_json_output(&stdout)
-}
-
-fn parse_json_output(stdout: &str) -> Result<Value> {
-    serde_json::from_str(stdout).context("Failed to parse JSON output from Python infra CLI")
-}
-
-fn base_command(checkout: &Path) -> Command {
-    let mut command = Command::new("uv");
-    command.args(["run", "--project"]);
-    command.arg(checkout);
-    command.arg("bonesinfra");
-    command
-}
-
-/// Returns the questions for a given runtime from Python.
-pub fn runtime_questions(runtime: &str) -> Result<Value> {
-    run_python_json(&["runtime", "questions", runtime])
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use anyhow::Result;
-
-    use super::{base_command, parse_json_output};
-
-    #[test]
-    fn base_command_launches_bonesinfra_via_uv() {
-        let command = base_command(Path::new("/tmp/bonesinfra"));
-
-        assert_eq!(command.get_program().to_string_lossy(), "uv");
-        let args: Vec<String> = command.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
-        assert_eq!(args, ["run", "--project", "/tmp/bonesinfra", "bonesinfra"]);
-    }
-
-    #[test]
-    fn parse_json_output_reads_cli_stdout() -> Result<()> {
-        let parsed = parse_json_output("[\"django\",\"rails\"]")?;
-        assert_eq!(parsed, serde_json::json!(["django", "rails"]));
-        Ok(())
-    }
-}
 
 ```
 
@@ -4972,7 +5308,7 @@ fn remote_setup_prompt_lines() -> [&'static str; 12] {
         "  - Create the appropriate deployment and release directories for your project.",
         "  - Install the bonesremote binary on the server, used to facilitate deployments.",
         "",
-        "For more information, check the hidden bonesinfra checkout managed by bonesdeploy.",
+        "For more information, check the local bonesinfra install managed by bonesdeploy.",
     ]
 }
 
@@ -4986,7 +5322,7 @@ fn remote_runtime_prompt_lines() -> [&'static str; 9] {
         "  - Provision runtime-specific services, like PHP-FPM, Python, or Ruby, depending on your runtime template.",
         "  - Configure AppArmor, nginx, and systemd services are configured for this site.",
         "",
-        "For more information, check the hidden bonesinfra checkout managed by bonesdeploy.",
+        "For more information, check the local bonesinfra install managed by bonesdeploy.",
     ]
 }
 
@@ -5084,7 +5420,7 @@ mod tests {
 ```toml
 [package]
 name = "bonesremote"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 
 
