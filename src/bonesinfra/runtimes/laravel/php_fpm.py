@@ -10,7 +10,7 @@ def setup_storage_directories(paths, ctx):
     for subdir in subdirs:
         files.directory(
             name=f"Ensure storage/{subdir} exists",
-            path=f"{paths['current']}/storage/{subdir}",
+            path=f"{paths['shared']}/storage/{subdir}",
             user=runtime_user,
             group=runtime_group,
             mode="0775",

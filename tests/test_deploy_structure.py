@@ -139,6 +139,7 @@ def test_runtime_plan_calls_all_steps():
     helpers.assert_contains(c, "packages.install_apt")
     helpers.assert_contains(c, "apparmor.setup")
     helpers.assert_contains(c, "nginx.setup")
+    helpers.assert_contains(c, "shared_paths.provision")
     helpers.assert_contains(c, "template_runtime.load")
     helpers.assert_contains(c, "nginx.start_services")
     helpers.assert_contains(c, "doctor.run")
@@ -200,6 +201,7 @@ def test_runtime_plan_ordering():
         c,
         "packages.install_apt",
         "nginx.setup",
+        "shared_paths.provision",
         "template_runtime.load",
         "nginx.start_services",
     )
