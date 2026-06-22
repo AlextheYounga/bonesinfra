@@ -7,6 +7,9 @@ events {
 }
 
 http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
     access_log {{ paths.runtime_nginx_dir }}/access.log;
     client_body_temp_path {{ paths.runtime_nginx_dir }}/client_body;
     proxy_temp_path {{ paths.runtime_nginx_dir }}/proxy;
