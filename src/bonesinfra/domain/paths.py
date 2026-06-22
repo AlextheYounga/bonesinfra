@@ -78,6 +78,7 @@ class DeploymentPaths:
     runtime_nginx_socket: str
     runtime_nginx_pid: str
     runtime_php_fpm_socket: str
+    acme_webroot: str
     sudoers_path: str
     usr_local_bin: str
     bonesremote_global_link: str
@@ -131,6 +132,7 @@ class DeploymentPaths:
             runtime_nginx_socket=str(runtime_nginx_dir / NGINX_SOCKET),
             runtime_nginx_pid=str(runtime_nginx_dir / NGINX_PID),
             runtime_php_fpm_socket=str(runtime_socket_dir / PHP_FPM_SOCKET),
+            acme_webroot=f"/var/www/{project_name}",
             sudoers_path=str(Path(ETC_SUDOERS_D) / "bonesdeploy"),
             usr_local_bin=USR_LOCAL_BIN,
             bonesremote_global_link=str(Path(USR_LOCAL_BIN) / BONESREMOTE_BINARY),

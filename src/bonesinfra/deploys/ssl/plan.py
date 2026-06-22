@@ -5,7 +5,7 @@ from pyinfra.operations import server, systemd
 
 from bonesinfra.domain.context import template_data
 from bonesinfra.domain.paths import DeploymentPaths
-from bonesinfra.infra.deploy_helpers import render
+from bonesinfra.infra.deploy_helpers import mkdir, render
 
 
 def deploy_ssl(ctx):
@@ -20,6 +20,14 @@ def deploy_ssl(ctx):
     if not ctx.config.domain or not ctx.config.email:
         print("Error: ssl_domain and ssl_email are required", file=sys.stderr)
         sys.exit(1)
+
+    # Dedicated, www-data-traversable webroot so the ACME challenge never
+    # depends on the release tree's permissions (SSL is separate from runtime).
+    mkdir(
+        name="Ensure ACME webroot exists",
+        path=paths["acme_webroot"],
+        mode="0755",
+    )
 
     _render_router_config(ctx, paths, here, ssl_enabled=False, stage="certbot challenge")
     obtain_certificate(ctx, paths)
@@ -69,8 +77,8 @@ def obtain_certificate(ctx, paths):
         commands=[
             "certbot certonly --non-interactive --agree-tos "
             f"--email {ctx.config.email} "
-            "--webroot "
-            f"-w {paths['current_web_root']} "
+            f"--webroot "
+            f"-w {paths['acme_webroot']} "
             f"-d {ctx.config.domain} "
             "--keep-until-expiring"
         ],

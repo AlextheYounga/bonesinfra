@@ -288,9 +288,9 @@ def test_ssl_requires_real_domain_for_router_render():
     helpers.assert_contains(c, 'raise ValueError("domain is required for ssl nginx config")')
 
 
-def test_ssl_uses_current_web_root():
+def test_ssl_uses_acme_webroot():
     c = helpers.read(SSL_PLAN)
-    helpers.assert_contains(c, "current_web_root")
+    helpers.assert_contains(c, "acme_webroot")
 
 
 # ---- Laravel-specific ordering ----
