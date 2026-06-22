@@ -1,6 +1,7 @@
 from pathlib import PurePosixPath
+from shlex import quote
 
-from pyinfra.operations import files
+from pyinfra.operations import files, server
 
 from bonesinfra.infra.deploy_helpers import mkdir
 
@@ -38,7 +39,7 @@ def provision(ctx, paths):
                 path=target,
                 user=runtime_user,
                 group=runtime_group,
-                mode="0775",
+                mode="2771",
             )
             continue
 
@@ -51,7 +52,7 @@ def provision(ctx, paths):
             path=parent,
             user=runtime_user,
             group=runtime_group,
-            mode="0775",
+            mode="2771",
         )
         files.file(
             name=f"Ensure shared file exists: {raw_path}",
@@ -60,5 +61,21 @@ def provision(ctx, paths):
             group=runtime_group,
             mode="0640",
             touch=True,
+            _sudo=True,
+        )
+
+    if shared_paths:
+        q_shared = quote(paths["shared"])
+        q_group = quote(runtime_group)
+        # ponytail: recursive repair is simple and safe for this project-owned
+        # shared tree; upgrade path is targeted per-path repair if shared trees
+        # become huge.
+        server.shell(
+            name="Repair shared tree group ownership and setgid bits",
+            commands=[
+                f"chgrp -R {q_group} {q_shared}",
+                f"chmod -R g+rwX {q_shared}",
+                f"find {q_shared} -type d -exec chmod g+s {{}} +",
+            ],
             _sudo=True,
         )

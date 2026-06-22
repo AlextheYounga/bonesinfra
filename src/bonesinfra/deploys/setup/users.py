@@ -44,6 +44,8 @@ def ensure_users_and_groups(ctx):
         _sudo=True,
     )
 
+    _ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)
+
     existing_user = host.get_fact(Users).get(ctx.runtime.runtime_user)
 
     if existing_user is None:

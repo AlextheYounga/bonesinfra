@@ -88,6 +88,17 @@ def test_setup_avoids_usermod_for_existing_runtime_user():
     helpers.assert_contains(c, "gpasswd -a")
 
 
+def test_setup_adds_deploy_user_to_runtime_group():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
+
+
+def test_setup_shared_dir_is_setgid_and_traversable():
+    c = helpers.read(SETUP_DIRECTORIES)
+    shared_block = c.split('path=paths["shared"]')[1].split(")")[0]
+    helpers.assert_contains(shared_block, 'mode="2771"')
+
+
 def test_setup_deploy_user_commands_set_user_home():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_contains(c, "XDG_CONFIG_HOME={home}/.config")
