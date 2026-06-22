@@ -3,8 +3,8 @@ user = {{ runtime_user }}
 group = {{ runtime_group }}
 
 listen = {{ laravel_php_fpm_socket_path }}
-listen.owner = www-data
-listen.group = www-data
+listen.owner = {{ runtime_user }}
+listen.group = {{ runtime_group }}
 listen.mode = 0660
 
 pm = dynamic

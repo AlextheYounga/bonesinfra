@@ -91,10 +91,10 @@ def test_laravel_php_fpm_pool_uses_distro_run_php_socket():
     helpers.assert_not_contains(c, "/run/{{ project_name }}")
 
 
-def test_laravel_php_fpm_pool_listens_as_www_data():
+def test_laravel_php_fpm_pool_listens_as_runtime_user():
     c = _read("runtimes/laravel/assets/php/php-fpm-pool.conf.j2")
-    helpers.assert_contains(c, "listen.owner = www-data")
-    helpers.assert_contains(c, "listen.group = www-data")
+    helpers.assert_contains(c, "listen.owner = {{ runtime_user }}")
+    helpers.assert_contains(c, "listen.group = {{ runtime_group }}")
     helpers.assert_contains(c, "listen.mode = 0660")
 
 
