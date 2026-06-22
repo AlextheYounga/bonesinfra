@@ -79,7 +79,7 @@ def install_authorized_key(ctx):
         commands=[
             f"install -d -o {deploy_user} -g {deploy_user} -m 0700 /home/{deploy_user}/.ssh",
             (
-                f'src=$(eval echo ~{ssh_user}/.ssh/authorized_keys); '
+                f"src=$(eval echo ~{ssh_user}/.ssh/authorized_keys); "
                 f'[ -f "$src" ] || {{ echo "ERROR: $src not found" >&2; exit 1; }}; '
                 f'cp "$src" /home/{deploy_user}/.ssh/authorized_keys'
             ),

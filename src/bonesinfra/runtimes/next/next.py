@@ -30,8 +30,7 @@ def deploy(ctx):
         name="next",
         runtime_label="Next.js app server",
         runtime_exec=(
-            f"/usr/bin/env NODE_ENV=production PORT={port} HOSTNAME=127.0.0.1 "
-            "node .next/standalone/server.js"
+            f"/usr/bin/env NODE_ENV=production PORT={port} HOSTNAME=127.0.0.1 node .next/standalone/server.js"
         ),
         apparmor_profile_name=apparmor_profile_name,
         runtime_write_paths=[],

@@ -1,7 +1,7 @@
 from pathlib import PurePosixPath
 from shlex import quote
 
-from pyinfra.operations import files, server
+from pyinfra.operations import server
 
 from bonesinfra.infra.deploy_helpers import mkdir
 
@@ -25,6 +25,7 @@ def provision(ctx, paths):
     runtime_group = ctx.runtime.runtime_group
     shared_paths = ctx.runtime.runtime_data.get("shared", {}).get("paths", [])
 
+    dir_targets = []
     for item in shared_paths:
         if not isinstance(item, dict):
             raise TypeError(f"shared path entry must be a table: {item!r}")
@@ -39,8 +40,9 @@ def provision(ctx, paths):
                 path=target,
                 user=runtime_user,
                 group=runtime_group,
-                mode="2771",
+                mode="2775",
             )
+            dir_targets.append(target)
             continue
 
         if path_type != "file":
@@ -52,30 +54,25 @@ def provision(ctx, paths):
             path=parent,
             user=runtime_user,
             group=runtime_group,
-            mode="2771",
-        )
-        files.file(
-            name=f"Ensure shared file exists: {raw_path}",
-            path=target,
-            user=runtime_user,
-            group=runtime_group,
-            mode="0640",
-            touch=True,
-            _sudo=True,
+            mode="2775",
         )
 
-    if shared_paths:
-        q_shared = quote(paths["shared"])
+    if dir_targets:
         q_group = quote(runtime_group)
-        # ponytail: recursive repair is simple and safe for this project-owned
-        # shared tree; upgrade path is targeted per-path repair if shared trees
-        # become huge.
-        server.shell(
-            name="Repair shared tree group ownership and setgid bits",
-            commands=[
-                f"chgrp -R {q_group} {q_shared}",
-                f"chmod -R g+rwX {q_shared}",
-                f"find {q_shared} -type d -exec chmod g+s {{}} +",
-            ],
-            _sudo=True,
-        )
+        for raw_path, target in zip(
+            [item["path"] for item in shared_paths if item.get("type") == "dir"],
+            dir_targets,
+            strict=True,
+        ):
+            q_target = quote(target)
+            # ponytail: recursive repair is simple for project-owned shared dirs;
+            # upgrade path is targeted repair if shared dirs become huge.
+            server.shell(
+                name=f"Repair shared directory: {raw_path}",
+                commands=[
+                    f"chgrp -R {q_group} {q_target}",
+                    f"chmod -R g+rwX {q_target}",
+                    f"find {q_target} -type d -exec chmod g+s {{}} +",
+                ],
+                _sudo=True,
+            )

@@ -1,4 +1,3 @@
-
 import pytest
 
 from bonesinfra.deploys.runtime import nginx as runtime_nginx

@@ -13,7 +13,7 @@ def setup_storage_directories(paths, ctx):
             path=f"{paths['shared']}/storage/{subdir}",
             user=runtime_user,
             group=runtime_group,
-            mode="2771",
+            mode="2775",
             _sudo=True,
         )
 

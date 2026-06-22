@@ -58,8 +58,7 @@ def setup(ctx, paths, here):
     if not nginx_server_name:
         raise ValueError("domain or preview_domain is required for nginx config")
     nginx_ssl_enabled = bool(
-        ctx.runtime.runtime_data.get("ssl_cert_path")
-        and ctx.runtime.runtime_data.get("ssl_key_path")
+        ctx.runtime.runtime_data.get("ssl_cert_path") and ctx.runtime.runtime_data.get("ssl_key_path")
     )
 
     render(

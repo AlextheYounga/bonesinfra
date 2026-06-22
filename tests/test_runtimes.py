@@ -93,18 +93,14 @@ def test_common_logs_provisions_runtime_owned_dir():
 
 
 def test_template_runtime_load_fails_loudly_without_silent_swallow():
-    content = helpers.read(
-        helpers.SRC_DIR / "bonesinfra/deploys/runtime/template_runtime.py"
-    )
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/template_runtime.py")
     helpers.assert_not_contains(content, "except (ImportError, KeyError)")
     helpers.assert_not_contains(content, "    pass")
     helpers.assert_contains(content, 'raise RuntimeError(f"Runtime {template} does not expose deploy(ctx)")')
 
 
 def test_template_runtime_load_requires_deploy_attribute():
-    content = helpers.read(
-        helpers.SRC_DIR / "bonesinfra/deploys/runtime/template_runtime.py"
-    )
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/template_runtime.py")
     helpers.assert_contains(content, 'if not hasattr(runtime, "deploy")')
 
 

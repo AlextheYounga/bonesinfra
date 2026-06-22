@@ -29,8 +29,7 @@ def deploy(ctx):
         name="nuxt",
         runtime_label="Nuxt app server",
         runtime_exec=(
-            f"/usr/bin/env NODE_ENV=production NITRO_UNIX_SOCKET={socket_path} "
-            "node .output/server/index.mjs"
+            f"/usr/bin/env NODE_ENV=production NITRO_UNIX_SOCKET={socket_path} node .output/server/index.mjs"
         ),
         apparmor_profile_name=apparmor_profile_name,
         runtime_write_paths=[],
