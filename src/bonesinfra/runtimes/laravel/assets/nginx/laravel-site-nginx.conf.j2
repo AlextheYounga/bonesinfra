@@ -17,6 +17,13 @@ http {
     uwsgi_temp_path {{ paths.runtime_nginx_dir }}/uwsgi;
     scgi_temp_path {{ paths.runtime_nginx_dir }}/scgi;
 
+    # The SSL-terminating router sets X-Forwarded-Proto; mirror it to PHP-FPM
+    # so url()/asset_url() generate https:// links under SSL.
+    map $http_x_forwarded_proto $fastcgi_https_flag {
+        default "";
+        https  on;
+    }
+
     server {
         listen unix:{{ paths.runtime_nginx_socket }};
         root {{ paths.current_web_root }};
@@ -31,6 +38,7 @@ http {
             fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
             include /etc/nginx/fastcgi_params;
             fastcgi_param DOCUMENT_ROOT $realpath_root;
+            fastcgi_param HTTPS $fastcgi_https_flag;
             internal;
         }
 
