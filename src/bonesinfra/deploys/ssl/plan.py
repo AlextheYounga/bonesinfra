@@ -31,13 +31,21 @@ def _render_router_config(ctx, paths, here, ssl_enabled, stage):
     if not nginx_server_name:
         raise ValueError("domain is required for ssl nginx config")
 
+    extra = {
+        "nginx_server_name": nginx_server_name,
+        "nginx_ssl_enabled": ssl_enabled,
+    }
+    if ssl_enabled:
+        live = f"/etc/letsencrypt/live/{nginx_server_name}"
+        extra["nginx_ssl_certificate_path"] = f"{live}/fullchain.pem"
+        extra["nginx_ssl_certificate_key_path"] = f"{live}/privkey.pem"
+
     render(
         f"Render nginx config ({stage})",
         here / "assets/nginx/router.conf.j2",
         paths["nginx_site_available"],
         mode="0644",
-        nginx_server_name=nginx_server_name,
-        nginx_ssl_enabled=ssl_enabled,
+        **extra,
         **template_data(ctx, paths=paths),
     )
 
