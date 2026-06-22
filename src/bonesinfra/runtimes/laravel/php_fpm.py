@@ -1,21 +1,4 @@
-from pyinfra.operations import files
-
 from bonesinfra.runtimes.common import php_fpm_pool
-
-
-def setup_storage_directories(paths, ctx):
-    runtime_user = ctx.runtime.runtime_user
-    runtime_group = ctx.runtime.runtime_group
-    subdirs = ["logs", "framework/cache", "framework/sessions", "framework/views"]
-    for subdir in subdirs:
-        files.directory(
-            name=f"Ensure storage/{subdir} exists",
-            path=f"{paths['shared']}/storage/{subdir}",
-            user=runtime_user,
-            group=runtime_group,
-            mode="2775",
-            _sudo=True,
-        )
 
 
 def setup_pool(here, ctx, paths, php_version):

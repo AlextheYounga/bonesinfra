@@ -96,7 +96,7 @@ def test_setup_adds_deploy_user_to_runtime_group():
 def test_setup_shared_dir_is_setgid_and_traversable():
     c = helpers.read(SETUP_DIRECTORIES)
     shared_block = c.split('path=paths["shared"]')[1].split(")")[0]
-    helpers.assert_contains(shared_block, 'mode="2771"')
+    helpers.assert_contains(shared_block, 'mode="2775"')
 
 
 def test_setup_deploy_user_commands_set_user_home():
@@ -150,7 +150,6 @@ def test_runtime_plan_calls_all_steps():
     helpers.assert_contains(c, "packages.install_apt")
     helpers.assert_contains(c, "apparmor.setup")
     helpers.assert_contains(c, "nginx.setup")
-    helpers.assert_contains(c, "shared_paths.provision")
     helpers.assert_contains(c, "template_runtime.load")
     helpers.assert_contains(c, "nginx.start_services")
     helpers.assert_contains(c, "doctor.run")
@@ -212,7 +211,6 @@ def test_runtime_plan_ordering():
         c,
         "packages.install_apt",
         "nginx.setup",
-        "shared_paths.provision",
         "template_runtime.load",
         "nginx.start_services",
     )
@@ -322,7 +320,6 @@ def test_laravel_deploy_does_not_setup_php_fpm_apparmor():
     helpers.assert_not_contains(c, "apparmor")
     helpers.assert_ordering(
         c,
-        "php_fpm.setup_storage_directories",
         "php_fpm.setup_pool",
         "nginx.setup",
     )

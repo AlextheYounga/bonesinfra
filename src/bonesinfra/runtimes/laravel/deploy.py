@@ -17,6 +17,5 @@ def deploy(ctx):
     php_repo.add_php_apt_source()
     php_packages.install_php(php_version)
 
-    php_fpm.setup_storage_directories(paths, ctx)
     php_fpm.setup_pool(here, ctx, paths, php_version)
     nginx.setup(here, ctx, paths, php_version)

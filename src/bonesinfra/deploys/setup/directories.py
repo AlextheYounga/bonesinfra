@@ -69,7 +69,7 @@ def setup_repo_and_project(ctx, paths):
         path=paths["shared"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="2771",
+        mode="2775",
     )
 
     mkdir(

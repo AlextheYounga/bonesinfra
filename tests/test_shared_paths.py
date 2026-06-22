@@ -1,57 +1,64 @@
-import pytest
+"""Tests for shared-path provisioning removal.
 
-from bonesinfra.deploys.runtime import shared_paths
+BonesInfra no longer creates framework shared paths.
+It creates only project_root/shared with mode 2775.
+"""
 
 from . import helpers
 
-
-@pytest.mark.parametrize(
-    "raw_path",
-    ["/etc/passwd", "../storage", "storage/../logs", "./storage", "storage/./logs", "storage//logs"],
-)
-def test_shared_path_target_rejects_unsafe_paths(raw_path):
-    with pytest.raises(ValueError):
-        shared_paths._shared_path_target("/srv/sites/myapp/shared", raw_path)
+SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
+SETUP_USERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/users.py"
+RUNTIME_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py"
+LARAVEL_PHP_FPM = helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py"
+LARAVEL_DEPLOY = helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py"
+SHARED_PATHS_PY = helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py"
 
 
-def test_runtime_plan_provisions_shared_paths_before_runtime_template():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py")
-    helpers.assert_ordering(
-        content,
-        "nginx.setup",
-        "shared_paths.provision",
-        "template_runtime.load",
-    )
+def test_shared_paths_module_is_deleted():
+    assert not SHARED_PATHS_PY.exists(), "shared_paths.py must be deleted"
 
 
-def test_shared_path_directories_use_setgid_traverse_mode():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py")
-    helpers.assert_contains(content, 'mode="2775"')
-    helpers.assert_contains(content, "targeted repair")
-    helpers.assert_contains(content, "chmod -R g+rwX")
-    helpers.assert_contains(content, "find")
-    helpers.assert_contains(content, "ponytail:")
+def test_runtime_plan_does_not_call_shared_paths():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_not_contains(c, "shared_paths")
+    helpers.assert_not_contains(c, "shared.paths")
 
 
-def test_laravel_storage_directories_use_shared_root():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
-    helpers.assert_contains(content, "paths['shared']")
-    helpers.assert_not_contains(content, "paths['current']}/storage")
-    helpers.assert_contains(content, 'mode="2775"')
+def test_shared_root_is_created_with_mode_2775():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_contains(c, 'path=paths["shared"]')
+    helpers.assert_contains(c, 'mode="2775"')
 
 
-def test_shared_file_entries_are_not_auto_created():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py")
-    helpers.assert_not_contains(content, "touch=True")
-    helpers.assert_not_contains(content, "files.file")
+def test_deploy_user_is_added_to_runtime_group():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
 
 
-def test_shared_paths_ignores_link_flag():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py")
-    helpers.assert_not_contains(content, "link")
+def test_laravel_does_not_create_storage_subdirectories():
+    c = helpers.read(LARAVEL_PHP_FPM)
+    helpers.assert_not_contains(c, "setup_storage_directories")
+    helpers.assert_not_contains(c, "storage/logs")
+    helpers.assert_not_contains(c, "framework/cache")
+    helpers.assert_not_contains(c, "framework/sessions")
+    helpers.assert_not_contains(c, "framework/views")
 
 
-def test_dotenv_not_auto_created_by_shared_provisioning():
-    content = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py")
-    helpers.assert_contains(content, "Ensure parent directory exists for shared file")
-    helpers.assert_not_contains(content, "Ensure shared file exists")
+def test_laravel_deploy_does_not_call_storage_setup():
+    c = helpers.read(LARAVEL_DEPLOY)
+    helpers.assert_not_contains(c, "setup_storage_directories")
+
+
+def test_bonesinfra_does_not_create_env_file():
+    # BonesInfra must not create shared/.env anywhere
+    for f in [SETUP_DIRECTORIES, RUNTIME_PLAN, LARAVEL_PHP_FPM, LARAVEL_DEPLOY]:
+        c = helpers.read(f)
+        helpers.assert_not_contains(c, "touch")
+        # Only "exists" is from non-file-creation contexts like "project not exists"
+        if ".env" in c:
+            assert "Ensure shared file" not in c, f"{f} must not create .env"
+
+
+def test_runtime_plan_does_not_inspect_shared_in_runtime_data():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_not_contains(c, '["shared"]')
