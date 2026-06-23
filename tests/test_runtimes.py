@@ -179,7 +179,15 @@ def test_nuxt_does_not_validate_build_artifact():
 def test_nuxt_static_path_uses_render_static():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
     helpers.assert_contains(content, "nginx.render_static")
-    helpers.assert_contains(content, 'root=".output/public"')
+    helpers.assert_contains(content, "STATIC_ROOT")
+
+
+def test_nuxt_static_runtime_seeds_placeholder_output():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
+    helpers.assert_contains(content, 'STATIC_ROOT = ".output/public"')
+    helpers.assert_contains(content, "paths['placeholder_release']")
+    helpers.assert_contains(content, '"Seed Nuxt static placeholder index page"')
+    helpers.assert_contains(content, 'f"{static_web_root}/index.html"')
 
 
 def test_static_nginx_template_uses_static_root_variable():

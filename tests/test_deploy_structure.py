@@ -82,14 +82,6 @@ def test_setup_uses_resolved_placeholder_paths():
     helpers.assert_contains(c2, "placeholder_index")
 
 
-def test_setup_seeds_nuxt_static_placeholder_output():
-    c = helpers.read(SETUP_PLACEHOLDER)
-    helpers.assert_contains(c, 'runtime_data.get("template") == "nuxt"')
-    helpers.assert_contains(c, 'runtime_data.get("is_static", True)')
-    helpers.assert_contains(c, 'Path(paths["placeholder_release"]) / ".output/public"')
-    helpers.assert_contains(c, 'Path(nuxt_static_web_root) / "index.html"')
-
-
 def test_setup_avoids_usermod_for_existing_runtime_user():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "host.get_fact(Users)")

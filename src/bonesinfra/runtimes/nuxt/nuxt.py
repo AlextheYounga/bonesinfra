@@ -1,4 +1,10 @@
+from pathlib import Path
+
+from bonesinfra.domain.context import template_data
+from bonesinfra.infra.deploy_helpers import mkdir, render
 from bonesinfra.runtimes.common import apparmor, logs, nginx, node, paths as common_paths, service
+
+STATIC_ROOT = ".output/public"
 
 
 def questions():
@@ -18,7 +24,24 @@ def deploy(ctx):
 
     if is_static:
         common_paths.ensure_runtime_dirs(ctx)
-        nginx.render_static(ctx, paths=paths, root=".output/public")
+        static_web_root = f"{paths['placeholder_release']}/{STATIC_ROOT}"
+        mkdir(
+            name="Ensure Nuxt static placeholder output directory exists",
+            path=static_web_root,
+            user=ctx.config.deploy_user,
+            group=ctx.runtime.release_group,
+            mode="0750",
+        )
+        render(
+            "Seed Nuxt static placeholder index page",
+            Path(__file__).parents[2] / "assets/nginx/index.html.j2",
+            f"{static_web_root}/index.html",
+            user=ctx.config.deploy_user,
+            group=ctx.runtime.release_group,
+            mode="0640",
+            **template_data(ctx, paths=paths),
+        )
+        nginx.render_static(ctx, paths=paths, root=STATIC_ROOT)
         return
 
     socket_path = f"{paths['runtime_socket_dir']}/nuxt/nuxt.sock"
