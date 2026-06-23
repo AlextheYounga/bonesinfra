@@ -5,7 +5,7 @@ from pyinfra.operations import server, systemd
 
 from bonesinfra.domain.context import template_data
 from bonesinfra.domain.paths import DeploymentPaths
-from bonesinfra.infra.deploy_helpers import mkdir, render
+from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
 def deploy_ssl(ctx):
@@ -44,9 +44,9 @@ def _render_router_config(ctx, paths, here, ssl_enabled, stage):
         "nginx_ssl_enabled": ssl_enabled,
     }
     if ssl_enabled:
-        live = f"/etc/letsencrypt/live/{nginx_server_name}"
-        extra["nginx_ssl_certificate_path"] = f"{live}/fullchain.pem"
-        extra["nginx_ssl_certificate_key_path"] = f"{live}/privkey.pem"
+        cert_path, key_path = letsencrypt_cert_paths(nginx_server_name)
+        extra["nginx_ssl_certificate_path"] = cert_path
+        extra["nginx_ssl_certificate_key_path"] = key_path
 
     render(
         f"Render nginx config ({stage})",

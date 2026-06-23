@@ -3,7 +3,7 @@ from pathlib import Path
 from pyinfra.operations import files, server, systemd
 
 from bonesinfra.domain.context import template_data
-from bonesinfra.infra.deploy_helpers import mkdir, render
+from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
 def setup(ctx, paths, here):
@@ -57,9 +57,12 @@ def setup(ctx, paths, here):
     nginx_server_name = ctx.config.domain or ctx.config.preview_domain
     if not nginx_server_name:
         raise ValueError("domain or preview_domain is required for nginx config")
-    nginx_ssl_enabled = bool(
-        ctx.runtime.runtime_data.get("ssl_cert_path") and ctx.runtime.runtime_data.get("ssl_key_path")
-    )
+
+    # SSL state comes from bones.toml (ssl_enabled), not runtime.toml — SSL is
+    # owned by `ssl apply`, not `runtime apply`. This keeps runtime apply from
+    # clobbering the SSL router config that ssl apply wrote.
+    nginx_ssl_enabled = ctx.config.ssl_enabled and bool(ctx.config.domain)
+    cert_path, key_path = letsencrypt_cert_paths(ctx.config.domain or nginx_server_name)
 
     render(
         "Deploy router nginx config",
@@ -68,8 +71,8 @@ def setup(ctx, paths, here):
         mode="0644",
         nginx_server_name=nginx_server_name,
         nginx_ssl_enabled=nginx_ssl_enabled,
-        nginx_ssl_certificate_path=ctx.runtime.runtime_data.get("ssl_cert_path", ""),
-        nginx_ssl_certificate_key_path=ctx.runtime.runtime_data.get("ssl_key_path", ""),
+        nginx_ssl_certificate_path=cert_path,
+        nginx_ssl_certificate_key_path=key_path,
         **template_data(ctx, paths=paths),
     )
 

@@ -23,3 +23,8 @@ def render(name, src, dest, user="root", group="root", mode="0644", **data):
         **data,
         _sudo=True,
     )
+
+
+def letsencrypt_cert_paths(domain: str) -> tuple[str, str]:
+    live = f"/etc/letsencrypt/live/{domain}"
+    return f"{live}/fullchain.pem", f"{live}/privkey.pem"
