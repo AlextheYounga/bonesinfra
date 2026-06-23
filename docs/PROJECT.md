@@ -104,7 +104,8 @@ Expected structure:
 bonesinfra/
 ├── pyproject.toml
 ├── README.md
-├── PROJECT.md
+├── docs/
+│   └── PROJECT.md
 └── src/
     └── bonesinfra/
         ├── __init__.py
@@ -293,7 +294,7 @@ def deploy_setup(ctx):     # ctx: DeployContext
 
 Sub-modules receive `(ctx, paths)` — no flat dict.
 
-Deploy plans derive `paths` from `DeploymentPaths.new(ctx.config.project_root)` and pass it to sub-modules along with `ctx`.
+Deploy plans derive `paths` from `DeploymentPaths.new(ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root)` and pass it to sub-modules along with `ctx`.
 
 Raw pyinfra operations should live in focused modules.
 
@@ -305,11 +306,13 @@ Examples:
 
 ```text
 runtimes/
-├── registry.py
+├── __init__.py
+├── common/
 ├── laravel/
 ├── django/
 ├── rails/
 ├── next/
+├── nuxt/
 ├── sveltekit/
 └── vue/
 ```
@@ -391,8 +394,13 @@ Good:
 
 ```python
 RUNTIMES = {
-    "laravel": RuntimeSpec(...),
-    "django": RuntimeSpec(...),
+    "django": django,
+    "laravel": laravel,
+    "next": next_runtime,
+    "nuxt": nuxt,
+    "rails": rails,
+    "sveltekit": svelte,
+    "vue": vue,
 }
 ```
 
@@ -408,7 +416,7 @@ bonesinfra runtime questions laravel
 Expected `runtime list` response:
 
 ```json
-["django", "laravel", "next", "rails", "sveltekit", "vue"]
+["django", "laravel", "next", "nuxt", "rails", "sveltekit", "vue"]
 ```
 
 Expected `runtime questions` response:
@@ -421,6 +429,12 @@ Expected `runtime questions` response:
     "label": "PHP version",
     "choices": ["8.2", "8.3", "8.4", "8.5"],
     "default": "8.5"
+  },
+  {
+    "key": "install_queue_worker",
+    "type": "bool",
+    "label": "Install Laravel queue worker?",
+    "default": false
   }
 ]
 ```
@@ -524,12 +538,12 @@ runtimes/laravel/
 ├── php_repo.py
 ├── php_packages.py
 ├── php_fpm.py
-├── apparmor.py
-├── nginx.py
-└── assets/
+└── nginx.py
 ```
 
 Laravel should not be one giant file.
+
+Shared runtime helpers live under `runtimes/common/`, including common AppArmor, nginx, service, Node, path, validation, logging, and PHP-FPM pool helpers.
 
 Django, Rails, Node, Vue, etc. can stay small, but they should still follow the same interface.
 
@@ -568,7 +582,7 @@ Suggested tests:
 - domain/ files do not import pyinfra
 - app/ files do not import pyinfra.operations
 - runtime registry imports every declared runtime
-- every runtime exposes `questions`/`defaults`/`deploy(ctx)` or explicit no-op deploy
+- every runtime exposes `questions()` and `deploy(ctx)` or explicit no-op deploy
 - runtime question JSON matches contract schema
 - deploy context parses typed dataclasses correctly
 - `template_data()` produces expected flat dict keys
