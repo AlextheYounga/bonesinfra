@@ -1,4 +1,5 @@
-from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_paths, ruby, service, validation
+from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_paths, service, validation
+from bonesinfra.runtimes.rails import ruby_packages
 
 
 def questions():
@@ -40,7 +41,7 @@ def deploy(ctx):
         f"{paths['current']}/storage",
     ]
     rails_env = ctx.runtime.runtime_data.get("rails_env", "production")
-    ruby.install_packages()
+    ruby_packages.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)
     apparmor_profile_name = apparmor.render_app_profile(

@@ -18,31 +18,6 @@ def ensure_log_dir(ctx):
     logs.ensure(ctx)
 
 
-def cleanup_orphaned_pools(ctx, php_version):
-    project = ctx.config.project_name
-    current_pool = pool_config_path(project, php_version)
-    server.shell(
-        name="Remove orphaned project PHP-FPM pools from other PHP versions",
-        commands=[
-            " ".join(
-                [
-                    f'project="{project}"',
-                    f'current_pool="{current_pool}"',
-                    'for pool in /etc/php/*/fpm/pool.d/"$project".conf; do',
-                    '  [ -e "$pool" ] || continue',
-                    '  [ "$pool" = "$current_pool" ] && continue',
-                    "  version=${pool#/etc/php/}",
-                    "  version=${version%%/*}",
-                    '  rm -f "$pool"',
-                    '  systemctl reload-or-restart "php${version}-fpm"',
-                    "done",
-                ]
-            )
-        ],
-        _sudo=True,
-    )
-
-
 def render_pool(ctx, *, here, paths, php_version):
     project = ctx.config.project_name
     files.template(

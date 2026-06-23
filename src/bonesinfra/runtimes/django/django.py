@@ -1,4 +1,5 @@
-from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_paths, python, service, validation
+from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_paths, service, validation
+from bonesinfra.runtimes.django import python_packages
 
 
 def questions():
@@ -45,7 +46,7 @@ def deploy(ctx):
     media_root = f"{paths['current']}/{ctx.runtime.runtime_data.get('media_root', 'media')}"
     writable = [static_root, media_root]
     gunicorn_bin = f"{paths['current']}/.venv/bin/gunicorn"
-    python.install_packages()
+    python_packages.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)
     apparmor_profile_name = apparmor.render_app_profile(

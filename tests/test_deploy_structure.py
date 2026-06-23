@@ -309,7 +309,7 @@ def test_laravel_validates_php_fpm_before_reload():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
     helpers.assert_ordering(
         c,
-        "php_fpm_pool.cleanup_orphaned_pools",
+        "cleanup_orphaned_pools(ctx, php_version)",
         "php_fpm_pool.render_pool",
         "php_fpm_pool.validate_php_fpm",
         "php_fpm_pool.reload_php_fpm",
