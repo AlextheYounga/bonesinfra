@@ -19,7 +19,7 @@ http {
 
     server {
         listen unix:{{ paths.runtime_nginx_socket }};
-        root {{ paths.current }}/dist;
+        root {{ paths.current }}/{{ static_root }};
         index index.html;
 
         location / {

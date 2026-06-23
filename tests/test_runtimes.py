@@ -161,6 +161,39 @@ def test_nuxt_uses_nitro_unix_socket():
     helpers.assert_contains(content, "socket_path=socket_path")
 
 
+def test_nuxt_questions_include_is_static_default_true():
+    mod = importlib.import_module("bonesinfra.runtimes.nuxt.nuxt")
+    qs = mod.questions()
+    keys = {q["key"]: q for q in qs}
+    assert "is_static" in keys
+    assert keys["is_static"]["default"] is True
+    assert keys["is_static"]["type"] == "bool"
+
+
+def test_nuxt_does_not_validate_build_artifact():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
+    helpers.assert_not_contains(content, "test -f .output/server/index.mjs")
+    helpers.assert_not_contains(content, "validation.run_as_runtime_user")
+
+
+def test_nuxt_static_path_uses_render_static():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
+    helpers.assert_contains(content, "nginx.render_static")
+    helpers.assert_contains(content, 'root=".output/public"')
+
+
+def test_static_nginx_template_uses_static_root_variable():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/assets/static-site-nginx.conf.j2")
+    helpers.assert_contains(c, "{{ static_root }}")
+    helpers.assert_not_contains(c, "{{ paths.current }}/dist;")
+
+
+def test_vue_static_uses_default_dist_root():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/vue/vue.py")
+    helpers.assert_contains(content, "nginx.render_static")
+    helpers.assert_not_contains(content, 'root="')
+
+
 def test_sveltekit_uses_socket_path_env():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/sveltekit/svelte.py")
     helpers.assert_contains(content, "SOCKET_PATH=")

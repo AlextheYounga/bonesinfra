@@ -226,7 +226,7 @@ def test_common_app_nginx_logs_under_runtime_nginx_dir():
 
 def test_common_static_nginx_serves_dist():
     c = _read("runtimes/common/assets/static-site-nginx.conf.j2")
-    helpers.assert_contains(c, "root {{ paths.current }}/dist")
+    helpers.assert_contains(c, "root {{ paths.current }}/{{ static_root }}")
     helpers.assert_contains(c, "index index.html")
     helpers.assert_contains(c, "try_files $uri $uri/ /index.html")
 

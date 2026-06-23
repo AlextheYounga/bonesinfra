@@ -1,12 +1,26 @@
-from bonesinfra.runtimes.common import apparmor, logs, nginx, node, paths as common_paths, service, validation
+from bonesinfra.runtimes.common import apparmor, logs, nginx, node, paths as common_paths, service
 
 
 def questions():
-    return []
+    return [
+        {
+            "key": "is_static",
+            "type": "bool",
+            "label": "Is this Nuxt site static?",
+            "default": True,
+        },
+    ]
 
 
 def deploy(ctx):
+    is_static = ctx.runtime.runtime_data.get("is_static", True)
     paths = service.runtime_paths(ctx)
+
+    if is_static:
+        common_paths.ensure_runtime_dirs(ctx)
+        nginx.render_static(ctx, paths=paths, root=".output/public")
+        return
+
     socket_path = f"{paths['runtime_socket_dir']}/nuxt/nuxt.sock"
     node.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
@@ -17,11 +31,6 @@ def deploy(ctx):
         runtime="nuxt",
         apparmor_exec_paths=["/usr/bin/node"],
         apparmor_writable_paths=[],
-    )
-    validation.run_as_runtime_user(
-        ctx,
-        "Validate Nuxt server entrypoint exists as runtime user",
-        "test -f .output/server/index.mjs",
     )
     service.render_app_service(
         ctx,

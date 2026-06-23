@@ -47,7 +47,7 @@ def render_proxy(ctx, *, paths, socket_path=None, port=None):
     )
 
 
-def render_static(ctx, *, paths):
+def render_static(ctx, *, paths, root="dist"):
     here = Path(__file__).parent
     files.template(
         name="Deploy per-site static nginx config",
@@ -56,6 +56,7 @@ def render_static(ctx, *, paths):
         user="root",
         group=ctx.runtime.runtime_group,
         mode="0640",
+        static_root=root,
         **template_data(ctx, paths=paths),
         _sudo=True,
     )
