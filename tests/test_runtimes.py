@@ -1,7 +1,9 @@
 import importlib
+from types import SimpleNamespace
 
 from bonesinfra.app import runtime_catalog
 from bonesinfra.runtimes import list_runtimes
+from bonesinfra.runtimes.common import php_fpm_pool
 
 from . import helpers
 
@@ -38,6 +40,7 @@ def test_laravel_deploy_accepts_ctx():
 
 def test_laravel_php_fpm_uses_distro_pool_model():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py")
+    helpers.assert_contains(content, "php_fpm_pool.cleanup_orphaned_pools")
     helpers.assert_contains(content, "php_fpm_pool.render_pool")
     helpers.assert_contains(content, "php_fpm_pool.validate_php_fpm")
     helpers.assert_contains(content, "php_fpm_pool.reload_php_fpm")
@@ -70,6 +73,25 @@ def test_common_php_fpm_pool_socket_path_is_distro_standard():
 def test_common_php_fpm_pool_ensures_bonesdeploy_log_dir():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/common/php_fpm_pool.py")
     helpers.assert_contains(content, "logs.ensure(ctx)")
+
+
+def test_common_php_fpm_pool_cleans_orphaned_project_pools(monkeypatch):
+    calls = []
+
+    def fake_shell(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(php_fpm_pool.server, "shell", fake_shell)
+    ctx = SimpleNamespace(config=SimpleNamespace(project_name="demo"))
+
+    php_fpm_pool.cleanup_orphaned_pools(ctx, "8.5")
+
+    assert len(calls) == 1
+    command = calls[0]["commands"][0]
+    assert '/etc/php/*/fpm/pool.d/"$project".conf' in command
+    assert '[ "$pool" = "$current_pool" ] && continue' in command
+    assert 'rm -f "$pool"' in command
+    assert 'systemctl reload-or-restart "php${version}-fpm"' in command
 
 
 def test_laravel_nginx_uses_distro_php_socket_and_no_runtime_chown():
