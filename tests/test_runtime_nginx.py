@@ -40,6 +40,8 @@ def test_runtime_nginx_uses_preview_domain_when_domain_is_empty(tmp_path, monkey
     monkeypatch.setattr(runtime_nginx.files, "link", _noop)
     monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
     monkeypatch.setattr(runtime_nginx.systemd, "daemon_reload", _noop)
+    monkeypatch.setattr(runtime_nginx.nginx_safety, "install_default_deny_server", _noop)
+    monkeypatch.setattr(runtime_nginx.nginx_safety, "validate_config", _noop)
 
     def fake_render(*args, **kwargs):
         calls.append((args, kwargs))
@@ -66,6 +68,8 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime_nginx.files, "link", _noop)
     monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
     monkeypatch.setattr(runtime_nginx.systemd, "daemon_reload", _noop)
+    monkeypatch.setattr(runtime_nginx.nginx_safety, "install_default_deny_server", _noop)
+    monkeypatch.setattr(runtime_nginx.nginx_safety, "validate_config", _noop)
     monkeypatch.setattr(runtime_nginx, "render", _noop)
 
     with pytest.raises(ValueError, match="domain or preview_domain"):

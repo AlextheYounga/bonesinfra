@@ -74,6 +74,22 @@ def test_router_config_uses_resolved_socket_path():
     helpers.assert_not_contains(c, "default_server")
 
 
+def test_default_deny_config_is_default_deny_only():
+    c = _read("assets/nginx/default-deny.conf.j2")
+    helpers.assert_contains(c, "listen 80 default_server;")
+    helpers.assert_contains(c, "listen 443 ssl default_server;")
+    helpers.assert_contains(c, "server_name _;")
+    helpers.assert_contains(c, "return 444;")
+    helpers.assert_contains(c, "{{ paths.nginx_default_deny_ssl_certificate }}")
+    helpers.assert_contains(c, "{{ paths.nginx_default_deny_ssl_certificate_key }}")
+    # Mandatory dead-end: never proxy, serve files, or reach project state.
+    helpers.assert_not_contains(c, "proxy_pass")
+    helpers.assert_not_contains(c, "root ")
+    helpers.assert_not_contains(c, "runtime_nginx_socket")
+    helpers.assert_not_contains(c, "runtime_socket_dir")
+    helpers.assert_not_contains(c, "current_web_root")
+
+
 # ---- Laravel PHP-FPM pool config ----
 
 

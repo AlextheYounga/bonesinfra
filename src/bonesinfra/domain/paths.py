@@ -10,6 +10,8 @@ ETC_NGINX_SITES_AVAILABLE = "/etc/nginx/sites-available"
 ETC_NGINX_SITES_ENABLED = "/etc/nginx/sites-enabled"
 ETC_SYSTEMD_SYSTEM = "/etc/systemd/system"
 ETC_APPARMOR_D = "/etc/apparmor.d"
+ETC_SSL_CERTS = "/etc/ssl/certs"
+ETC_SSL_PRIVATE = "/etc/ssl/private"
 ETC_SUDOERS_D = "/etc/sudoers.d"
 
 RUNTIME_SOCKET_PARENT = "/run"
@@ -30,6 +32,9 @@ NGINX_SOCKET = "nginx.sock"
 NGINX_PID = "nginx.pid"
 PHP_FPM_SOCKET = "php-fpm.sock"
 DEFAULT_NGINX_SITE = "default"
+BONESDEPLOY_NGINX_DEFAULT_DENY_SITE = "00-bonesdeploy-default-deny.conf"
+BONESDEPLOY_NGINX_DEFAULT_DENY_CERT = "bonesdeploy-default-deny.crt"
+BONESDEPLOY_NGINX_DEFAULT_DENY_KEY = "bonesdeploy-default-deny.key"
 
 BONESDEPLOY_BINARY = "bonesdeploy"
 BONESREMOTE_BINARY = "bonesremote"
@@ -70,6 +75,10 @@ class DeploymentPaths:
     placeholder_index: str
     nginx_site_available: str
     nginx_site_enabled: str
+    nginx_default_deny_site_available: str
+    nginx_default_deny_site_enabled: str
+    nginx_default_deny_ssl_certificate: str
+    nginx_default_deny_ssl_certificate_key: str
     nginx_default_site_enabled: str
     systemd_site_nginx_service: str
     apparmor_profile_path: str
@@ -124,6 +133,12 @@ class DeploymentPaths:
             placeholder_index=str(placeholder_release / web_root / INDEX_HTML),
             nginx_site_available=str(Path(ETC_NGINX_SITES_AVAILABLE) / f"{project_name}.conf"),
             nginx_site_enabled=str(Path(ETC_NGINX_SITES_ENABLED) / f"{project_name}.conf"),
+            nginx_default_deny_site_available=str(
+                Path(ETC_NGINX_SITES_AVAILABLE) / BONESDEPLOY_NGINX_DEFAULT_DENY_SITE
+            ),
+            nginx_default_deny_site_enabled=str(Path(ETC_NGINX_SITES_ENABLED) / BONESDEPLOY_NGINX_DEFAULT_DENY_SITE),
+            nginx_default_deny_ssl_certificate=str(Path(ETC_SSL_CERTS) / BONESDEPLOY_NGINX_DEFAULT_DENY_CERT),
+            nginx_default_deny_ssl_certificate_key=str(Path(ETC_SSL_PRIVATE) / BONESDEPLOY_NGINX_DEFAULT_DENY_KEY),
             nginx_default_site_enabled=str(Path(ETC_NGINX_SITES_ENABLED) / DEFAULT_NGINX_SITE),
             systemd_site_nginx_service=str(Path(ETC_SYSTEMD_SYSTEM) / f"{project_name}-nginx.service"),
             apparmor_profile_path=str(Path(ETC_APPARMOR_D) / f"bonesdeploy-{project_name}-nginx"),

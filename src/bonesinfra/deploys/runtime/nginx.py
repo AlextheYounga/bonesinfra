@@ -2,6 +2,7 @@ from pathlib import Path
 
 from pyinfra.operations import files, server, systemd
 
+from bonesinfra.deploys import nginx_safety
 from bonesinfra.domain.context import template_data
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
@@ -76,6 +77,8 @@ def setup(ctx, paths, here):
         **template_data(ctx, paths=paths),
     )
 
+    nginx_safety.install_default_deny_server(paths, here)
+
     files.link(
         name="Enable router nginx site",
         path=paths["nginx_site_enabled"],
@@ -84,18 +87,7 @@ def setup(ctx, paths, here):
         _sudo=True,
     )
 
-    files.link(
-        name="Disable default nginx site",
-        path=paths["nginx_default_site_enabled"],
-        present=False,
-        _sudo=True,
-    )
-
-    server.shell(
-        name="Validate nginx configuration",
-        commands=["nginx -t"],
-        _sudo=True,
-    )
+    nginx_safety.validate_config("Validate nginx configuration")
 
 
 def start_services(paths):

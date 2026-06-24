@@ -8,6 +8,7 @@ BASE_SYSTEM_PACKAGES: list[str] = [
     "rsync",
     "sudo",
     "nginx",
+    "openssl",
     "apparmor",
     "apparmor-utils",
     "certbot",

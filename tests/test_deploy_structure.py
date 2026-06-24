@@ -252,6 +252,11 @@ def test_ssl_uses_certbot():
     helpers.assert_contains(c, "ssl_domain")
 
 
+def test_setup_installs_openssl_for_nginx_default_deny_cert():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/setup/packages.py")
+    helpers.assert_contains(c, '"openssl"')
+
+
 def test_ssl_excludes_apparmor():
     c = helpers.read(SSL_PLAN)
     helpers.assert_not_contains(c, "apparmor_parser")
@@ -271,7 +276,7 @@ def test_ssl_defines_nginx_inline():
     c = helpers.read(SSL_PLAN)
     helpers.assert_contains(c, "nginx_server_name")
     helpers.assert_contains(c, "router.conf.j2")
-    helpers.assert_contains(c, "nginx -t")
+    helpers.assert_contains(c, "validate_config")
 
 
 def test_runtime_nginx_falls_back_when_domain_empty():
@@ -387,8 +392,23 @@ def test_runtime_nginx_reloads_after_config_change():
     helpers.assert_ordering(
         c,
         "Enable router nginx site",
-        "nginx -t",
+        "validate_config",
         "Ensure nginx service is enabled and started",
         "Ensure per-site nginx service is enabled and started",
         "systemctl reload nginx",
     )
+
+
+def test_runtime_nginx_installs_default_deny_before_validation():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
+    helpers.assert_ordering(c, "install_default_deny_server", "validate_config")
+
+
+def test_ssl_installs_default_deny_before_validation():
+    c = helpers.read(SSL_PLAN)
+    helpers.assert_ordering(c, "install_default_deny_server", "router.conf.j2", "validate_config")
+
+
+def test_ssl_installs_default_deny_once():
+    c = helpers.read(SSL_PLAN)
+    assert c.count("install_default_deny_server") == 1

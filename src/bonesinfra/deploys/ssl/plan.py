@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pyinfra.operations import server, systemd
 
+from bonesinfra.deploys import nginx_safety
 from bonesinfra.domain.context import template_data
 from bonesinfra.domain.paths import DeploymentPaths
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
@@ -29,6 +30,7 @@ def deploy_ssl(ctx):
         mode="0755",
     )
 
+    nginx_safety.install_default_deny_server(paths, here)
     _render_router_config(ctx, paths, here, ssl_enabled=False, stage="certbot challenge")
     obtain_certificate(ctx, paths)
     _render_router_config(ctx, paths, here, ssl_enabled=True, stage="SSL enable")
@@ -57,11 +59,7 @@ def _render_router_config(ctx, paths, here, ssl_enabled, stage):
         **template_data(ctx, paths=paths),
     )
 
-    server.shell(
-        name=f"Validate nginx configuration ({stage})",
-        commands=["nginx -t"],
-        _sudo=True,
-    )
+    nginx_safety.validate_config(f"Validate nginx configuration ({stage})")
 
     systemd.service(
         name=f"Reload nginx ({stage})",
