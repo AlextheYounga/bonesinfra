@@ -78,23 +78,18 @@ Line 47: _ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_gr
 **DELETE THIS LINE.** `git` must not be in any per-site group. This is the
 highest-impact single-line change.
 
-### 3b. Potentially remove separate `release_group`
+### 3b. Collapse the site identity to `runtime_group`
 
-The thinking docs (02, 03) describe `releases/` as `root:foo` — group-owned by
-the runtime group itself, not a separate `release_group`. If we drop the
-separate `release_group` concept:
+The v1 docs use only `runtime_user` and `runtime_group` for the site identity.
+The release-read grouping concept becomes `runtime_group`:
 
 ```
 Lines 43-45: server.group(name="Ensure release-read group exists", group=ctx.runtime.release_group)
 Lines 59-65: groups=[ctx.runtime.runtime_group, ctx.runtime.release_group]
 ```
 
-Simplifies to only `runtime_group`. But this has downstream impact on systemd
-templates that use `SupplementaryGroups={{ release_group }}`. See §8.
-
-**Decision needed:** keep `release_group` as a separate concept or collapse into
-`runtime_group`? The 02/03 docs suggest collapsing. If kept, at minimum git must
-not be in it.
+Simplifies to only `runtime_group`. Update any systemd templates that still
+reference `SupplementaryGroups={{ release_group }}`.
 
 ### 3c. `git` identity harden (future)
 
@@ -242,19 +237,12 @@ Lines 13-17:
                 _sudo=True, _sudo_user=ctx.config.deploy_user)
 ```
 
-Currently runs `bonesremote doctor` as `git`. In the new model `git` has no
-access to site state. Options:
-
-a) Run as `root` (doctor likely needs to inspect releases/shared/service state)
-b) Run as the foo user
-c) Remove entirely (doctor is `bonesremote`'s concern, not provisioning)
-
-**Decision needed.** If kept, change `_sudo_user=ctx.config.deploy_user` to
-`_sudo_user="root"` or `_sudo_user=ctx.runtime.runtime_user`.
+Currently runs `bonesremote doctor` as `git`. Remove this step from
+`bonesinfra`; it is not part of host provisioning.
 
 ---
 
-## 8. Templates — `release_group` references
+## 8. Templates — `runtime_group` references
 
 ### 8a. `assets/nginx/site-nginx.service.j2:10`
 
@@ -262,8 +250,8 @@ c) Remove entirely (doctor is `bonesremote`'s concern, not provisioning)
 SupplementaryGroups={{ release_group }}
 ```
 
-If `release_group` is collapsed into `runtime_group`, this line can be removed
-(the runtime user's primary group already covers this). If kept, it stays.
+Remove the extra group reference; the runtime user's primary group already
+covers this.
 
 ### 8b. `runtimes/common/assets/app.service.j2:10`
 
@@ -349,8 +337,8 @@ Lines 31-39: `user=ctx.config.deploy_user, group=ctx.runtime.release_group`
 
 ## 11. New shared directory provisioning
 
-Per the thinking docs, bonesinfra should create the baseline shared directories
-for each runtime. These are currently NOT created by bonesinfra.
+Frameworks create their writable leaves and files under `shared/`; bonesinfra
+only provisions the `shared/` parent and permissions.
 
 ### 11a. New file or addition to directories.py
 
@@ -406,29 +394,27 @@ The thinking docs (03) say:
 > Good: `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote deploy --site <project>`
 > Bad:  `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *`
 
-Bonesinfra doesn't own the sudoers *content* — that's a bonesremote contract.
-But bonesinfra installs the sudoers.d file and should ensure the shape is narrow.
-If bonesinfra installs a static bonesdeploy sudoers file, it should match the
-registry-based pattern.
+Bonesinfra owns the sudoers installation step.
+The command shape should remain narrow and registry-backed.
 
-Currently the sudoers path is computed (`paths.py:151`) but no file is written
-by bonesinfra. This may be handled by `bonesremote init`. Verify.
+Currently the sudoers path is computed (`paths.py:151`) but the install step is
+still a provisioning concern for bonesinfra.
 
 ---
 
 ## 13. `deploys/setup/packages.py` — No functional change
 
 The package list includes `git`, `nginx`, `apparmor`, etc. No changes needed,
-though consider adding `podman` to the list if bonesremote requires it (03:380
-says "install podman if bonesremote requires it").
+though `podman` belongs in the bonesinfra base package set because host
+provisioning owns the dependency.
 
 ---
 
 ## 14. `runtimes/common/paths.py` — Ensure shared/ baseline dirs
 
-Currently only creates `/run/<project>/` socket dirs. Should also ensure
-framework-specific shared/writable dirs exist. Could be a new function or added
-to the existing `ensure_runtime_dirs`.
+Currently only creates `/run/<project>/` socket dirs. Frameworks own their
+writable leaves under `shared/`; bonesinfra only needs the `shared/` parent and
+its permissions.
 
 ---
 
@@ -458,16 +444,16 @@ Same — this enforces the V2 violation. Must be updated.
 ### 15c. `tests/test_context.py`
 
 ```
-Lines 27-29,33-34: Tests for runtime_user, runtime_group, release_group defaults
+Lines 27-29,33-34: Tests for runtime_user and runtime_group defaults
 Lines 51-52,60-61: More runtime_user/runtime_group tests
 ```
 
-If `release_group` is collapsed, update defaults in tests.
+Update defaults in tests to use only `runtime_user` and `runtime_group`.
 
 ### 15d. `tests/test_templates_j2.py`
 
 ```
-Lines 34,110-120,172-176: Template tests with deploy_user, runtime_user, runtime_group, release_group
+Lines 34,110-120,172-176: Template tests with deploy_user, runtime_user, runtime_group
 ```
 
 Update for new template variables and removed `repo_bones_toml` grant.
@@ -497,14 +483,14 @@ Update for new template variables and removed `repo_bones_toml` grant.
 | `runtimes/nuxt/nuxt.py:31-39` | placeholder dirs → `root:runtime_group` |
 | Tests: `test_deploy_structure.py`, `test_shared_paths.py` | Remove git-in-runtime-group assertions |
 
-### Needs decision:
+### Resolved:
 
-| Topic | Question |
+| Topic | Decision |
 |-------|----------|
-| `release_group` | Keep as separate concept or collapse into `runtime_group`? |
-| `doctor.py` | Run as root, foo, or remove from provisioning? |
-| `shared/` baseline dirs | Who creates framework-specific shared dirs (bonesinfra or bonesremote)? |
-| Podman package | Add to `BASE_SYSTEM_PACKAGES` or leave to bonesremote? |
+| `release_group` | Use `runtime_group` only for v1. |
+| `doctor.py` | Remove from `bonesinfra`. |
+| `shared/` baseline dirs | Frameworks create writable leaves; bonesinfra provisions the parent. |
+| Podman package | Install it in `bonesinfra`.
 
 ### Does not change (bonesinfra scope):
 

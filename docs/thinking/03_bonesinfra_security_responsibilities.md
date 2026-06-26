@@ -132,20 +132,11 @@ root-owned, group-readable by the site user, not runtime-writable as code.
 
 ### 5. Shared Runtime State Directories
 
-`bonesinfra` should create the durable shared paths required by a runtime.
+`bonesinfra` provisions the `shared/` parent and its permissions.
 
-For Laravel, the baseline shared paths are:
+Frameworks own creation of their writable leaves and files under `shared/`.
 
-```text
-shared/.env
-shared/storage/
-shared/bootstrap/cache/
-shared/database/database.sqlite
-```
-
-These paths belong to the site runtime identity, not `git`.
-
-`bonesinfra` should create the baseline shared directories and files with safe ownership/modes.
+`bonesinfra` does not pre-create framework-specific writable leaves.
 
 `bonesremote` owns wiring those paths into each release.
 
@@ -209,8 +200,9 @@ services once the registry becomes required input.
 
 ### 9. Sudoers Installation Support
 
-`bonesinfra` installs the sudoers fragments for BonesDeploy sites, but the
-commands granted through sudo belong to the `bonesremote` command contract.
+`bonesinfra` installs the sudoers fragments for BonesDeploy sites.
+
+The commands granted through sudo belong to the `bonesremote` command contract.
 
 The important `bonesinfra` responsibility is that sudoers rules stay narrow and
 registry-path based, not repo-config based.

@@ -222,7 +222,7 @@ Domain code should not import pyinfra.
 `domain/context.py` defines three dataclasses:
 
 - **`BonesConfig`**: strictly typed fields from `bones.toml` (top-level keys: `project_name`, `host`, `ssh_user`, `domain`, `email`, `deploy_user`, etc.)
-- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, `release_group`, plus `runtime_data` dict for dynamic runtime.toml keys
+- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, plus `runtime_data` dict for dynamic runtime.toml keys
 - **`DeployContext`**: wraps `config: BonesConfig` + `runtime: RuntimeConfig` — the single object passed through to deploy plans
 
 No flat dict. No `host.data` side-channel.
@@ -361,7 +361,6 @@ remote_name, deploy_user
 web_root           # docroot (default "public")
 runtime_user       # process user for nginx/php-fpm (default: project_name)
 runtime_group      # process group (default: project_name)
-release_group      # release-read group (default: "{project_name}-release")
 runtime_data       # dict — all other keys from runtime.toml
 ```
 

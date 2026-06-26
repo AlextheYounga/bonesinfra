@@ -4,6 +4,8 @@ This plan turns the findings in `01_security_architecture_problems.md` through
 `04_bonesinfra_migration_scan.md` into a sequenced migration path for
 `bonesinfra`.
 
+Decisions are fixed in `06_bonesinfra_migration_decisions.md`.
+
 The v1 target is the simpler model from `02_new_architecture_approach.md` and
 `03_bonesinfra_security_responsibilities.md`:
 
@@ -16,10 +18,8 @@ releases/ = sealed promoted artifacts owned by root:<project>
 bonesremote/root = privileged deploy mediator
 ```
 
-The earlier `foo-build` / `foo-run` / `foo-release` model in
-`01_security_architecture_problems.md` is useful background, but it is not the v1
-implementation target. Per-site build users, per-site ingress users, and complex
-release groups are deferred.
+The earlier multi-identity model in `01_security_architecture_problems.md` is
+useful background, but it is not the v1 implementation target.
 
 ---
 
@@ -49,38 +49,18 @@ These belong to `bonesremote`, `bonesdeploy`, or a later hardening pass:
 - Restarting services during deploy.
 - Rollback and pruning.
 - Secret push semantics.
-- Per-site build users.
-- Per-site ingress users.
-- Full `git-shell` hardening, unless pulled into v1 deliberately.
 
 ---
 
-## Phase 0: Lock The Contract
+## Phase 0: Resolved Contract
 
-Before changing provisioning behavior, settle the small set of contract decisions
-that affect `bonesinfra` tests and templates.
+These are fixed for v1:
 
-Decisions:
-
-- Collapse `release_group` into `runtime_group` for v1, or keep the field while
-  setting it equal to the runtime group.
-- Decide whether `bonesinfra` creates framework-specific shared directories, or
-  only creates `shared/` and leaves framework leaves to `bonesremote`.
-- Decide whether `runtime doctor` remains in provisioning. If it remains, it must
-  not run as `git`.
-- Decide whether `podman` is installed by `bonesinfra` base setup or by another
-  installer path.
-
-Recommended v1 choices:
-
-- Keep the `release_group` field temporarily for smaller code churn, but default
-  it to `runtime_group` and stop using a separate Unix group where practical.
-- Let `bonesinfra` create baseline shared directories for known runtimes because
-  that is static host preparation.
-- Remove `runtime doctor` from provisioning, or run it as root only if it is a
-  static host validation step.
-- Install Podman from `bonesinfra` only if `bonesremote` requires it on every
-  provisioned host.
+- `runtime_user` and `runtime_group` are the only per-site identity fields.
+- `bonesinfra` provisions the `shared/` parent and host permissions.
+- Frameworks create their own writable leaves and files under `shared/`.
+- `runtime doctor` is not part of `bonesinfra`.
+- Podman is required and is installed by `bonesinfra`.
 
 ---
 
@@ -121,8 +101,6 @@ Changes:
 - Keep creating the global `git` ingress user.
 - Keep creating one runtime user/group per site.
 - Delete the membership that adds `git` to the runtime group.
-- Stop creating or relying on a separate release-read group unless Phase 0 keeps
-  it as a compatibility field.
 - Ensure the runtime user has no login shell and no sudo grant.
 
 Target shape:
@@ -153,13 +131,14 @@ real releases.
 Changes:
 
 - Ensure `/srv/git` exists as `git:git` with non-world-writable permissions.
-- Create `/srv/sites/<project>` as `root:<project>` or `root:root`, depending on
-  the final traversal requirement.
+- Create `/srv/sites/<project>` as `root:root`.
 - Create `releases/` as `root:<project>` with group-readable, non-runtime-writable
   permissions.
 - Delete provisioning of permanent `/srv/sites/<project>/build`.
 - Create `shared/` as `<project>:<project>` with mode `0750`.
-- Create placeholder release content as `root:<project>`, not `git:*`.
+- Create only the `shared/` parent and permissions; frameworks create their own
+  writable leaves and files under that parent.
+- Create placeholder release content as `root:root`, not `git:*`.
 - Ensure `/etc/bonesdeploy/sites` exists as `root:root` before registry-backed
   commands become mandatory.
 
@@ -167,7 +146,7 @@ Target ownership baseline:
 
 ```text
 /srv/git/<project>.git              git:git
-/srv/sites/<project>                root:<project>
+/srv/sites/<project>                root:root
 /srv/sites/<project>/releases       root:<project>
 /srv/sites/<project>/shared         <project>:<project>
 /srv/sites/<project>/current        root:root symlink
@@ -183,36 +162,14 @@ promotion belongs to `bonesremote`.
 
 Purpose: make runtime-writable state explicit and durable.
 
-Create baseline shared directories for runtimes that need them.
+`bonesinfra` provisions the `shared/` parent and its permissions.
 
-Laravel:
-
-```text
-shared/storage/
-shared/bootstrap/cache/
-shared/database/
-```
-
-Django:
-
-```text
-shared/staticfiles/
-shared/media/
-```
-
-Rails:
-
-```text
-shared/tmp/
-shared/log/
-shared/storage/
-```
+Frameworks create their own writable leaves and files under `shared/`.
 
 Rules:
 
-- All shared leaves are owned by `<project>:<project>`.
-- Directory mode should start at `0750` unless a runtime proves it needs narrower
-  or broader access.
+- `shared/` is owned by `<project>:<project>`.
+- Directory mode should start at `0750`.
 - Do not create or populate `.env` from `bonesinfra`; secret material belongs to
   the deploy/remote secret path.
 - Do not wire release symlinks here; that is per-release behavior and belongs to
@@ -231,7 +188,8 @@ Changes:
 - Django writable paths should point at `shared/staticfiles` and `shared/media`,
   not `current/staticfiles` or `current/media`.
 - Static runtime placeholder directories, including Nuxt placeholder output, must
-  use `root:<project>` ownership instead of `git:release_group`.
+  use `root:<project>` ownership instead of git-owned or runtime-group-writable
+  placeholders.
 - Systemd `ReadWritePaths` and AppArmor writable grants should only include
   shared runtime state.
 
@@ -265,16 +223,14 @@ privileged source of truth.
 
 ## Phase 7: Align Sudoers And Registry Hooks
 
-Purpose: ensure `bonesinfra` does not install broad sudo rules after the registry
-contract lands.
+Purpose: ensure `bonesinfra` installs narrow sudo rules for the registry-backed
+command contract.
 
 Changes:
 
-- If `bonesinfra` installs sudoers fragments, make them registry-backed and
-  command-specific.
+- Install sudoers fragments in `bonesinfra`.
+- Keep the allowed commands narrow and registry-backed.
 - Do not install rules shaped like `bonesremote * --config *`.
-- Prefer site-specific or registry-path-specific command shapes agreed with
-  `bonesremote`.
 
 Good shape:
 
@@ -289,8 +245,7 @@ Bad shape:
 git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *
 ```
 
-If sudoers are fully written by `bonesremote init`, `bonesinfra` only needs to
-prepare `/etc/bonesdeploy/sites` and avoid adding conflicting rules.
+`bonesremote` provides the command contract; `bonesinfra` installs the drop-in.
 
 ---
 
@@ -455,13 +410,12 @@ The migration is complete for `bonesinfra` when all of these are true:
 - Default bare repo paths are under `/srv/git`.
 - No permanent `/srv/sites/<project>/build` directory is provisioned.
 - `shared/` is runtime-owned and private to the site identity.
-- `releases/` and placeholder release content are root-owned and group-readable
-  by the site identity.
+- `releases/` and placeholder release content are root-owned.
 - Runtime write paths point only at `shared/`.
 - AppArmor and service templates do not require runtime access to git-owned
   config.
 - `/etc/bonesdeploy/sites` exists for the trusted registry.
-- Sudoers rules, if installed by `bonesinfra`, are narrow and registry-backed.
+- Sudoers rules are installed by `bonesinfra` and remain narrow.
 - Tests encode the new ownership and boundary rules.
 - Documentation describes `bonesinfra` as provisioning only, not deployment
   lifecycle ownership.
