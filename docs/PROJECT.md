@@ -271,7 +271,6 @@ deploys/
 │   ├── apparmor.py
 │   ├── nginx.py
 │   ├── template_runtime.py
-│   └── doctor.py
 └── ssl/
     ├── plan.py
     ├── nginx.py
@@ -472,14 +471,13 @@ Responsibilities:
 - ensure deploy user
 - ensure runtime user
 - ensure runtime group
-- ensure release group
 - create bare repo parent
 - initialize bare git repo
 - create repo bones directory
 - create project root
 - create releases directory
-- create build directory
 - create shared directory
+- create trusted site registry parent directory
 - seed placeholder release
 - install deploy authorized key
 - configure firewall
@@ -501,7 +499,6 @@ Responsibilities:
 - configure nginx router
 - configure per-site nginx service
 - run runtime-specific deploy operations
-- run remote doctor check
 
 Runtime setup is separate from SSL.
 

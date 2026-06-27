@@ -38,7 +38,7 @@ def test_run_passes_ssh_auth_through_inventory(monkeypatch):
         config_path.write_text(
             """
 project_name = "lawsnipe"
-repo_path = "/home/git/lawsnipe.git"
+repo_path = "/srv/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
 host = "example.com"
 ssh_user = "root"

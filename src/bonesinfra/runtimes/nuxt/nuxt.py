@@ -28,16 +28,16 @@ def deploy(ctx):
         mkdir(
             name="Ensure Nuxt static placeholder output directory exists",
             path=static_web_root,
-            user=ctx.config.deploy_user,
-            group=ctx.runtime.release_group,
+            user="root",
+            group=ctx.runtime.runtime_group,
             mode="0750",
         )
         render(
             "Seed Nuxt static placeholder index page",
             Path(__file__).parents[2] / "assets/nginx/index.html.j2",
             f"{static_web_root}/index.html",
-            user=ctx.config.deploy_user,
-            group=ctx.runtime.release_group,
+            user="root",
+            group=ctx.runtime.runtime_group,
             mode="0640",
             **template_data(ctx, paths=paths),
         )

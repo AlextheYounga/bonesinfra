@@ -88,15 +88,38 @@ def test_setup_avoids_usermod_for_existing_runtime_user():
     helpers.assert_contains(c, "gpasswd -a")
 
 
-def test_setup_adds_deploy_user_to_runtime_group():
+def test_setup_does_not_add_deploy_user_to_runtime_group():
     c = helpers.read(SETUP_USERS)
-    helpers.assert_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
+    helpers.assert_not_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
+    helpers.assert_not_contains(c, "ctx.runtime.release_group")
 
 
-def test_setup_shared_dir_is_setgid_and_traversable():
+def test_setup_shared_dir_is_runtime_owned_private_state():
     c = helpers.read(SETUP_DIRECTORIES)
     shared_block = c.split('path=paths["shared"]')[1].split(")")[0]
-    helpers.assert_contains(shared_block, 'mode="2775"')
+    helpers.assert_contains(shared_block, "user=ctx.runtime.runtime_user")
+    helpers.assert_contains(shared_block, "group=ctx.runtime.runtime_group")
+    helpers.assert_contains(shared_block, 'mode="0750"')
+
+
+def test_setup_does_not_create_permanent_build_directory():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_not_contains(c, 'Path(ctx.config.project_root) / "build"')
+    helpers.assert_not_contains(c, "Ensure build directory")
+
+
+def test_setup_releases_are_root_owned_group_readable():
+    c = helpers.read(SETUP_DIRECTORIES)
+    releases_block = c.split('path=paths["releases"]')[1].split(")")[0]
+    helpers.assert_contains(releases_block, 'user="root"')
+    helpers.assert_contains(releases_block, "group=ctx.runtime.runtime_group")
+    helpers.assert_contains(releases_block, 'mode="2750"')
+
+
+def test_setup_prepares_site_registry_parent():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_contains(c, 'path=str(Path(paths["site_registry_path"]).parent)')
+    helpers.assert_contains(c, 'mode="0750"')
 
 
 def test_setup_deploy_user_commands_set_user_home():
@@ -152,7 +175,7 @@ def test_runtime_plan_calls_all_steps():
     helpers.assert_contains(c, "nginx.setup")
     helpers.assert_contains(c, "template_runtime.load")
     helpers.assert_contains(c, "nginx.start_services")
-    helpers.assert_contains(c, "doctor.run")
+    helpers.assert_not_contains(c, "doctor.run")
 
 
 def test_runtime_applies_apparmor_and_nginx():
@@ -237,10 +260,14 @@ def test_runtime_uses_template_runtime():
     helpers.assert_contains(c, "get_runtime(template)")
 
 
-def test_runtime_doctor_deploy_user_commands_set_user_home():
-    c = helpers.read(RUNTIME_DOCTOR)
-    helpers.assert_contains(c, "XDG_CONFIG_HOME={home}/.config")
-    helpers.assert_contains(c, "getent passwd")
+def test_runtime_plan_does_not_import_doctor():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_not_contains(c, "doctor")
+
+
+def test_setup_installs_podman():
+    c = helpers.read(SETUP_PACKAGES)
+    helpers.assert_contains(c, '"podman"')
 
 
 # ---- ssl plan ----

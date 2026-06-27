@@ -38,14 +38,6 @@ def ensure_users_and_groups(ctx):
         _sudo=True,
     )
 
-    server.group(
-        name="Ensure release-read group exists",
-        group=ctx.runtime.release_group,
-        _sudo=True,
-    )
-
-    _ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)
-
     existing_user = host.get_fact(Users).get(ctx.runtime.runtime_user)
 
     if existing_user is None:
@@ -56,19 +48,13 @@ def ensure_users_and_groups(ctx):
             home="/nonexistent",
             shell="/usr/sbin/nologin",
             create_home=False,
-            groups=[ctx.runtime.runtime_group, ctx.runtime.release_group],
+            groups=[ctx.runtime.runtime_group],
             _sudo=True,
         )
         return
 
-    required_groups = []
-    for group in (ctx.runtime.runtime_group, ctx.runtime.release_group):
-        if group not in required_groups:
-            required_groups.append(group)
-
-    for group in required_groups:
-        if group != existing_user["group"] and group not in existing_user["groups"]:
-            _ensure_group_membership(ctx.runtime.runtime_user, group)
+    if ctx.runtime.runtime_group != existing_user["group"] and ctx.runtime.runtime_group not in existing_user["groups"]:
+        _ensure_group_membership(ctx.runtime.runtime_user, ctx.runtime.runtime_group)
 
 
 def install_authorized_key(ctx):

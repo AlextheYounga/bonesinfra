@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bonesinfra.deploys.runtime import apparmor, doctor, nginx, packages, template_runtime
+from bonesinfra.deploys.runtime import apparmor, nginx, packages, template_runtime
 from bonesinfra.domain.paths import DeploymentPaths
 
 
@@ -18,4 +18,3 @@ def deploy_runtime(ctx):
     nginx.setup(ctx, paths, here)
     template_runtime.load(ctx)
     nginx.start_services(paths)
-    doctor.run(ctx)

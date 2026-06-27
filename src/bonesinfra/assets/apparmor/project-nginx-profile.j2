@@ -29,7 +29,6 @@ profile {{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-ngi
   {{ paths.current_web_root }}/** r,
   # current is a symlink, so allow the resolved release path too.
   {{ paths.releases }}/*/{{ web_root }}/** r,
-  {{ paths.repo_bones_toml }} r,
   {{ paths.site_nginx_config }} r,
 
   {{ paths.runtime_nginx_dir }}/ rw,
@@ -43,8 +42,8 @@ profile {{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-ngi
   {{ paths.runtime_socket_dir }}/*/ r,
   {{ paths.runtime_socket_dir }}/*/*.sock rw,
 
-  # repo_path defaults to /home/{{ deploy_user }}/<project>.git, so global /home denies
-  # would block bonesremote reading config and nginx config from repo-local bones files.
+  # Repos default to /srv/git/<project>.git; runtime policy should not depend on
+  # repo-owned config.
   deny /root/** r,
   deny /etc/ssh/** r,
 }

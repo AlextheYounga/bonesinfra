@@ -36,9 +36,9 @@ def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/puma/puma.sock"
     runtime_write_paths = [
-        f"{paths['current']}/tmp",  # noqa: S108
-        f"{paths['current']}/log",
-        f"{paths['current']}/storage",
+        f"{paths['shared']}/tmp",  # noqa: S108
+        f"{paths['shared']}/log",
+        f"{paths['shared']}/storage",
     ]
     rails_env = ctx.runtime.runtime_data.get("rails_env", "production")
     ruby_packages.install_packages()

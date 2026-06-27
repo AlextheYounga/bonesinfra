@@ -14,6 +14,14 @@ def _user_env_command(user, command):
 
 def setup_repo_and_project(ctx, paths):
     mkdir(
+        name="Ensure BonesDeploy site registry directory exists",
+        path=str(Path(paths["site_registry_path"]).parent),
+        user="root",
+        group="root",
+        mode="0750",
+    )
+
+    mkdir(
         name="Ensure bare repo parent directory exists",
         path=paths["repo_parent"],
         user=ctx.config.deploy_user,
@@ -41,27 +49,19 @@ def setup_repo_and_project(ctx, paths):
     )
 
     mkdir(
-        name="Ensure project root with setgid for release group",
+        name="Ensure project root boundary exists",
         path=ctx.config.project_root,
-        user=ctx.config.deploy_user,
-        group=ctx.runtime.release_group,
-        mode="2751",
+        user="root",
+        group="root",
+        mode="0751",
     )
 
     mkdir(
         name="Ensure releases directory with setgid",
         path=paths["releases"],
-        user=ctx.config.deploy_user,
-        group=ctx.runtime.release_group,
+        user="root",
+        group=ctx.runtime.runtime_group,
         mode="2750",
-    )
-
-    mkdir(
-        name="Ensure build directory (private to deploy user)",
-        path=str(Path(ctx.config.project_root) / "build"),
-        user=ctx.config.deploy_user,
-        group=ctx.config.deploy_user,
-        mode="0700",
     )
 
     mkdir(
@@ -69,13 +69,13 @@ def setup_repo_and_project(ctx, paths):
         path=paths["shared"],
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
-        mode="2775",
+        mode="0750",
     )
 
     mkdir(
         name="Ensure placeholder release directory exists",
         path=paths["placeholder_web_root"],
-        user=ctx.config.deploy_user,
-        group=ctx.runtime.release_group,
+        user="root",
+        group=ctx.runtime.runtime_group,
         mode="0750",
     )
