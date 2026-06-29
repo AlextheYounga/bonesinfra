@@ -11,7 +11,7 @@ def _make_ctx(tmp_path, *, domain: str = "", preview_domain: str = "preview.exam
     config_path.write_text(
         f"""
 project_name = "lawsnipe"
-repo_path = "/home/git/lawsnipe.git"
+repo_path = "/srv/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
 host = "example.com"
 domain = "{domain}"

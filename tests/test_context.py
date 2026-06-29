@@ -12,7 +12,7 @@ def test_runtime_identity_defaults_to_project_name():
         config_path.write_text(
             """
 project_name = "lawsnipe"
-repo_path = "/home/git/lawsnipe.git"
+repo_path = "/srv/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
 host = "example.com"
 """.lstrip()
@@ -26,12 +26,12 @@ host = "example.com"
     assert ctx.runtime.web_root == "public"
     assert ctx.runtime.runtime_user == "lawsnipe"
     assert ctx.runtime.runtime_group == "lawsnipe"
-    assert ctx.runtime.release_group == "lawsnipe-release"
     assert ctx.ssh_port == 22
 
     td = template_data(ctx)
     assert td["runtime_user"] == "lawsnipe"
     assert td["runtime_group"] == "lawsnipe"
+    assert "release_group" not in td
 
 
 def test_runtime_identity_respects_explicit_override():
@@ -40,7 +40,7 @@ def test_runtime_identity_respects_explicit_override():
         config_path.write_text(
             """
 project_name = "lawsnipe"
-repo_path = "/home/git/lawsnipe.git"
+repo_path = "/srv/git/lawsnipe.git"
 project_root = "/srv/sites/lawsnipe"
 host = "example.com"
 """.lstrip()

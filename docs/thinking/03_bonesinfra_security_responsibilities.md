@@ -8,7 +8,7 @@ This note scopes the new security model down to the parts that belong inside
 
 It should not own deployment lifecycle behavior.
 
----
+______________________________________________________________________
 
 ## Target Boundary
 
@@ -29,7 +29,7 @@ root/bonesremote = privileged mediator
 
 Inside `bonesinfra`, the goal is only to provision the machine into this shape.
 
----
+______________________________________________________________________
 
 ## BonesInfra Owns
 
@@ -132,20 +132,11 @@ root-owned, group-readable by the site user, not runtime-writable as code.
 
 ### 5. Shared Runtime State Directories
 
-`bonesinfra` should create the durable shared paths required by a runtime.
+`bonesinfra` provisions the `shared/` parent and its permissions.
 
-For Laravel, the baseline shared paths are:
+Frameworks own creation of their writable leaves and files under `shared/`.
 
-```text
-shared/.env
-shared/storage/
-shared/bootstrap/cache/
-shared/database/database.sqlite
-```
-
-These paths belong to the site runtime identity, not `git`.
-
-`bonesinfra` should create the baseline shared directories and files with safe ownership/modes.
+`bonesinfra` does not pre-create framework-specific writable leaves.
 
 `bonesremote` owns wiring those paths into each release.
 
@@ -207,13 +198,19 @@ prepare its parent directory and permissions:
 `bonesinfra` may validate that the registry exists before provisioning runtime
 services once the registry becomes required input.
 
-### 9. Sudoers Installation Support
+### 9. Sudoers Contract Support
 
-`bonesinfra` installs the sudoers fragments for BonesDeploy sites, but the
-commands granted through sudo belong to the `bonesremote` command contract.
+`bonesremote init` installs the single sudoers drop-in for BonesDeploy sites:
 
-The important `bonesinfra` responsibility is that sudoers rules stay narrow and
-registry-path based, not repo-config based.
+```text
+/etc/sudoers.d/bonesdeploy
+```
+
+The commands granted through sudo belong to the `bonesremote` command contract.
+
+The important responsibility is that sudoers rules stay narrow and registry-path
+based or site-literal, not repo-config based. `bonesinfra` should not create
+per-project sudoers files without a real lifecycle requirement.
 
 Good shape:
 
@@ -231,7 +228,7 @@ git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *
 The exact command surface is a `bonesremote` contract. `bonesinfra` installs
 only the final agreed narrow rules.
 
----
+______________________________________________________________________
 
 ## BonesInfra Does Not Own
 
@@ -342,7 +339,8 @@ It should not decide which release is active after deployment starts.
 
 Restarting services after activation belongs to `bonesremote`.
 
-`bonesinfra` creates the systemd units and can install sudoers support.
+`bonesinfra` creates the systemd units.
+`bonesremote init` owns sudoers installation.
 
 It should not be part of the deploy-time restart path.
 
@@ -361,7 +359,7 @@ Secret write behavior belongs to `bonesdeploy` and `bonesremote`.
 It should not trust repo-owned runtime config for privileged secret ownership
 decisions.
 
----
+______________________________________________________________________
 
 ## BonesInfra Setup Checklist
 
@@ -387,7 +385,7 @@ install only narrow registry-backed sudoers rules
 Anything that happens per release should be treated as `bonesremote` work unless
 it is only provisioning static host capability.
 
----
+______________________________________________________________________
 
 ## One-Sentence Rule
 

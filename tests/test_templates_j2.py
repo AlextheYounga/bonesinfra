@@ -23,9 +23,9 @@ def test_apparmor_profile_allows_site_nginx_conf():
     helpers.assert_contains(c, "{{ paths.site_nginx_config }} r,")
 
 
-def test_apparmor_profile_allows_repo_bones_toml():
+def test_apparmor_profile_does_not_allow_repo_bones_toml():
     c = _read("assets/apparmor/project-nginx-profile.j2")
-    helpers.assert_contains(c, "{{ paths.repo_bones_toml }} r,")
+    helpers.assert_not_contains(c, "{{ paths.repo_bones_toml }} r,")
 
 
 def test_apparmor_profile_does_not_deny_home_globally():
@@ -173,7 +173,7 @@ def test_common_app_service_runs_as_runtime_user():
     c = _read("runtimes/common/assets/app.service.j2")
     helpers.assert_contains(c, "User={{ runtime_user }}")
     helpers.assert_contains(c, "Group={{ runtime_group }}")
-    helpers.assert_contains(c, "SupplementaryGroups={{ release_group }}")
+    helpers.assert_not_contains(c, "SupplementaryGroups={{ release_group }}")
     helpers.assert_contains(c, "WorkingDirectory={{ paths.current }}")
     helpers.assert_contains(c, "RuntimeDirectory={{ project_name }}/{{ runtime_name }}")
     helpers.assert_contains(c, "RuntimeDirectoryMode=0750")

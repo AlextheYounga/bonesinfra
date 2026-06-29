@@ -7,7 +7,7 @@ to support the v1 target from `02_new_architecture_approach.md`:
 > git = ingress only, foo = one per-site identity, releases/ = root:foo,
 > shared/ = foo:foo, no permanent build/, Podman builds belong to bonesremote.
 
----
+______________________________________________________________________
 
 ## 1. `domain/paths.py` — New constants, different repo default
 
@@ -41,7 +41,7 @@ Lines 127-128: path construction for build_root, build_logs
 Builds are throwaway Podman containers owned by `bonesremote`. Bonesinfra should
 not provision a permanent `build/` directory. Remove these path entries.
 
----
+______________________________________________________________________
 
 ## 2. `domain/context.py` — Don't force deploy_user = "git"
 
@@ -65,7 +65,7 @@ This bypasses whatever the caller might pass. OK for now since git is still the
 only ingress user, but conceptually `deploy_user` should flow from config.
 Low-priority to change for v1; just stop *using* it for site directory ownership.
 
----
+______________________________________________________________________
 
 ## 3. `deploys/setup/users.py` — Critical identity changes
 
@@ -78,23 +78,18 @@ Line 47: _ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_gr
 **DELETE THIS LINE.** `git` must not be in any per-site group. This is the
 highest-impact single-line change.
 
-### 3b. Potentially remove separate `release_group`
+### 3b. Collapse the site identity to `runtime_group`
 
-The thinking docs (02, 03) describe `releases/` as `root:foo` — group-owned by
-the runtime group itself, not a separate `release_group`. If we drop the
-separate `release_group` concept:
+The v1 docs use only `runtime_user` and `runtime_group` for the site identity.
+The release-read grouping concept becomes `runtime_group`:
 
 ```
 Lines 43-45: server.group(name="Ensure release-read group exists", group=ctx.runtime.release_group)
 Lines 59-65: groups=[ctx.runtime.runtime_group, ctx.runtime.release_group]
 ```
 
-Simplifies to only `runtime_group`. But this has downstream impact on systemd
-templates that use `SupplementaryGroups={{ release_group }}`. See §8.
-
-**Decision needed:** keep `release_group` as a separate concept or collapse into
-`runtime_group`? The 02/03 docs suggest collapsing. If kept, at minimum git must
-not be in it.
+Simplifies to only `runtime_group`. Update any systemd templates that still
+reference `SupplementaryGroups={{ release_group }}`.
 
 ### 3c. `git` identity harden (future)
 
@@ -105,7 +100,7 @@ Lines 29-32: shell="/bin/bash", ensure_home=True
 02 says v1 defers git-shell. No change needed for v1, but the long-term direction
 is `shell=/usr/bin/git-shell`.
 
----
+______________________________________________________________________
 
 ## 4. `deploys/setup/directories.py` — Ownership model rewrite
 
@@ -132,6 +127,7 @@ Lines 44-48:
 ```
 
 Change to:
+
 ```
     mkdir(path=ctx.config.project_root, user="root",
           group=ctx.runtime.runtime_group, mode="2751")
@@ -148,6 +144,7 @@ Lines 52-57:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["releases"], user="root",
           group=ctx.runtime.runtime_group, mode="2750")
@@ -176,6 +173,7 @@ Lines 67-73:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["shared"], user=ctx.runtime.runtime_user,
           group=ctx.runtime.runtime_group, mode="0750")
@@ -193,6 +191,7 @@ Lines 77-81:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["placeholder_web_root"], user="root",
           group=ctx.runtime.runtime_group, mode="0750")
@@ -200,7 +199,7 @@ Change to:
 
 Matches the sealed release model: root-owned, group-readable by foo.
 
----
+______________________________________________________________________
 
 ## 5. `deploys/setup/placeholder.py` — Ownership
 
@@ -212,6 +211,7 @@ Lines 12-16:
 ```
 
 Change to:
+
 ```
     render(..., user="root", group=ctx.runtime.runtime_group, mode="0640")
 ```
@@ -221,7 +221,7 @@ placeholder release. This is fine — the symlink itself will later be flipped b
 `bonesremote`. The initial symlink pointing at a root-owned placeholder is
 correct.
 
----
+______________________________________________________________________
 
 ## 6. `deploys/setup/plan.py` — No functional change
 
@@ -231,7 +231,7 @@ Line 12: from bonesinfra.deploys.setup import ...
 
 No changes needed. The sub-modules change internally; the plan just calls them.
 
----
+______________________________________________________________________
 
 ## 7. `deploys/runtime/doctor.py` — Who runs the doctor?
 
@@ -242,19 +242,12 @@ Lines 13-17:
                 _sudo=True, _sudo_user=ctx.config.deploy_user)
 ```
 
-Currently runs `bonesremote doctor` as `git`. In the new model `git` has no
-access to site state. Options:
+Currently runs `bonesremote doctor` as `git`. Remove this step from
+`bonesinfra`; it is not part of host provisioning.
 
-a) Run as `root` (doctor likely needs to inspect releases/shared/service state)
-b) Run as the foo user
-c) Remove entirely (doctor is `bonesremote`'s concern, not provisioning)
+______________________________________________________________________
 
-**Decision needed.** If kept, change `_sudo_user=ctx.config.deploy_user` to
-`_sudo_user="root"` or `_sudo_user=ctx.runtime.runtime_user`.
-
----
-
-## 8. Templates — `release_group` references
+## 8. Templates — `runtime_group` references
 
 ### 8a. `assets/nginx/site-nginx.service.j2:10`
 
@@ -262,8 +255,8 @@ c) Remove entirely (doctor is `bonesremote`'s concern, not provisioning)
 SupplementaryGroups={{ release_group }}
 ```
 
-If `release_group` is collapsed into `runtime_group`, this line can be removed
-(the runtime user's primary group already covers this). If kept, it stays.
+Remove the extra group reference; the runtime user's primary group already
+covers this.
 
 ### 8b. `runtimes/common/assets/app.service.j2:10`
 
@@ -273,7 +266,7 @@ SupplementaryGroups={{ release_group }}
 
 Same as above.
 
----
+______________________________________________________________________
 
 ## 9. `assets/apparmor/project-nginx-profile.j2` — Remove repo config access
 
@@ -297,7 +290,7 @@ Line 46: # repo_path defaults to /home/{{ deploy_user }}/<project>.git...
 Change comment to reflect `/srv/git/<project>.git`. The `deploy_user` in the
 comment is cosmetic but misleading.
 
----
+______________________________________________________________________
 
 ## 10. Runtime modules — `runtime_write_paths` to `shared/...`
 
@@ -312,6 +305,7 @@ runtime_write_paths = [
 ```
 
 Change to:
+
 ```
 runtime_write_paths = [
     f"{paths['shared']}/tmp",
@@ -333,6 +327,7 @@ writable = [static_root, media_root]
 ```
 
 Change to:
+
 ```
 writable = [f"{paths['shared']}/staticfiles", f"{paths['shared']}/media"]
 ```
@@ -345,12 +340,12 @@ placeholder.py.
 
 Lines 31-39: `user=ctx.config.deploy_user, group=ctx.runtime.release_group`
 
----
+______________________________________________________________________
 
 ## 11. New shared directory provisioning
 
-Per the thinking docs, bonesinfra should create the baseline shared directories
-for each runtime. These are currently NOT created by bonesinfra.
+Frameworks create their writable leaves and files under `shared/`; bonesinfra
+only provisions the `shared/` parent and permissions.
 
 ### 11a. New file or addition to directories.py
 
@@ -379,7 +374,7 @@ shared/log/            → create as foo:foo 0750
 shared/storage/        → create as foo:foo 0750
 ```
 
----
+______________________________________________________________________
 
 ## 12. `deploys/setup/bonesremote.py` — Sudoers shape
 
@@ -395,6 +390,7 @@ not bonesinfra's. But bonesinfra may need to ensure the parent directory exists:
 ### 12a. Ensure registry parent exists
 
 Add to directories.py or a new step:
+
 ```
 mkdir("/etc/bonesdeploy/sites", user="root", group="root", mode="0750")
 ```
@@ -404,33 +400,32 @@ mkdir("/etc/bonesdeploy/sites", user="root", group="root", mode="0750")
 The thinking docs (03) say:
 
 > Good: `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote deploy --site <project>`
-> Bad:  `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *`
+> Bad: `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *`
 
-Bonesinfra doesn't own the sudoers *content* — that's a bonesremote contract.
-But bonesinfra installs the sudoers.d file and should ensure the shape is narrow.
-If bonesinfra installs a static bonesdeploy sudoers file, it should match the
-registry-based pattern.
+`bonesremote init` owns the sudoers installation step.
+The command shape should remain narrow and registry-backed.
 
-Currently the sudoers path is computed (`paths.py:151`) but no file is written
-by bonesinfra. This may be handled by `bonesremote init`. Verify.
+Currently the sudoers path is computed (`paths.py:151`) as the single global
+drop-in at `/etc/sudoers.d/bonesdeploy`; `bonesinfra` should not add
+per-project files or aggregate-file management without a real lifecycle need.
 
----
+______________________________________________________________________
 
 ## 13. `deploys/setup/packages.py` — No functional change
 
 The package list includes `git`, `nginx`, `apparmor`, etc. No changes needed,
-though consider adding `podman` to the list if bonesremote requires it (03:380
-says "install podman if bonesremote requires it").
+though `podman` belongs in the bonesinfra base package set because host
+provisioning owns the dependency.
 
----
+______________________________________________________________________
 
 ## 14. `runtimes/common/paths.py` — Ensure shared/ baseline dirs
 
-Currently only creates `/run/<project>/` socket dirs. Should also ensure
-framework-specific shared/writable dirs exist. Could be a new function or added
-to the existing `ensure_runtime_dirs`.
+Currently only creates `/run/<project>/` socket dirs. Frameworks own their
+writable leaves under `shared/`; bonesinfra only needs the `shared/` parent and
+its permissions.
 
----
+______________________________________________________________________
 
 ## 15. Tests that need updating
 
@@ -458,21 +453,21 @@ Same — this enforces the V2 violation. Must be updated.
 ### 15c. `tests/test_context.py`
 
 ```
-Lines 27-29,33-34: Tests for runtime_user, runtime_group, release_group defaults
+Lines 27-29,33-34: Tests for runtime_user and runtime_group defaults
 Lines 51-52,60-61: More runtime_user/runtime_group tests
 ```
 
-If `release_group` is collapsed, update defaults in tests.
+Update defaults in tests to use only `runtime_user` and `runtime_group`.
 
 ### 15d. `tests/test_templates_j2.py`
 
 ```
-Lines 34,110-120,172-176: Template tests with deploy_user, runtime_user, runtime_group, release_group
+Lines 34,110-120,172-176: Template tests with deploy_user, runtime_user, runtime_group
 ```
 
 Update for new template variables and removed `repo_bones_toml` grant.
 
----
+______________________________________________________________________
 
 ## 16. Summary: What changes, what doesn't
 
@@ -497,14 +492,14 @@ Update for new template variables and removed `repo_bones_toml` grant.
 | `runtimes/nuxt/nuxt.py:31-39` | placeholder dirs → `root:runtime_group` |
 | Tests: `test_deploy_structure.py`, `test_shared_paths.py` | Remove git-in-runtime-group assertions |
 
-### Needs decision:
+### Resolved:
 
-| Topic | Question |
+| Topic | Decision |
 |-------|----------|
-| `release_group` | Keep as separate concept or collapse into `runtime_group`? |
-| `doctor.py` | Run as root, foo, or remove from provisioning? |
-| `shared/` baseline dirs | Who creates framework-specific shared dirs (bonesinfra or bonesremote)? |
-| Podman package | Add to `BASE_SYSTEM_PACKAGES` or leave to bonesremote? |
+| `release_group` | Use `runtime_group` only for v1. |
+| `doctor.py` | Remove from `bonesinfra`. |
+| `shared/` baseline dirs | Frameworks create writable leaves; bonesinfra provisions the parent. |
+| Podman package | Install it in `bonesinfra`.
 
 ### Does not change (bonesinfra scope):
 
@@ -521,7 +516,7 @@ Update for new template variables and removed `repo_bones_toml` grant.
 | Site registry content | Belongs to bonesremote (might just ensure parent dir) |
 | Sudoers content | Belongs to bonesremote (bonesinfra may install the file) |
 
----
+______________________________________________________________________
 
 ## 17. File count estimate
 

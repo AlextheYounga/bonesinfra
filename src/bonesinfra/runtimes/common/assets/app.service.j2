@@ -7,7 +7,6 @@ Requires=apparmor.service
 Type=simple
 User={{ runtime_user }}
 Group={{ runtime_group }}
-SupplementaryGroups={{ release_group }}
 WorkingDirectory={{ paths.current }}
 RuntimeDirectory={{ project_name }}/{{ runtime_name }}
 RuntimeDirectoryMode=0750

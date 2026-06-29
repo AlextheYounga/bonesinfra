@@ -7,7 +7,6 @@ Requires=apparmor.service
 Type=simple
 User={{ runtime_user }}
 Group={{ runtime_group }}
-SupplementaryGroups={{ release_group }}
 WorkingDirectory={{ paths.current }}
 # 0711: system nginx (www-data) must traverse this dir to reach the socket.
 # 0750 causes 502 — www-data is not in the runtime group.

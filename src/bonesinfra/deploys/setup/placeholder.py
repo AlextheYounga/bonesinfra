@@ -9,8 +9,8 @@ def seed(ctx, paths, here):
         "Seed placeholder index page",
         here / "assets/nginx/index.html.j2",
         paths["placeholder_index"],
-        user=ctx.config.deploy_user,
-        group=ctx.runtime.release_group,
+        user="root",
+        group=ctx.runtime.runtime_group,
         mode="0640",
         **template_data(ctx, paths=paths),
     )

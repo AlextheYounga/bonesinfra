@@ -59,7 +59,6 @@ class DeployContext:
             web_root=runtime_cfg.get("web_root", DEFAULT_WEB_ROOT),
             runtime_user=runtime_cfg.get("runtime_user", project_name),
             runtime_group=runtime_cfg.get("runtime_group", project_name),
-            release_group=runtime_cfg.get("release_group", f"{project_name}-release"),
             runtime_data=runtime_cfg,
         )
 
@@ -90,7 +89,6 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
     data["deploy_user"] = ctx.config.deploy_user
     data["runtime_user"] = ctx.runtime.runtime_user
     data["runtime_group"] = ctx.runtime.runtime_group
-    data["release_group"] = ctx.runtime.release_group
     data["project_root_parent"] = paths.get("project_root_parent", "")
     data["ssh_port"] = int(ctx.config.port)
     data["paths"] = paths
@@ -129,5 +127,4 @@ class RuntimeConfig:
     web_root: str
     runtime_user: str
     runtime_group: str
-    release_group: str
     runtime_data: dict[str, Any] = field(default_factory=dict)

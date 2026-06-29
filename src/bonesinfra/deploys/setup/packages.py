@@ -9,6 +9,7 @@ BASE_SYSTEM_PACKAGES: list[str] = [
     "sudo",
     "nginx",
     "openssl",
+    "podman",
     "apparmor",
     "apparmor-utils",
     "certbot",

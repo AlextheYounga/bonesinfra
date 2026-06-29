@@ -42,9 +42,7 @@ def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/gunicorn/gunicorn.sock"
     wsgi_module = ctx.runtime.runtime_data.get("wsgi_module", "config.wsgi:application")
-    static_root = f"{paths['current']}/{ctx.runtime.runtime_data.get('static_root', 'staticfiles')}"
-    media_root = f"{paths['current']}/{ctx.runtime.runtime_data.get('media_root', 'media')}"
-    writable = [static_root, media_root]
+    writable = [f"{paths['shared']}/staticfiles", f"{paths['shared']}/media"]
     gunicorn_bin = f"{paths['current']}/.venv/bin/gunicorn"
     python_packages.install_packages()
     common_paths.ensure_runtime_dirs(ctx)

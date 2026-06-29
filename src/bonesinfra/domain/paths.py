@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_REPO_PARENT = "/home/git"
+DEFAULT_REPO_PARENT = "/srv/git"
 DEFAULT_PROJECT_ROOT_PARENT = "/srv/sites"
 DEFAULT_CONF_ROOT_PARENT = "/srv/conf"
 DEFAULT_WEB_ROOT = "public"
@@ -13,6 +13,7 @@ ETC_APPARMOR_D = "/etc/apparmor.d"
 ETC_SSL_CERTS = "/etc/ssl/certs"
 ETC_SSL_PRIVATE = "/etc/ssl/private"
 ETC_SUDOERS_D = "/etc/sudoers.d"
+ETC_BONESDEPLOY_SITES = "/etc/bonesdeploy/sites"
 
 RUNTIME_SOCKET_PARENT = "/run"
 BONES_DIR = "bones"
@@ -22,9 +23,6 @@ INDEX_HTML = "index.html"
 GIT_HEAD = "HEAD"
 RELEASES_DIR = "releases"
 SHARED_DIR = "shared"
-BUILD_DIR = "build"
-WORKSPACE_DIR = "workspace"
-LOGS_DIR = "logs"
 CURRENT_LINK = "current"
 PLACEHOLDER_RELEASE_NAME = "19700101_000000"
 
@@ -66,8 +64,6 @@ class DeploymentPaths:
     project_root_parent: str
     releases: str
     shared: str
-    build_root: str
-    build_logs: str
     current: str
     current_web_root: str
     placeholder_release: str
@@ -88,6 +84,7 @@ class DeploymentPaths:
     runtime_nginx_pid: str
     runtime_php_fpm_socket: str
     acme_webroot: str
+    site_registry_path: str
     sudoers_path: str
     usr_local_bin: str
     bonesremote_global_link: str
@@ -124,8 +121,6 @@ class DeploymentPaths:
             project_root_parent=_parent_or_default(project_root, DEFAULT_PROJECT_ROOT_PARENT),
             releases=str(Path(project_root) / RELEASES_DIR),
             shared=str(Path(project_root) / SHARED_DIR),
-            build_root=str(Path(project_root) / BUILD_DIR / WORKSPACE_DIR),
-            build_logs=str(Path(project_root) / BUILD_DIR / LOGS_DIR),
             current=str(current),
             current_web_root=str(current / web_root),
             placeholder_release=str(placeholder_release),
@@ -148,6 +143,7 @@ class DeploymentPaths:
             runtime_nginx_pid=str(runtime_nginx_dir / NGINX_PID),
             runtime_php_fpm_socket=str(runtime_socket_dir / PHP_FPM_SOCKET),
             acme_webroot=f"/var/www/{project_name}",
+            site_registry_path=str(Path(ETC_BONESDEPLOY_SITES) / f"{project_name}.toml"),
             sudoers_path=str(Path(ETC_SUDOERS_D) / "bonesdeploy"),
             usr_local_bin=USR_LOCAL_BIN,
             bonesremote_global_link=str(Path(USR_LOCAL_BIN) / BONESREMOTE_BINARY),
