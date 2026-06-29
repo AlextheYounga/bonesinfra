@@ -32,7 +32,6 @@ def test_setup_plan_calls_all_steps():
     helpers.assert_contains(c, "firewall.configure")
     helpers.assert_contains(c, "users.install_authorized_key")
     helpers.assert_contains(c, "bonesremote.install")
-    helpers.assert_contains(c, "bonesremote.install_sudoers")
 
 
 def test_setup_plan_uses_base_packages():
@@ -129,41 +128,12 @@ def test_setup_deploy_user_commands_set_user_home():
     helpers.assert_contains(c, "getent passwd")
 
 
-# ---- Sudoers ----
-
-
-SUDOERS_TEMPLATE = helpers.SRC_DIR / "bonesinfra/assets/sudoers/bonesdeploy.j2"
-
-
-def test_setup_installs_sudoers_after_bonesremote():
+def test_setup_leaves_sudoers_to_bonesremote_init():
     c = helpers.read(SETUP_PLAN)
-    helpers.assert_ordering(c, "bonesremote.install", "bonesremote.install_sudoers")
-
-
-def test_sudoers_install_validates_with_visudo():
+    helpers.assert_not_contains(c, "install_sudoers")
     c = helpers.read(SETUP_BONESREMOTE)
-    helpers.assert_contains(c, "visudo -c -f")
-    helpers.assert_contains(c, 'mode="0440"')
-
-
-def test_sudoers_template_uses_literal_project_name():
-    c = helpers.read(SUDOERS_TEMPLATE)
-    helpers.assert_contains(c, "--site {{ project_name }}")
-
-
-def test_sudoers_template_does_not_use_wildcards():
-    c = helpers.read(SUDOERS_TEMPLATE)
-    helpers.assert_not_contains(c, "--site *")
-    helpers.assert_not_contains(c, "--config *")
-
-
-def test_sudoers_template_allows_required_commands():
-    c = helpers.read(SUDOERS_TEMPLATE)
-    helpers.assert_contains(c, "hook post-receive --site")
-    helpers.assert_contains(c, "service restart --site")
-    helpers.assert_contains(c, "release rollback --site")
-    helpers.assert_contains(c, "release drop-failed --site")
-    helpers.assert_contains(c, "release prune --site")
+    helpers.assert_contains(c, "bonesremote init")
+    helpers.assert_not_contains(c, "visudo")
 
 
 # ---- Firewall ----

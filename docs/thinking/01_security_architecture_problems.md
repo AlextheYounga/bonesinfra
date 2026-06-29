@@ -1,24 +1,25 @@
 Compression is rejecting ID order. I'll proceed directly to the synthesis — context is still manageable.
 
----
+______________________________________________________________________
 
 # Synthesis: BonesDeploy Ownership Model Redesign
 
 I audited both repos end-to-end. Here's the grounded picture, the contradictions, and a proposed target model with explicit tradeoffs. **No final decisions baked in** — I flag every fork where I need your call.
 
----
+______________________________________________________________________
 
 ## 1. What the code actually does today (the one-paragraph version)
 
 There is **no `foo-build` user anywhere**. The global `git` user is the single deploy-side identity for every site: it owns the bare repo, owns `/srv/sites/<project>` and `releases/` and `build/`, runs `git checkout` into `build/workspace`, runs composer/npm/vite as itself with its own HOME as the cache root, runs `cp -a` into `releases/<id>` (preserving `git` ownership), flips `current`, prunes old releases, and drops failed ones. The runtime user (`<project>`, a system user with `nologin`) is enrolled in both `runtime_group` and `release_group`; `git` is **also** enrolled in `runtime_group` (`users.py:47`). `shared/` is `runtime_user:runtime_group` mode **2775** (group-writable + world-readable). The only sudoers grant is `git ALL=(root) NOPASSWD: <bonesremote> service restart --config *` (`init.rs:20-29`), and that command trusts git-supplied `project_name` with only a regex check. There is **no root-owned site registry** — `bones.toml`/`runtime.toml` live inside the git-owned bare repo and are trusted for privileged decisions (AppArmor grants read on `repo_bones_toml` at `project-nginx-profile.j2:32`; `service.rs` trusts `project_name` for `systemctl restart <x>-nginx`).
 
----
+______________________________________________________________________
 
 ## 2. Violations against your desired model (ranked by severity)
 
 ### Severity: Critical (trust boundary / cross-site)
 
 **V1. No `foo-build` user exists.** Build/release ownership is collapsed into the global `git`. One compromised `git` = every site's release code across the host.
+
 - `crates/shared/src/paths.rs:11` `DEPLOY_USER = "git"`; `crates/shared/src/config.rs:91-103` has `runtime_user_for`/`runtime_group_for`/`release_group_for` but **no `build_user_for`**.
 - `bonesinfra/.../setup/users.py:26-33` creates only `git` + runtime user.
 - `bonesinfra/.../setup/directories.py:43-65` provisions `project_root`, `releases/`, `build/` all as `git:`.
@@ -26,6 +27,7 @@ There is **no `foo-build` user anywhere**. The global `git` user is the single d
 **V2. `git` is in every site's `runtime_group`.** `users.py:47`. Combined with `shared/` mode 2775 (`directories.py:67-73`), `git` can read/write runtime mutable state (`.env`, sqlite, uploads) on every site. Tested-as-intended at `tests/test_deploy_structure.py:91-93` and `tests/test_shared_paths.py:33-35`.
 
 **V3. No root-owned site registry; privileged code trusts git-owned config.**
+
 - `bonesinfra/.../apparmor/project-nginx-profile.j2:32` grants runtime nginx read on `/home/git/<project>.git/bones/bones.toml`.
 - `bonesinfra/.../domain/context.py:22-66` `DeployContext.from_files()` reads `project_name`/`repo_path`/`project_root`/`runtime_user`/`runtime_group`/`release_group` from git-owned TOML and those flow into root-owned systemd units, AppArmor profiles, nginx configs.
 - `crates/bonesremote/src/commands/service.rs:12-26` trusts `project_name` from `--config *` (regex-only validation) → compromised `git` can restart any `<x>-nginx.service` on the host.
@@ -36,16 +38,18 @@ There is **no `foo-build` user anywhere**. The global `git` user is the single d
 ### Severity: High (release code ownership)
 
 **V5. Entire deploy pipeline runs as `git`.** No `sudo -u foo-build` anywhere. `kit/hooks/hooks.sh:81,86` invokes `bonesremote deploy` directly; `deploy.rs:23-45` runs doctor→stage→post_receive→wire→publish→activate→restart→post_deploy all as `git`.
+
 - `stage_release.rs:32-33` creates `releases/<id>` as `git`.
 - `post_receive.rs:19-30` runs `git checkout` as `git` into `git:git 0700` build/workspace.
 - `deploy.rs:74-85` runs build scripts (composer/npm/vite) as `git` with `git`'s HOME.
 - `deploy.rs:116-134` `publish_release_tree` uses `cp -a`, preserving `git` ownership into the release tree.
 
 **V6. Runtime user writes into release tree (not shared).**
+
 - Rails (`bonesinfra/.../runtimes/rails/rails.py:38-42`): `runtime_write_paths = [current/tmp, current/log, current/storage]` → systemd `ReadWritePaths` + AppArmor `rwk` grant inside the release tree.
 - Django (`django.py:45-47`): `current/staticfiles`, `current/media`.
 - Laravel `runtime.toml`: `bootstrap/cache`, `database/database.sqlite` mode 770/660 inside the release tree (only `storage` and `.env` are shared via `[shared]`).
-This contradicts your invariant "foo-run should not own release code... runtime compromise not to persist by rewriting code."
+  This contradicts your invariant "foo-run should not own release code... runtime compromise not to persist by rewriting code."
 
 ### Severity: Medium (docs/functional)
 
@@ -54,6 +58,7 @@ This contradicts your invariant "foo-run should not own release code... runtime 
 **V8. `wire_release` `.env.example` fallback creates `shared/.env` as `git:git 0600`** → runtime_user cannot read it. (`wire_release.rs:27-34`.) Only the `secrets push` path does the correct `chown root:<runtime_group> 0640`.
 
 **V9. Docs contradict code on modes and "activation hardening".**
+
 - `docs/security/02-filesystem-layout.md:70` claims releases become "service-owned after activation hardening" — **no such step exists** (`activate_release.rs:9-30` only flips the symlink).
 - `:84-90` claims modes `0750/0711`; actual modes are `2751/0700/2750/2775`.
 - `:129-132` claims `storage` is wired as a shared symlink — it is not.
@@ -68,7 +73,7 @@ This contradicts your invariant "foo-run should not own release code... runtime 
 
 **V13. `www-data` is a de facto global cross-site read key.** Every `/run/<project>/` and `/run/<project>/nginx/` is `0711` so system nginx can traverse; per-site nginx socket is `0666`-ish (`site-nginx.conf.j2:21-24` ponytail comment acknowledges this). Accepted for single-tenant hosts but violates multi-site isolation.
 
----
+______________________________________________________________________
 
 ## 3. Proposed target ownership model
 
@@ -117,7 +122,7 @@ Every runtime-mutable path lives under `shared/` and is symlinked into the relea
 
 `wire_release` creates these symlinks as `foo-build` (so the symlink entries are build-owned, pointing at foo-run-owned shared leaves). The shared leaves themselves are created as `foo-run:foo-run 0750` — either by `bonesinfra` at provisioning or by a root-mediated `bonesremote shared init` step.
 
----
+______________________________________________________________________
 
 ## 4. Open design questions (need your call)
 
@@ -154,8 +159,9 @@ Every runtime-mutable path lives under `shared/` and is symlinked into the relea
 ### Q6. Does `foo-build` get direct read access to the bare repo, or does `bonesremote` export a source archive?
 
 **My recommendation: archive export via root mediator (your option A).** The post-receive hook (running as `git`) calls `sudo bonesremote release checkout --config <registry>` which as root:
+
 1. Validates the repo/revision against the root-owned registry.
-2. `git --git-dir=/srv/git/foo.git archive <rev> | sudo -u foo-build tar -x -C /srv/sites/foo/build/workspace`
+1. `git --git-dir=/srv/git/foo.git archive <rev> | sudo -u foo-build tar -x -C /srv/sites/foo/build/workspace`
 
 This gives `foo-build` no direct access to `/srv/git/foo.git`, no traversal into `git`'s space, and the privileged step validates the rev before exporting.
 
@@ -208,6 +214,7 @@ See the table in §3. **Code artifacts** (build-owned, read-only at runtime): ev
 ### Q16. AppArmor/systemd hardening?
 
 **My recommendation: keep the existing per-site nginx + per-runtime app profiles, but:**
+
 - Remove the `repo_bones_toml r,` grant from `project-nginx-profile.j2:32` (V3 fix — nginx config is at `/srv/conf/<project>/nginx.conf`, doesn't need the repo's `bones.toml`).
 - Change `runtime_write_paths` for Rails/Django to point at `shared/...` symlinks, not `current/...` (V6 fix).
 - Add an AppArmor profile for `foo-build`'s build scripts (future hardening; not v1).
@@ -242,6 +249,7 @@ See the table in §3. **Code artifacts** (build-owned, read-only at runtime): ev
 ### Q20. What code/docs need to change?
 
 **bonesinfra (Python):**
+
 - `domain/context.py`: add `build_user` field, default `f"{project_name}-build"`.
 - `deploys/setup/users.py`: create `foo-build`, remove `git` from `runtime_group` (line 47).
 - `deploys/setup/directories.py`: owner `foo-build` for `project_root`, `releases/`, `build/`; `shared/` mode `0750`.
@@ -249,6 +257,7 @@ See the table in §3. **Code artifacts** (build-owned, read-only at runtime): ev
 - `assets/apparmor/project-nginx-profile.j2:32`: remove `repo_bones_toml r,`.
 
 **bonesdeploy (Rust):**
+
 - `crates/shared/src/config.rs`: add `build_user_for()`, add registry-loading helpers.
 - `crates/shared/src/paths.rs`: add `/etc/bonesdeploy/sites/` registry path constants.
 - `crates/bonesremote/src/commands/init.rs`: write `/etc/bonesdeploy/sites/<project>.toml`; tighten sudoers to registry paths + `foo-build` deploy rule.
@@ -259,18 +268,19 @@ See the table in §3. **Code artifacts** (build-owned, read-only at runtime): ev
 - `crates/bonesdeploy/kit/hooks/hooks.sh:81,86`: invoke `bonesremote deploy` via `sudo -u foo-build`.
 
 **Docs:**
+
 - `docs/security/02-filesystem-layout.md`: fix modes table, delete "activation hardening" myth, document shared-symlink model.
 - `docs/security/03-identity-and-user-policy.md`: 3-identity model.
 - `docs/security/22-desired-end-state-summary.md`: 3-identity model.
 - `docs/PROJECT.md`: fix `shared/` mode (0750 not 0711/2775), ownership table (foo-build not git for releases), wire_release coverage.
 
----
+______________________________________________________________________
 
 ## 5. The one-sentence version
 
 The redesign's spine is: **introduce `foo-build` per site, move every deploy-side ownership from `git` to `foo-build`, remove `git` from `runtime_group`, tighten `shared/` to `foo-run`-exclusive, add a root-owned site registry that privileged commands read instead of git-owned config, and wire shared symlinks for every runtime-mutable path so the runtime user never writes inside the release tree.**
 
----
+______________________________________________________________________
 
 ## What I need from you
 

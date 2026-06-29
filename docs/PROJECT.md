@@ -6,7 +6,7 @@ It is not the public product interface. It is called by `bonesdeploy` to run pyi
 
 The user should normally never call `bonesinfra` directly, except for dev testing.
 
----
+______________________________________________________________________
 
 # Role in the System
 
@@ -30,7 +30,7 @@ BonesRemote owns deployment.
 
 BonesDeploy owns public UX.
 
----
+______________________________________________________________________
 
 # What BonesInfra Owns
 
@@ -62,7 +62,7 @@ BonesInfra does not own:
 
 Those belong to `bonesdeploy` and `bonesremote`.
 
----
+______________________________________________________________________
 
 # Public vs Private Interface
 
@@ -92,7 +92,7 @@ This command surface is an internal contract with `bonesdeploy`.
 
 Do not treat it as public user-facing API unless that decision is made deliberately later.
 
----
+______________________________________________________________________
 
 # Package Layout
 
@@ -139,7 +139,7 @@ Avoid `sys.path` mutation.
 
 Avoid root-level script architecture.
 
----
+______________________________________________________________________
 
 # Layer Responsibilities
 
@@ -329,7 +329,7 @@ A runtime may have a no-op deploy, but it should be explicit.
 
 Avoid silent runtime import failure.
 
----
+______________________________________________________________________
 
 # Deploy Context
 
@@ -371,7 +371,6 @@ and merges `runtime.runtime_data` for dynamic keys.
 
 No `flat_data` property on `DeployContext`. No `host.data` side-channel.
 Plan files receive `ctx` directly as a function parameter.
-
 
 # Runtime Catalog
 
@@ -439,7 +438,7 @@ Expected `runtime questions` response:
 
 Rust depends on this data to prompt users.
 
----
+______________________________________________________________________
 
 # PyInfra Runner
 
@@ -458,7 +457,7 @@ It should not know about Laravel, SSL, nginx, config files, or runtime selection
 
 The runner no longer attaches a flat data dict to `host.data`. It calls `deploy(ctx)` directly, passing the typed `DeployContext`. Plan files receive the context as a parameter and pass it to sub-modules.
 
----
+______________________________________________________________________
 
 # Setup Provisioning
 
@@ -486,7 +485,7 @@ Responsibilities:
 
 Setup should run as root or bootstrap SSH user.
 
----
+______________________________________________________________________
 
 # Runtime Provisioning
 
@@ -502,7 +501,7 @@ Responsibilities:
 
 Runtime setup is separate from SSL.
 
----
+______________________________________________________________________
 
 # SSL Provisioning
 
@@ -518,7 +517,7 @@ Responsibilities:
 
 SSL is intentionally separate from runtime setup.
 
----
+______________________________________________________________________
 
 # Runtime-Specific Infrastructure
 
@@ -543,7 +542,7 @@ Shared runtime helpers live under `runtimes/common/`, including common AppArmor,
 
 Django, Rails, Node, Vue, etc. can stay small, but they should still follow the same interface.
 
----
+______________________________________________________________________
 
 # Error Rules
 
@@ -565,7 +564,7 @@ Recommended exit behavior:
 
 Keep exact codes simple unless the contract defines more.
 
----
+______________________________________________________________________
 
 # Testing Rules
 
@@ -596,7 +595,7 @@ setup.py does everything else
 runtime modules all have different shapes
 ```
 
----
+______________________________________________________________________
 
 # Documentation Rules
 
@@ -625,7 +624,7 @@ bonesinfra runs pyinfra provisioning
 bonesremote owns release deployment
 ```
 
----
+______________________________________________________________________
 
 # Current Target
 

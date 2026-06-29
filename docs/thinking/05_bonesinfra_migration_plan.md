@@ -21,7 +21,7 @@ bonesremote/root = privileged deploy mediator
 The earlier multi-identity model in `01_security_architecture_problems.md` is
 useful background, but it is not the v1 implementation target.
 
----
+______________________________________________________________________
 
 ## Migration Goals
 
@@ -33,7 +33,7 @@ useful background, but it is not the v1 implementation target.
 6. Move runtime-writable paths to `shared/` and away from release code.
 7. Keep deploy-time lifecycle behavior out of `bonesinfra`.
 
----
+______________________________________________________________________
 
 ## Non-Goals For BonesInfra V1
 
@@ -50,7 +50,7 @@ These belong to `bonesremote`, `bonesdeploy`, or a later hardening pass:
 - Rollback and pruning.
 - Secret push semantics.
 
----
+______________________________________________________________________
 
 ## Phase 0: Resolved Contract
 
@@ -62,7 +62,7 @@ These are fixed for v1:
 - `runtime doctor` is not part of `bonesinfra`.
 - Podman is required and is installed by `bonesinfra`.
 
----
+______________________________________________________________________
 
 ## Phase 1: Update Domain Paths
 
@@ -89,7 +89,7 @@ Expected result:
 
 Do not add new build-user concepts in this phase.
 
----
+______________________________________________________________________
 
 ## Phase 2: Fix Identity Provisioning
 
@@ -121,7 +121,7 @@ Deferred hardening:
 - Change `git` from `/bin/bash` to `git-shell` after the deploy hook contract is
   registry-backed and tested.
 
----
+______________________________________________________________________
 
 ## Phase 3: Rewrite Setup Directory Ownership
 
@@ -156,7 +156,7 @@ Target ownership baseline:
 The placeholder release is only for first-time service validation. Future release
 promotion belongs to `bonesremote`.
 
----
+______________________________________________________________________
 
 ## Phase 4: Provision Shared Runtime State
 
@@ -175,7 +175,7 @@ Rules:
 - Do not wire release symlinks here; that is per-release behavior and belongs to
   `bonesremote`.
 
----
+______________________________________________________________________
 
 ## Phase 5: Update Runtime Write Policies
 
@@ -201,7 +201,7 @@ runtime can read current release code
 runtime cannot write ordinary release files
 ```
 
----
+______________________________________________________________________
 
 ## Phase 6: Remove Repo Config From Runtime Policy
 
@@ -219,17 +219,19 @@ This does not by itself implement the root-owned registry contract. It prepares
 `bonesinfra` so that registry-backed `bonesremote` commands can become the only
 privileged source of truth.
 
----
+______________________________________________________________________
 
 ## Phase 7: Align Sudoers And Registry Hooks
 
-Purpose: ensure `bonesinfra` installs narrow sudo rules for the registry-backed
-command contract.
+Purpose: ensure the existing `bonesremote init` sudoers setup stays narrow and
+registry-backed.
 
 Changes:
 
-- Install sudoers fragments in `bonesinfra`.
-- Keep the allowed commands narrow and registry-backed.
+- Keep the single historical sudoers drop-in at `/etc/sudoers.d/bonesdeploy`.
+- Keep sudoers installation in `bonesremote init` unless a concrete host
+  provisioning requirement appears.
+- Keep the allowed commands narrow and registry-backed/site-literal.
 - Do not install rules shaped like `bonesremote * --config *`.
 
 Good shape:
@@ -245,9 +247,11 @@ Bad shape:
 git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *
 ```
 
-`bonesremote` provides the command contract; `bonesinfra` installs the drop-in.
+`bonesremote` provides and installs the command contract. `bonesinfra` should
+not add per-project sudoers files or aggregate-file management without a real
+lifecycle requirement.
 
----
+______________________________________________________________________
 
 ## Phase 8: Update Tests
 
@@ -279,7 +283,7 @@ runtime_write_paths_are_shared_paths
 apparmor_does_not_read_repo_config
 ```
 
----
+______________________________________________________________________
 
 ## Phase 9: Update Documentation
 
@@ -311,7 +315,7 @@ Documentation must not say:
 - Runtime writes inside ordinary release code.
 - Activation hardening exists in `bonesinfra`.
 
----
+______________________________________________________________________
 
 ## Safe Implementation Order
 
@@ -333,7 +337,7 @@ deploying this to production hosts. The `bonesinfra` side can be implemented and
 tested in isolation, but production deployment needs the matching
 `bonesremote` lifecycle changes.
 
----
+______________________________________________________________________
 
 ## Cross-Repo Dependencies
 
@@ -365,7 +369,7 @@ Required `bonesdeploy` work:
   `/srv/git`.
 - Keep public UX in `bonesdeploy`; do not expose `bonesinfra` as user-facing API.
 
----
+______________________________________________________________________
 
 ## Rollout Strategy
 
@@ -400,7 +404,7 @@ Rollback plan for the migration itself:
 - If deploy hooks fail after migration, disable hooks and invoke the new
   registry-backed `bonesremote` command manually for diagnosis.
 
----
+______________________________________________________________________
 
 ## Acceptance Criteria
 
@@ -420,7 +424,7 @@ The migration is complete for `bonesinfra` when all of these are true:
 - Documentation describes `bonesinfra` as provisioning only, not deployment
   lifecycle ownership.
 
----
+______________________________________________________________________
 
 ## Deferred Hardening
 

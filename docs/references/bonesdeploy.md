@@ -198,7 +198,7 @@ members = ["crates/shared", "crates/bonesdeploy", "crates/bonesremote", "tests/c
 
 `README.md`:
 
-```md
+````md
 # BonesDeploy
 
 ## Remote release deployment tool for simple Linux servers
@@ -254,7 +254,7 @@ This gives you a clean privilege boundary:
 
 ```sh
 cargo install --locked --git https://github.com/AlextheYounga/bonesdeploy.git bonesdeploy
-```
+````
 
 ### Server (bonesremote)
 
@@ -281,11 +281,12 @@ bonesdeploy init
 ```
 
 This will:
+
 1. Create a `.bones/` folder with deployment scripts and hooks
-2. Prompt for project name, branch, remote name, host, and port
-3. Add `.bones` to `.gitignore`
-4. Symlink the `pre-push` hook into `.git/hooks/`
-5. Create a local deployment git remote if needed
+1. Prompt for project name, branch, remote name, host, and port
+1. Add `.bones` to `.gitignore`
+1. Symlink the `pre-push` hook into `.git/hooks/`
+1. Create a local deployment git remote if needed
 
 BonesDeploy assumes opinionated server defaults unless you change them in `.bones/bones.toml`:
 
@@ -455,7 +456,7 @@ cargo cov-html
 
 Reports are written under `target/coverage/`.
 
-```
+````
 
 `clippy.toml`:
 
@@ -463,7 +464,7 @@ Reports are written under `target/coverage/`.
 too-many-lines-threshold = 60
 cognitive-complexity-threshold = 15
 too-many-arguments-threshold = 4
-```
+````
 
 `compile.sh`:
 
@@ -11680,22 +11681,24 @@ Permissions are a **provisioning-time contract**, not a deployment-time repair. 
 
 ## Bones Scaffolding
 ```
+
 .bones
 ├── bones.toml
 ├── runtime.toml
 ├── hooks
-│   ├── hooks.sh                      # (legacy; pre-push only used to source from here)
-│   ├── post-receive
-│   └── pre-push
+│ ├── hooks.sh # (legacy; pre-push only used to source from here)
+│ ├── post-receive
+│ └── pre-push
 ├── deployment
-│   ├── 01_install_build_deps.sh
-│   └── 02_run_build.sh
-```
+│ ├── 01_install_build_deps.sh
+│ └── 02_run_build.sh
+
+````
 
 Python infra scripts and templates are managed separately by the hidden `bonesinfra` checkout; see `crates/bonesdeploy/src/infra/bonesinfra.rs`.
 
 ### Bones TOML
-This stores crucial data we will need and is collected on running `bonesdeploy init` via user prompts.  
+This stores crucial data we will need and is collected on running `bonesdeploy init` via user prompts.
 Collects the following project information from the user:
 - `project_name`: str
 - `branch`: str
@@ -11730,24 +11733,29 @@ email = "ops@example.com"
 deploy_on_push = false
 ssl_enabled = true
 releases = 5
-```
+````
 
 ### Hooks
+
 Hooks are static shell scripts embedded in the `bonesdeploy` binary. They are written to `.bones/hooks/` once during `bonesdeploy init`: a local `pre-push` guard and a remote `post-receive` thin trigger. The previous shared `hooks.sh` library is gone; `pre-push` is now self-contained and `post-receive` delegates directly to `sudo bonesremote hook post-receive --site <project>`. After that, they belong to the user and can be edited freely. They are published into `bonesremote`'s root-owned remote site state via `bonesdeploy push` and can be restored locally with `bonesdeploy pull`.
 
 - `pre-push` => Local hook, symlinked to `.git/hooks/pre-push`. This checks to see if we are pushing to our bonesdeploy designated remote. If so, then we run `bonesdeploy doctor --local` and we fail if the doctor command expresses any warning or errors.
 - `post-receive` => Thin trigger that derives `<site>` from `GIT_DIR` and runs `sudo bonesremote hook post-receive --site <site>`. `bonesremote` then reads branch policy and config from `/root/.config/bonesremote/sites/<site>/` instead of the bare repo.
 
 ### Deployment Folder
+
 This folder stores build and prepare scripts that are published into bonesremote site state. Build scripts live in `.bones/deployment/build/`, must be ordered sequentially like `01_install_deps.sh`, `02_run_build.sh`, and run inside the `build_image` from `.bones/runtime.toml` with `cwd=/workspace/source`. The build container receives the exported source tree only; it does not receive `.env`, `shared/`, `current`, `releases/`, the bare repo, or bonesremote control-plane files. Prepare scripts live in `.bones/deployment/prepare/`, run in lexical order as the site runtime user with `cwd` set to the sealed release, and are the right place for migrations, cache warmups, and other runtime-state work.
 
 ## Crate Structure
+
 This Cargo workspace has three crates under `crates/`:
+
 - `bonesdeploy` for the local CLI binary
 - `bonesremote` for the server-side binary
 - `shared` for code that must be common to both binaries
 
 ### Path Centralization
+
 All product-owned paths must live in `crates/shared/src/paths.rs`.
 
 Other modules may derive subpaths by joining values from `shared::paths`, but they must not introduce their own independent path roots, filenames, or install locations.
@@ -11781,20 +11789,23 @@ bonesdeploy/
 ```
 
 ### Per-Framework Templates
+
 Runtime templates ship starter overlays that `bonesdeploy remote runtime` uses when scaffolding infrastructure for a matching framework. Each template lives in the `bonesinfra` repo (`https://github.com/AlextheYounga/bonesinfra.git`) — framework runtime assets (`operations.py`, Jinja2 templates) stay together:
 
-- `runtimes/laravel/`        → Laravel (PHP + PHP-FPM)
-- `runtimes/django/`         → Django (Python + Gunicorn)
-- `runtimes/next/`           → Next.js (Node)
-- `runtimes/nuxt/`           → Nuxt (Node)
-- `runtimes/sveltekit/`     → SvelteKit (Node)
-- `runtimes/vue/`           → Vue (Node)
-- `runtimes/rails/`         → Rails (Ruby)
+- `runtimes/laravel/` → Laravel (PHP + PHP-FPM)
+- `runtimes/django/` → Django (Python + Gunicorn)
+- `runtimes/next/` → Next.js (Node)
+- `runtimes/nuxt/` → Nuxt (Node)
+- `runtimes/sveltekit/` → SvelteKit (Node)
+- `runtimes/vue/` → Vue (Node)
+- `runtimes/rails/` → Rails (Ruby)
 
 Templates inherit the same `bones.toml` schema and customize permissions paths, deployment scripts, and the runtime operations captured in the `bonesinfra` repo.
 
 ### BonesDeploy CLI Commands
+
 - **init**:
+
   - Gets or creates the `.bones` folder with our default scaffolding.
   - Updates `.gitignore` to add .bones folder.
   - Loads existing config from `.bones/bones.toml` or collects user input via prompts.
@@ -11803,6 +11814,7 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - Saves config to `.bones/bones.toml`.
 
 - **doctor**
+
   - This command checks all concerns in your local environment.
   - Loads config from `.bones/bones.toml`
   - Runs local checks:
@@ -11816,19 +11828,23 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - The `--local` flag skips all remote checks. The `pre-push` hook uses this flag because it is only a local guard before optional git-triggered deploys.
 
 - **push**
+
   - Archives the local `.bones/` dataset, excluding local secrets, and streams it to `bonesremote site import --site <project>` over SSH.
   - `bonesremote` validates the dataset, derives a root-owned `registry.toml`, and atomically replaces the current remote site state under `/root/.config/bonesremote/sites/<project>/`.
   - The bare repo is no longer the control-plane storage target for `push`.
 
 - **pull**
+
   - Streams the current remote site dataset back from `bonesremote site export --site <project>` and extracts it into local `.bones/`.
   - Recreates the local `.git/hooks/pre-push` symlink so the repository regains its pre-push check after recovery.
 
 - **deploy**
+
   - Publishes the local `.bones/` dataset into remote bonesremote site state first, then SSHes into the configured host and runs `bonesremote deploy --site <project>` directly.
   - Omits the `--revision` flag, so `bonesremote deploy` uses the configured branch from `bones.toml`.
 
 - ****remote setup****
+
   - Delegates to the hidden `bonesinfra` checkout by running `python -m bonesinfra setup apply --config <path>` against the configured host as root (or `BONES_BOOTSTRAP_SSH_USER`).
   - Passes `bones.toml` deployment values plus computed paths and variables as JSON on stdin.
   - Initializes bare git repository at `repo_path`.
@@ -11837,6 +11853,7 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - Provisions machine-level dependencies (users, groups, firewall, system packages).
 
 - **remote runtime**:
+
   - Prompts for a framework template, refreshes `.bones/runtime/`, and writes `.bones/runtime.toml`.
   - Reapplies template-specific defaults into `.bones/bones.toml` only when they still match generic or previous-template values.
   - After a `y/N` confirmation, delegates to the hidden `bonesinfra` checkout by running `python -m bonesinfra runtime apply --config <path> --runtime-config <path>` against the configured host as the configured `ssh_user`.
@@ -11845,15 +11862,18 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - Does not handle SSL; use `remote ssl` for TLS configuration.
 
 - **remote ssl**
+
   - Delegates to the hidden `bonesinfra` checkout by running `python -m bonesinfra ssl apply --config <path>` against the configured host as root.
   - Uses certbot with a webroot challenge to obtain/renew certificates for the configured domain.
   - Re-renders the per-site runtime nginx router with TLS enabled, listening on 443 and redirecting HTTP to HTTPS.
   - Separate from `remote runtime` to keep certificate management decoupled from app runtime concerns.
 
 - **rollback**
+
   - SSHes into the configured host and runs `bonesremote release rollback --site <project>`, which repoints `current` to the previous release without rebuilding and restarts `<project>-nginx.service`.
 
 - **secrets**
+
   - Subcommands: `init`, `edit`, `push`.
   - Manages GPG-encrypted environment secrets under `.bones/secrets/`.
   - `secrets init` bootstraps the `.bones/secrets/` directory and GPG recipients.
@@ -11861,17 +11881,21 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - `secrets push` uploads the decrypted `.env` to the remote `shared/.env` over SSH.
 
 - **config**
+
   - Reads or prints values from `.bones/bones.toml`.
   - `--file <path>` overrides the config file location.
   - `<key>` prints a single value when supplied; otherwise dumps the whole file.
 
 - **manage**
+
   - Opens an interactive SSH session to the remote and runs `bonesremote manage --config <path>`. Requires `bonesremote manage` to be implemented on the server.
 
 - **version**:
+
   - Echoes the installed `bonesdeploy` version.
 
 ### BonesRemote CLI Commands
+
 - **Release commands** live under `bonesremote release ...`
 - **Service commands** live under `bonesremote service ...`
 - **deploy**:
@@ -11889,21 +11913,22 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
     - AppArmor support is available on the host.
     - Sudoers drop-in is correctly configured.
 - **release stage**
-	- Creates a staged release tree under `releases/`, ensures `build/workspace` and `shared/`, then writes staged release state before checkout.
+  - Creates a staged release tree under `releases/`, ensures `build/workspace` and `shared/`, then writes staged release state before checkout.
 - **release wire**
-	- Wires shared paths into `build/workspace` after checkout, replacing any existing build workspace paths with symlinks to the shared directory.
+  - Wires shared paths into `build/workspace` after checkout, replacing any existing build workspace paths with symlinks to the shared directory.
 - **release activate**
-	- Atomically switches `current` to the staged release and clears staged release state.
+  - Atomically switches `current` to the staged release and clears staged release state.
 - **release drop-failed**
-	- Deletes a failed staged release and clears staged release state.
+  - Deletes a failed staged release and clears staged release state.
 - **release rollback**
-	- Repoints `current` to the previous release.
+  - Repoints `current` to the previous release.
 - **service restart**
-	- Restarts the per-site nginx systemd service (`<project>-nginx.service`). This is the only `bonesremote` command that requires root privileges.
+  - Restarts the per-site nginx systemd service (`<project>-nginx.service`). This is the only `bonesremote` command that requires root privileges.
 - **version**:
   - Echoes the installed `bonesremote` version.
 
 ## Security Notes
+
 - Sudo access for the deployment user is strictly limited to passwordless execution of `bonesremote service restart --config *` via the `/etc/sudoers.d/bonesdeploy` drop-in installed by `bonesremote init`.
 - No broader sudo privileges are granted — the deploy user cannot run arbitrary commands as root, read root-owned files, or write outside their owned directories.
 - All release artifacts are created with the setgid bit on `releases/` so the runtime group inherits read access without needing a post-deploy chown.
@@ -11912,6 +11937,7 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
 - Per-project systemd services run as the dedicated runtime user, not a shared `www-data` — so service isolation is enforced at the OS level, not just the application level.
 
 ## Flow
+
 - User runs `bonesdeploy init`, and the procedures outlined above are executed.
 - User can make any changes to their deployment scripts or hooks in `.bones/` (e.g., customizing `deployment/build/` files or adding project-specific logic).
 - User runs `bonesdeploy push` to publish the `.bones/` dataset to bonesremote site state under `/root/.config/bonesremote/sites/<site>/`.
@@ -11942,25 +11968,25 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
 3. **post-receive** (remote): Resolves the configured deployment ref from stdin:
    - If `deploy_on_push = false`, exits early without deploying.
    - If the configured branch wasn't pushed, or the push deleted it, exits without deploying.
-    - Otherwise runs a single unified command:
-      ```
-      bonesremote deploy --site <site> --revision <newrev>
-      ```
+   - Otherwise runs a single unified command:
+     ```
+     bonesremote deploy --site <site> --revision <newrev>
+     ```
    - This command orchestrates the full pipeline:
-      - **stage_release** — Create timestamped release state
-      - **release_checkout** — Export source from the bare repo into temporary context
-      - **release_build** — Run `deployment/build/*.sh` in Podman at `/workspace/source`
-      - **release_promote** — Seal safe artifacts into `releases/<release>`
-      - **wire_shared** — Link shared runtime paths
-      - **release_prepare** — Run `deployment/prepare/*.sh` as the site runtime user
-      - **activate_release** — Repoint `current`
-      - **restart_services** — Restart `<site>-nginx.service`
-      - **post_deploy** — Prune old releases beyond `releases`
-      - On failure: **drop_failed_release** — Clean up staged release
+     - **stage_release** — Create timestamped release state
+     - **release_checkout** — Export source from the bare repo into temporary context
+     - **release_build** — Run `deployment/build/*.sh` in Podman at `/workspace/source`
+     - **release_promote** — Seal safe artifacts into `releases/<release>`
+     - **wire_shared** — Link shared runtime paths
+     - **release_prepare** — Run `deployment/prepare/*.sh` as the site runtime user
+     - **activate_release** — Repoint `current`
+     - **restart_services** — Restart `<site>-nginx.service`
+     - **post_deploy** — Prune old releases beyond `releases`
+     - On failure: **drop_failed_release** — Clean up staged release
 
 `bonesdeploy deploy` performs the same remote pipeline by SSHing into the host and running `bonesremote deploy --site <site>` directly (without `--revision`, so it uses the configured branch). Git-triggered deploy is optional plumbing, not the primary model.
 
-```
+````
 
 `docs/thinking/01_security_architecture_problems.md`:
 
@@ -12252,11 +12278,11 @@ Before I draft an implementation plan, I need your calls on:
 7. **Q19** — is the v1 scope right, or do you want `git-shell`/root-flip/rollback in v1 too?
 
 Once I have those, I'll write the migration path as a sequenced checklist with exact file:line edits for both repos.
-```
+````
 
 `docs/thinking/02_new_architecture_approach.md`:
 
-```md
+````md
 Yes. The v1 target should be:
 
 ```text
@@ -12266,7 +12292,7 @@ podman build = temporary build environment
 shared/ = persistent runtime state owned by foo
 releases/ = promoted artifacts sealed as root:foo
 bonesremote/root = privileged mediator
-```
+````
 
 The point is not perfect theoretical isolation. The point is a sane and explainable boundary:
 
@@ -12606,7 +12632,7 @@ First make `git` ingress-only, then make `foo` the only site identity, then move
 
 That is the cleanest v1 we have arrived at.
 
-```
+````
 
 `docs/thinking/03_bonesdeploy_bonesremote_concerns.md`:
 
@@ -12629,7 +12655,7 @@ podman build = temporary build environment
 shared/ = persistent runtime state owned by foo
 releases/ = promoted artifacts sealed as root:foo
 bonesremote/root = privileged mediator
-```
+````
 
 ## Shared Principles
 
@@ -12981,7 +13007,7 @@ bonesdeploy asks for a deployment.
 bonesremote performs the deployment safely.
 ```
 
-```
+````
 
 `docs/thinking/04_scout_migration_impact.md`:
 
@@ -12997,9 +13023,9 @@ podman build = temporary, disposable build environment
 shared/ = persistent runtime state owned by foo
 releases/ = promoted artifacts sealed as root:foo
 bonesremote/root = privileged mediator
-```
+````
 
----
+______________________________________________________________________
 
 ## Files to DELETE
 
@@ -13014,7 +13040,7 @@ These are obsolete under the new model:
 | `crates/bonesdeploy/kit/deployment/01_install_build_deps.sh` | Replaced: installs nvm/npm into `$HOME` of deploy user. New model: build deps are in container image, not installed per-deploy. |
 | `crates/bonesdeploy/kit/deployment/02_run_build.sh` | Replaced: runs `composer install`/`npm run build` in workspace as deploy user. New model: these run inside podman container. |
 
----
+______________________________________________________________________
 
 ## Files requiring MAJOR REWRITE (>50% changed)
 
@@ -13030,7 +13056,7 @@ These are obsolete under the new model:
 | **`crates/bonesdeploy/src/commands/secrets.rs`** (327 lines) | Pushes `.env` to `shared/.env` with `chown root:<runtime_group>` where `runtime_group` comes from git-owned `runtime.toml`. | Must validate `runtime_group` against root-owned registry. The `chown root:<group>` and destination path must use registry values, not repo-owned config. |
 | **`crates/bonesremote/src/commands/service.rs`** (46 lines) | Loads `project_name` from `--config` (git-owned bones.toml). Trusts it after regex validation. | Must load `project_name` and `service_name` from root-owned registry. `--config` replaced with `--registry`. |
 
----
+______________________________________________________________________
 
 ## Files requiring MODERATE EDIT (new structs/fields, removed dependencies)
 
@@ -13055,7 +13081,7 @@ These are obsolete under the new model:
 | **`crates/bonesdeploy/kit/hooks/post-receive`** | Must become thin trigger: resolve ref, call `sudo bonesremote deploy --registry ...`. |
 | **`crates/bonesdeploy/kit/hooks/pre-push`** | Local pre-push hook. Unchanged (still calls `bonesdeploy doctor --local`). |
 
----
+______________________________________________________________________
 
 ## Files requiring MINOR EDIT (path constants, field removals)
 
@@ -13071,7 +13097,7 @@ These are obsolete under the new model:
 | `crates/bonesdeploy/src/ui/prompts.rs` | Prompt text updates for new default paths. |
 | `crates/bonesdeploy/kit/runtime.toml` | Shared paths section becomes more explicit / validated. |
 
----
+______________________________________________________________________
 
 ## NEW files needed
 
@@ -13085,7 +13111,7 @@ These are obsolete under the new model:
 | `crates/shared/src/registry.rs` | **Site registry schema** (`SiteRegistry` struct): canonical `project_name`, `repo_path`, `project_root`, `runtime_user`, `runtime_group`, `shared_root`, `releases_root`, `service_name`, `framework`. Load from `/etc/bonesdeploy/sites/<project>.toml`. |
 | `crates/shared/src/hardening.rs` | **Artifact hardening logic**: validate symlinks, reject dangerous file types, normalize modes. Shared between promote and any future artifact import. |
 
----
+______________________________________________________________________
 
 ## The new deploy pipeline (replaces `deploy.rs:23-44`)
 
@@ -13105,7 +13131,7 @@ validate_registry
 
 On failure: delete temp dir, delete staged release dir (if promoted), clear any state files.
 
----
+______________________________________________________________________
 
 ## Key identity shifts by file
 
@@ -13121,7 +13147,7 @@ On failure: delete temp dir, delete staged release dir (if promoted), clear any 
 | Prune old releases | `git` user | `root` or `foo` (TBD) |
 | Push secrets to `shared/.env` | `git` user over SSH | `root` over SSH, validated against registry |
 
----
+______________________________________________________________________
 
 ## Summary counts
 
@@ -13135,18 +13161,20 @@ On failure: delete temp dir, delete staged release dir (if promoted), clear any 
 | **Total files touched** | **~53** (of ~70 source files) |
 
 The highest-risk changes are:
+
 1. `deploy.rs` — complete pipeline rewrite (260 lines → ~150, but entirely new logic)
-2. `paths.rs` / `config.rs` — shared crate schema changes cascade to every consumer
-3. `release_state.rs` — removing repo-owned staged state tracking
-4. `hooks.sh` — changing the git hook trigger boundary
+1. `paths.rs` / `config.rs` — shared crate schema changes cascade to every consumer
+1. `release_state.rs` — removing repo-owned staged state tracking
+1. `hooks.sh` — changing the git hook trigger boundary
 
 Files that do NOT change:
+
 - `crates/bonesdeploy/src/commands/version.rs` / `config.rs` / `manage.rs` / `guide.rs` / `update.rs` / `status.rs`
 - `crates/bonesremote/src/commands/version.rs` / `config.rs` / `status.rs`
 - Most `ui/` helpers, `infra/embedded.rs`, `infra/rsync.rs`
 - Test infrastructure patterns (but test data must update)
 
-```
+````
 
 `docs/thinking/05_security_model_migration_plan.md`:
 
@@ -13164,7 +13192,7 @@ podman build = temporary, disposable build environment
 shared/ = persistent runtime state owned by foo
 releases/ = promoted artifacts sealed as root:foo
 bonesremote/root = privileged mediator
-```
+````
 
 Hard decisions already made:
 
@@ -13520,17 +13548,17 @@ Exit criteria:
 ## Suggested Implementation Order
 
 1. Add shared registry/control-plane structs and path helpers.
-2. Add bonesremote import/export of site datasets.
-3. Rewire `bonesdeploy push` and `pull` to use import/export.
-4. Replace remote hook with `bonesremote hook post-receive --site <site>`.
-5. Replace permanent checkout/stage code with source export.
-6. Add Podman build runner for `/workspace/source`.
-7. Add promotion hardening.
-8. Replace shared wiring.
-9. Add prepare script runner as site user.
-10. Rewrite deploy orchestration around the new phases.
-11. Update doctor checks and docs.
-12. Delete obsolete stage/post-receive/old deployment-script code.
+1. Add bonesremote import/export of site datasets.
+1. Rewire `bonesdeploy push` and `pull` to use import/export.
+1. Replace remote hook with `bonesremote hook post-receive --site <site>`.
+1. Replace permanent checkout/stage code with source export.
+1. Add Podman build runner for `/workspace/source`.
+1. Add promotion hardening.
+1. Replace shared wiring.
+1. Add prepare script runner as site user.
+1. Rewrite deploy orchestration around the new phases.
+1. Update doctor checks and docs.
+1. Delete obsolete stage/post-receive/old deployment-script code.
 
 This order keeps the trust boundary moving in one direction: first move authority out of Git, then make Git a trigger, then replace the deploy pipeline.
 
@@ -13549,7 +13577,7 @@ Each non-trivial phase should leave one runnable check:
 
 Keep these checks small. The goal is not a huge test harness; it is one tripwire per boundary.
 
-```
+````
 
 `docs/thinking/05_security_model_migration_plan_addendum.md`:
 
@@ -13565,7 +13593,7 @@ These decisions are now fixed:
 
 This addendum only records the decisions above. It does not change the main migration plan.
 
-```
+````
 
 `docs/todo.md`:
 

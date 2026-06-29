@@ -7,7 +7,7 @@ to support the v1 target from `02_new_architecture_approach.md`:
 > git = ingress only, foo = one per-site identity, releases/ = root:foo,
 > shared/ = foo:foo, no permanent build/, Podman builds belong to bonesremote.
 
----
+______________________________________________________________________
 
 ## 1. `domain/paths.py` — New constants, different repo default
 
@@ -41,7 +41,7 @@ Lines 127-128: path construction for build_root, build_logs
 Builds are throwaway Podman containers owned by `bonesremote`. Bonesinfra should
 not provision a permanent `build/` directory. Remove these path entries.
 
----
+______________________________________________________________________
 
 ## 2. `domain/context.py` — Don't force deploy_user = "git"
 
@@ -65,7 +65,7 @@ This bypasses whatever the caller might pass. OK for now since git is still the
 only ingress user, but conceptually `deploy_user` should flow from config.
 Low-priority to change for v1; just stop *using* it for site directory ownership.
 
----
+______________________________________________________________________
 
 ## 3. `deploys/setup/users.py` — Critical identity changes
 
@@ -100,7 +100,7 @@ Lines 29-32: shell="/bin/bash", ensure_home=True
 02 says v1 defers git-shell. No change needed for v1, but the long-term direction
 is `shell=/usr/bin/git-shell`.
 
----
+______________________________________________________________________
 
 ## 4. `deploys/setup/directories.py` — Ownership model rewrite
 
@@ -127,6 +127,7 @@ Lines 44-48:
 ```
 
 Change to:
+
 ```
     mkdir(path=ctx.config.project_root, user="root",
           group=ctx.runtime.runtime_group, mode="2751")
@@ -143,6 +144,7 @@ Lines 52-57:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["releases"], user="root",
           group=ctx.runtime.runtime_group, mode="2750")
@@ -171,6 +173,7 @@ Lines 67-73:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["shared"], user=ctx.runtime.runtime_user,
           group=ctx.runtime.runtime_group, mode="0750")
@@ -188,6 +191,7 @@ Lines 77-81:
 ```
 
 Change to:
+
 ```
     mkdir(path=paths["placeholder_web_root"], user="root",
           group=ctx.runtime.runtime_group, mode="0750")
@@ -195,7 +199,7 @@ Change to:
 
 Matches the sealed release model: root-owned, group-readable by foo.
 
----
+______________________________________________________________________
 
 ## 5. `deploys/setup/placeholder.py` — Ownership
 
@@ -207,6 +211,7 @@ Lines 12-16:
 ```
 
 Change to:
+
 ```
     render(..., user="root", group=ctx.runtime.runtime_group, mode="0640")
 ```
@@ -216,7 +221,7 @@ placeholder release. This is fine — the symlink itself will later be flipped b
 `bonesremote`. The initial symlink pointing at a root-owned placeholder is
 correct.
 
----
+______________________________________________________________________
 
 ## 6. `deploys/setup/plan.py` — No functional change
 
@@ -226,7 +231,7 @@ Line 12: from bonesinfra.deploys.setup import ...
 
 No changes needed. The sub-modules change internally; the plan just calls them.
 
----
+______________________________________________________________________
 
 ## 7. `deploys/runtime/doctor.py` — Who runs the doctor?
 
@@ -240,7 +245,7 @@ Lines 13-17:
 Currently runs `bonesremote doctor` as `git`. Remove this step from
 `bonesinfra`; it is not part of host provisioning.
 
----
+______________________________________________________________________
 
 ## 8. Templates — `runtime_group` references
 
@@ -261,7 +266,7 @@ SupplementaryGroups={{ release_group }}
 
 Same as above.
 
----
+______________________________________________________________________
 
 ## 9. `assets/apparmor/project-nginx-profile.j2` — Remove repo config access
 
@@ -285,7 +290,7 @@ Line 46: # repo_path defaults to /home/{{ deploy_user }}/<project>.git...
 Change comment to reflect `/srv/git/<project>.git`. The `deploy_user` in the
 comment is cosmetic but misleading.
 
----
+______________________________________________________________________
 
 ## 10. Runtime modules — `runtime_write_paths` to `shared/...`
 
@@ -300,6 +305,7 @@ runtime_write_paths = [
 ```
 
 Change to:
+
 ```
 runtime_write_paths = [
     f"{paths['shared']}/tmp",
@@ -321,6 +327,7 @@ writable = [static_root, media_root]
 ```
 
 Change to:
+
 ```
 writable = [f"{paths['shared']}/staticfiles", f"{paths['shared']}/media"]
 ```
@@ -333,7 +340,7 @@ placeholder.py.
 
 Lines 31-39: `user=ctx.config.deploy_user, group=ctx.runtime.release_group`
 
----
+______________________________________________________________________
 
 ## 11. New shared directory provisioning
 
@@ -367,7 +374,7 @@ shared/log/            → create as foo:foo 0750
 shared/storage/        → create as foo:foo 0750
 ```
 
----
+______________________________________________________________________
 
 ## 12. `deploys/setup/bonesremote.py` — Sudoers shape
 
@@ -383,6 +390,7 @@ not bonesinfra's. But bonesinfra may need to ensure the parent directory exists:
 ### 12a. Ensure registry parent exists
 
 Add to directories.py or a new step:
+
 ```
 mkdir("/etc/bonesdeploy/sites", user="root", group="root", mode="0750")
 ```
@@ -392,15 +400,16 @@ mkdir("/etc/bonesdeploy/sites", user="root", group="root", mode="0750")
 The thinking docs (03) say:
 
 > Good: `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote deploy --site <project>`
-> Bad:  `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *`
+> Bad: `git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *`
 
-Bonesinfra owns the sudoers installation step.
+`bonesremote init` owns the sudoers installation step.
 The command shape should remain narrow and registry-backed.
 
-Currently the sudoers path is computed (`paths.py:151`) but the install step is
-still a provisioning concern for bonesinfra.
+Currently the sudoers path is computed (`paths.py:151`) as the single global
+drop-in at `/etc/sudoers.d/bonesdeploy`; `bonesinfra` should not add
+per-project files or aggregate-file management without a real lifecycle need.
 
----
+______________________________________________________________________
 
 ## 13. `deploys/setup/packages.py` — No functional change
 
@@ -408,7 +417,7 @@ The package list includes `git`, `nginx`, `apparmor`, etc. No changes needed,
 though `podman` belongs in the bonesinfra base package set because host
 provisioning owns the dependency.
 
----
+______________________________________________________________________
 
 ## 14. `runtimes/common/paths.py` — Ensure shared/ baseline dirs
 
@@ -416,7 +425,7 @@ Currently only creates `/run/<project>/` socket dirs. Frameworks own their
 writable leaves under `shared/`; bonesinfra only needs the `shared/` parent and
 its permissions.
 
----
+______________________________________________________________________
 
 ## 15. Tests that need updating
 
@@ -458,7 +467,7 @@ Lines 34,110-120,172-176: Template tests with deploy_user, runtime_user, runtime
 
 Update for new template variables and removed `repo_bones_toml` grant.
 
----
+______________________________________________________________________
 
 ## 16. Summary: What changes, what doesn't
 
@@ -507,7 +516,7 @@ Update for new template variables and removed `repo_bones_toml` grant.
 | Site registry content | Belongs to bonesremote (might just ensure parent dir) |
 | Sudoers content | Belongs to bonesremote (bonesinfra may install the file) |
 
----
+______________________________________________________________________
 
 ## 17. File count estimate
 

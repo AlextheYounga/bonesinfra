@@ -34,5 +34,5 @@ The migration docs should now read as follows:
 - Older notes may still mention `release_group` or framework-specific shared
   leaves as implementation history; those references should not be treated as
   unresolved policy.
-- The sudoers command contract can still be defined by the deployment side, but
-  the installation step is a provisioning concern handled by `bonesinfra`.
+- Sudoers remains a `bonesremote init` concern. `bonesinfra` should not create
+  per-project sudoers files unless a concrete lifecycle requirement appears.
