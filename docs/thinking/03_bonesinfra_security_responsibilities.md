@@ -339,7 +339,8 @@ It should not decide which release is active after deployment starts.
 
 Restarting services after activation belongs to `bonesremote`.
 
-`bonesinfra` creates the systemd units and can install sudoers support.
+`bonesinfra` creates the systemd units.
+`bonesremote init` owns sudoers installation.
 
 It should not be part of the deploy-time restart path.
 

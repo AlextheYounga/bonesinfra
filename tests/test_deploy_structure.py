@@ -88,13 +88,13 @@ def test_setup_avoids_usermod_for_existing_runtime_user():
     helpers.assert_contains(c, "gpasswd -a")
 
 
-def test_setup_does_not_add_deploy_user_to_runtime_group():
+def test_git_not_in_runtime_group():
     c = helpers.read(SETUP_USERS)
     helpers.assert_not_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
     helpers.assert_not_contains(c, "ctx.runtime.release_group")
 
 
-def test_setup_shared_dir_is_runtime_owned_private_state():
+def test_shared_is_runtime_owned_private_state():
     c = helpers.read(SETUP_DIRECTORIES)
     shared_block = c.split('path=paths["shared"]')[1].split(")")[0]
     helpers.assert_contains(shared_block, "user=ctx.runtime.runtime_user")
@@ -102,13 +102,13 @@ def test_setup_shared_dir_is_runtime_owned_private_state():
     helpers.assert_contains(shared_block, 'mode="0750"')
 
 
-def test_setup_does_not_create_permanent_build_directory():
+def test_deployment_paths_do_not_include_build_root():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_not_contains(c, 'Path(ctx.config.project_root) / "build"')
     helpers.assert_not_contains(c, "Ensure build directory")
 
 
-def test_setup_releases_are_root_owned_group_readable():
+def test_releases_are_root_owned_group_readable():
     c = helpers.read(SETUP_DIRECTORIES)
     releases_block = c.split('path=paths["releases"]')[1].split(")")[0]
     helpers.assert_contains(releases_block, 'user="root"')
@@ -134,6 +134,11 @@ def test_setup_leaves_sudoers_to_bonesremote_init():
     c = helpers.read(SETUP_BONESREMOTE)
     helpers.assert_contains(c, "bonesremote init")
     helpers.assert_not_contains(c, "visudo")
+
+
+def test_apparmor_does_not_read_repo_config():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/apparmor/project-nginx-profile.j2")
+    helpers.assert_not_contains(c, "{{ paths.repo_bones_toml }} r,")
 
 
 # ---- Firewall ----

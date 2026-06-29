@@ -12,6 +12,8 @@ RUNTIME_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py"
 LARAVEL_PHP_FPM = helpers.SRC_DIR / "bonesinfra/runtimes/laravel/php_fpm.py"
 LARAVEL_DEPLOY = helpers.SRC_DIR / "bonesinfra/runtimes/laravel/deploy.py"
 SHARED_PATHS_PY = helpers.SRC_DIR / "bonesinfra/deploys/runtime/shared_paths.py"
+RAILS_DEPLOY = helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py"
+DJANGO_DEPLOY = helpers.SRC_DIR / "bonesinfra/runtimes/django/django.py"
 
 
 def test_shared_paths_module_is_deleted():
@@ -62,3 +64,14 @@ def test_bonesinfra_does_not_create_env_file():
 def test_runtime_plan_does_not_inspect_shared_in_runtime_data():
     c = helpers.read(RUNTIME_PLAN)
     helpers.assert_not_contains(c, '["shared"]')
+
+
+def test_runtime_write_paths_are_shared_paths():
+    rails = helpers.read(RAILS_DEPLOY)
+    helpers.assert_contains(rails, "f\"{paths['shared']}/tmp\"")
+    helpers.assert_contains(rails, "f\"{paths['shared']}/log\"")
+    helpers.assert_contains(rails, "f\"{paths['shared']}/storage\"")
+
+    django = helpers.read(DJANGO_DEPLOY)
+    helpers.assert_contains(django, "f\"{paths['shared']}/staticfiles\"")
+    helpers.assert_contains(django, "f\"{paths['shared']}/media\"")

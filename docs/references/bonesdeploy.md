@@ -12678,7 +12678,7 @@ Their responsibilities are not:
 - installing Podman or language runtimes.
 - creating base directories under `/srv`, `/run`, `/etc`, or `/var/lib`.
 - rendering or installing nginx, systemd, or AppArmor files.
-- installing sudoers policy; `bonesremote` defines the commands it needs, and `bonesinfra` installs the sudoers rules for those commands.
+- installing sudoers policy; `bonesremote init` installs the single narrow sudoers drop-in, and `bonesinfra` does not manage sudoers.
 - changing firewall rules.
 - deciding host-level package policy.
 
@@ -12982,7 +12982,7 @@ The following concerns belong to `bonesinfra`, not `bonesdeploy` or `bonesremote
 - rendering and installing systemd units.
 - rendering and installing nginx config.
 - rendering and installing AppArmor profiles.
-- installing sudoers policy. `bonesinfra` installs it from the narrow command contract required by `bonesremote`.
+- installing sudoers policy. `bonesremote init` owns the narrow sudoers drop-in.
 - obtaining TLS certificates.
 - configuring firewall rules.
 - applying OS hardening.
@@ -12993,7 +12993,7 @@ The following concerns belong to `bonesinfra`, not `bonesdeploy` or `bonesremote
 
 The minimum useful v1 split is:
 
-- `bonesinfra` provisions the host, users, directories, services, Podman, sudoers policy, and the registry parent directory.
+- `bonesinfra` provisions the host, users, directories, services, Podman, and the registry parent directory.
 - `bonesremote` writes and reads the site registry file used for privileged deployment decisions.
 - `bonesdeploy` prepares local project config and asks the remote to deploy.
 - `git` receives pushes and triggers `bonesremote` only.

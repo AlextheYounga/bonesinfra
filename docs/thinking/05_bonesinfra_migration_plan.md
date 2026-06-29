@@ -419,7 +419,7 @@ The migration is complete for `bonesinfra` when all of these are true:
 - AppArmor and service templates do not require runtime access to git-owned
   config.
 - `/etc/bonesdeploy/sites` exists for the trusted registry.
-- Sudoers rules are installed by `bonesinfra` and remain narrow.
+- Sudoers rules remain narrow and are owned by `bonesremote init`.
 - Tests encode the new ownership and boundary rules.
 - Documentation describes `bonesinfra` as provisioning only, not deployment
   lifecycle ownership.

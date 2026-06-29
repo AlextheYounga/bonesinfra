@@ -9,7 +9,7 @@ def test_paths_default_repo_parent_is_srv_git():
     assert paths.repo_parent == "/srv/git"
 
 
-def test_paths_do_not_include_permanent_build_paths():
+def test_deployment_paths_do_not_include_build_root():
     paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
 
     assert not hasattr(paths, "build_root")
