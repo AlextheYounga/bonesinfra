@@ -23,3 +23,4 @@ def deploy_setup(ctx):
     firewall.configure(ctx)
     users.install_authorized_key(ctx)
     bonesremote.install()
+    bonesremote.install_sudoers(ctx, paths, here)

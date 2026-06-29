@@ -22,6 +22,12 @@ def test_paths_include_site_registry_path():
     assert paths.site_registry_path == "/etc/bonesdeploy/sites/lawsnipe.toml"
 
 
+def test_sudoers_path_is_per_project():
+    paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
+
+    assert paths.sudoers_path == "/etc/sudoers.d/bonesdeploy-lawsnipe"
+
+
 def test_paths_include_global_nginx_default_deny_site():
     paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
 
