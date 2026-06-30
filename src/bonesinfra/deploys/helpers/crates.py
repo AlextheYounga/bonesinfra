@@ -2,10 +2,8 @@ from pyinfra.operations import server
 
 CARGO_BIN = "/root/.cargo/bin/cargo"
 HELPER_CARGO_CRATES: list[str] = [
-    "rainfrog",
-    "tuimux",
+    "tuimux", # https://github.com/AlextheYounga/tuimux
 ]
-
 
 def install_helper_crates():
     for crate in HELPER_CARGO_CRATES:
