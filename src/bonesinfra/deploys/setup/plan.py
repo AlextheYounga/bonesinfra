@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bonesinfra.deploys.setup import bonesremote, directories, firewall, packages, placeholder, users
+from bonesinfra.deploys.setup import bonesremote, directories, firewall, packages, placeholder, sudoers, users
 from bonesinfra.deploys.setup.packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTARY_PACKAGES
 from bonesinfra.domain.paths import DeploymentPaths
 
@@ -23,3 +23,4 @@ def deploy_setup(ctx):
     firewall.configure(ctx)
     users.install_authorized_key(ctx)
     bonesremote.install()
+    sudoers.install(ctx, paths, here)

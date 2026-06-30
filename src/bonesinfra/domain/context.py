@@ -81,20 +81,21 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
         )
         paths = p.__dict__
 
-    data: dict[str, Any] = {}
-    data["project_name"] = ctx.config.project_name
-    data["project_root"] = ctx.config.project_root
-    data["web_root"] = ctx.runtime.web_root
-    data["repo_path"] = ctx.config.repo_path
-    data["deploy_user"] = ctx.config.deploy_user
-    data["runtime_user"] = ctx.runtime.runtime_user
-    data["runtime_group"] = ctx.runtime.runtime_group
-    data["project_root_parent"] = paths.get("project_root_parent", "")
-    data["ssh_port"] = int(ctx.config.port)
-    data["paths"] = paths
-    data["ssl_domain"] = ctx.config.domain
-    data["ssl_email"] = ctx.config.email
-    data["preview_domain"] = ctx.config.preview_domain
+    data: dict[str, Any] = {
+        "project_name": ctx.config.project_name,
+        "project_root": ctx.config.project_root,
+        "web_root": ctx.runtime.web_root,
+        "repo_path": ctx.config.repo_path,
+        "deploy_user": ctx.config.deploy_user,
+        "runtime_user": ctx.runtime.runtime_user,
+        "runtime_group": ctx.runtime.runtime_group,
+        "project_root_parent": paths["project_root_parent"],
+        "ssh_port": int(ctx.config.port),
+        "paths": paths,
+        "ssl_domain": ctx.config.domain,
+        "ssl_email": ctx.config.email,
+        "preview_domain": ctx.config.preview_domain,
+    }
 
     for key, value in ctx.runtime.runtime_data.items():
         if key not in data:

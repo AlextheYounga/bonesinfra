@@ -8,9 +8,9 @@ These decisions close the open policy points from the migration notes.
    the v1 migration notes.
 2. `release_group` is legacy terminology and should not appear in future v1
    planning docs.
-3. `bonesinfra` provisions host prerequisites, but the sudoers drop-in remains a
-   `bonesremote init` concern.
-4. `bonesremote` does not own sudoers installation.
+3. `bonesinfra` provisions host prerequisites and installs the single sudoers
+   drop-in during setup.
+4. `bonesremote` defines the command contract, but does not install sudoers.
 5. Podman is required and is installed by `bonesinfra` as part of host setup.
 6. `/srv/sites/<project>` is `root:root` and functions as a boundary anchor, not
    as a collaboration directory.
@@ -35,5 +35,6 @@ The migration docs should now read as follows:
 - Older notes may still mention `release_group` or framework-specific shared
   leaves as implementation history; those references should not be treated as
   unresolved policy.
-- Sudoers remains a `bonesremote init` concern. `bonesinfra` should not create
-  per-project sudoers files unless a concrete lifecycle requirement appears.
+- Sudoers is a `bonesinfra` concern. `bonesinfra` should keep the single global
+  drop-in narrow and should not create per-project sudoers files unless a
+  concrete lifecycle requirement appears.

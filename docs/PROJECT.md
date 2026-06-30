@@ -472,7 +472,6 @@ Responsibilities:
 - ensure runtime group
 - create bare repo parent
 - initialize bare git repo
-- create repo bones directory
 - create project root
 - create releases directory
 - create shared directory
@@ -481,7 +480,7 @@ Responsibilities:
 - install deploy authorized key
 - configure firewall
 - install `bonesremote`
-- run `bonesremote init`
+- install validated `/etc/sudoers.d/bonesdeploy`
 
 Setup should run as root or bootstrap SSH user.
 

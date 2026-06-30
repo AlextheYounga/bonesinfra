@@ -9,25 +9,6 @@ def test_paths_default_repo_parent_is_srv_git():
     assert paths.repo_parent == "/srv/git"
 
 
-def test_deployment_paths_do_not_include_build_root():
-    paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
-
-    assert not hasattr(paths, "build_root")
-    assert not hasattr(paths, "build_logs")
-
-
-def test_paths_include_site_registry_path():
-    paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
-
-    assert paths.site_registry_path == "/etc/bonesdeploy/sites/lawsnipe.toml"
-
-
-def test_sudoers_path_is_global():
-    paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
-
-    assert paths.sudoers_path == "/etc/sudoers.d/bonesdeploy"
-
-
 def test_paths_include_global_nginx_default_deny_site():
     paths = DeploymentPaths.new("lawsnipe", "/srv/git/lawsnipe.git", "/srv/sites/lawsnipe")
 

@@ -7,9 +7,6 @@ from bonesinfra.domain.context import DeployContext
 
 def apply(config_path: str) -> None:
     ctx = DeployContext.from_files(config_path)
-    if not ctx.host:
-        print("Error: missing host in bones.toml", file=sys.stderr)
-        sys.exit(3)
     if not ctx.config.domain or not ctx.config.email:
         print("Error: ssl.domain and ssl.email are required in bones.toml", file=sys.stderr)
         sys.exit(3)

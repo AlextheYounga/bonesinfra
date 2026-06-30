@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 from pyinfra.operations import server, systemd
@@ -18,10 +17,6 @@ def deploy_ssl(ctx):
     ).__dict__
     here = Path(__file__).parent.parent.parent
 
-    if not ctx.config.domain or not ctx.config.email:
-        print("Error: ssl_domain and ssl_email are required", file=sys.stderr)
-        sys.exit(1)
-
     # Dedicated, www-data-traversable webroot so the ACME challenge never
     # depends on the release tree's permissions (SSL is separate from runtime).
     mkdir(
@@ -38,8 +33,6 @@ def deploy_ssl(ctx):
 
 def _render_router_config(ctx, paths, here, ssl_enabled, stage):
     nginx_server_name = ctx.config.domain
-    if not nginx_server_name:
-        raise ValueError("domain is required for ssl nginx config")
 
     extra = {
         "nginx_server_name": nginx_server_name,

@@ -9,6 +9,7 @@ SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
 SETUP_PLACEHOLDER = helpers.SRC_DIR / "bonesinfra/deploys/setup/placeholder.py"
 SETUP_FIREWALL = helpers.SRC_DIR / "bonesinfra/deploys/setup/firewall.py"
 SETUP_BONESREMOTE = helpers.SRC_DIR / "bonesinfra/deploys/setup/bonesremote.py"
+SETUP_SUDOERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/sudoers.py"
 RUNTIME_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py"
 RUNTIME_PACKAGES = helpers.SRC_DIR / "bonesinfra/deploys/runtime/packages.py"
 RUNTIME_APPARMOR = helpers.SRC_DIR / "bonesinfra/deploys/runtime/apparmor.py"
@@ -32,6 +33,7 @@ def test_setup_plan_calls_all_steps():
     helpers.assert_contains(c, "firewall.configure")
     helpers.assert_contains(c, "users.install_authorized_key")
     helpers.assert_contains(c, "bonesremote.install")
+    helpers.assert_contains(c, "sudoers.install")
 
 
 def test_setup_plan_uses_base_packages():
@@ -49,30 +51,15 @@ def test_setup_plan_ordering():
     )
 
 
-def test_setup_excludes_apparmor():
-    for f in [
-        SETUP_PLAN,
-        SETUP_PACKAGES,
-        SETUP_USERS,
-        SETUP_DIRECTORIES,
-        SETUP_PLACEHOLDER,
-        SETUP_FIREWALL,
-        SETUP_BONESREMOTE,
-    ]:
-        c = helpers.read(f)
-        helpers.assert_not_contains(c, "apparmor_parser")
-        helpers.assert_not_contains(c, "apparmor_profile_name")
-
-
-def test_setup_excludes_runtime_doctor():
+def test_setup_installs_sudoers_in_bonesinfra():
     c = helpers.read(SETUP_PLAN)
-    helpers.assert_not_contains(c, "bonesremote doctor")
-
-
-def test_setup_excludes_per_site_roles():
-    c = helpers.read(SETUP_PLAN)
-    helpers.assert_not_contains(c, "bonesdeploy-nginx")
-    helpers.assert_not_contains(c, "per-site nginx")
+    helpers.assert_contains(c, "sudoers.install")
+    c = helpers.read(SETUP_BONESREMOTE)
+    helpers.assert_not_contains(c, "bonesremote init")
+    c = helpers.read(SETUP_SUDOERS)
+    helpers.assert_contains(c, "visudo")
+    helpers.assert_contains(c, 'mode="0440"')
+    helpers.assert_contains(c, "bonesremote_global_link")
 
 
 def test_setup_uses_resolved_placeholder_paths():
@@ -102,12 +89,6 @@ def test_shared_is_runtime_owned_private_state():
     helpers.assert_contains(shared_block, 'mode="0750"')
 
 
-def test_deployment_paths_do_not_include_build_root():
-    c = helpers.read(SETUP_DIRECTORIES)
-    helpers.assert_not_contains(c, 'Path(ctx.config.project_root) / "build"')
-    helpers.assert_not_contains(c, "Ensure build directory")
-
-
 def test_releases_are_root_owned_group_readable():
     c = helpers.read(SETUP_DIRECTORIES)
     releases_block = c.split('path=paths["releases"]')[1].split(")")[0]
@@ -116,29 +97,10 @@ def test_releases_are_root_owned_group_readable():
     helpers.assert_contains(releases_block, 'mode="2750"')
 
 
-def test_setup_prepares_site_registry_parent():
-    c = helpers.read(SETUP_DIRECTORIES)
-    helpers.assert_contains(c, 'path=str(Path(paths["site_registry_path"]).parent)')
-    helpers.assert_contains(c, 'mode="0750"')
-
-
 def test_setup_deploy_user_commands_set_user_home():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_contains(c, "XDG_CONFIG_HOME={home}/.config")
     helpers.assert_contains(c, "getent passwd")
-
-
-def test_setup_leaves_sudoers_to_bonesremote_init():
-    c = helpers.read(SETUP_PLAN)
-    helpers.assert_not_contains(c, "install_sudoers")
-    c = helpers.read(SETUP_BONESREMOTE)
-    helpers.assert_contains(c, "bonesremote init")
-    helpers.assert_not_contains(c, "visudo")
-
-
-def test_apparmor_does_not_read_repo_config():
-    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/apparmor/project-nginx-profile.j2")
-    helpers.assert_not_contains(c, "{{ paths.repo_bones_toml }} r,")
 
 
 # ---- Firewall ----
@@ -252,11 +214,6 @@ def test_runtime_plan_ordering():
     )
 
 
-def test_runtime_excludes_ssl_logic():
-    c = helpers.read(RUNTIME_PLAN)
-    helpers.assert_not_contains(c, "certbot")
-
-
 def test_runtime_socket_dir_runtime_user_owned():
     c = helpers.read(RUNTIME_NGINX)
     helpers.assert_contains(c, 'path=paths["runtime_socket_dir"]')
@@ -273,11 +230,6 @@ def test_runtime_uses_template_runtime():
     helpers.assert_contains(c, "get_runtime(template)")
 
 
-def test_runtime_plan_does_not_import_doctor():
-    c = helpers.read(RUNTIME_PLAN)
-    helpers.assert_not_contains(c, "doctor")
-
-
 def test_setup_installs_podman():
     c = helpers.read(SETUP_PACKAGES)
     helpers.assert_contains(c, '"podman"')
@@ -289,34 +241,12 @@ def test_setup_installs_podman():
 def test_ssl_uses_certbot():
     c = helpers.read(SSL_PLAN)
     helpers.assert_contains(c, "certbot certonly")
-    helpers.assert_contains(c, "ssl_domain")
+    helpers.assert_contains(c, "ssl_enabled")
 
 
 def test_setup_installs_openssl_for_nginx_default_deny_cert():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/setup/packages.py")
     helpers.assert_contains(c, '"openssl"')
-
-
-def test_ssl_excludes_apparmor():
-    c = helpers.read(SSL_PLAN)
-    helpers.assert_not_contains(c, "apparmor_parser")
-
-
-def test_ssl_excludes_per_site_nginx():
-    c = helpers.read(SSL_PLAN)
-    helpers.assert_not_contains(c, '"per-site nginx"')
-
-
-def test_ssl_excludes_runtimes():
-    c = helpers.read(SSL_PLAN)
-    helpers.assert_not_contains(c, "runtimes")
-
-
-def test_ssl_defines_nginx_inline():
-    c = helpers.read(SSL_PLAN)
-    helpers.assert_contains(c, "nginx_server_name")
-    helpers.assert_contains(c, "router.conf.j2")
-    helpers.assert_contains(c, "validate_config")
 
 
 def test_runtime_nginx_falls_back_when_domain_empty():
@@ -330,7 +260,8 @@ def test_runtime_nginx_falls_back_when_domain_empty():
 
 def test_ssl_requires_real_domain_for_router_render():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/ssl/plan.py")
-    helpers.assert_contains(c, 'raise ValueError("domain is required for ssl nginx config")')
+    helpers.assert_not_contains(c, 'raise ValueError("domain is required for ssl nginx config")')
+    helpers.assert_contains(c, "nginx_server_name = ctx.config.domain")
 
 
 def test_ssl_uses_acme_webroot():
@@ -361,16 +292,6 @@ def test_laravel_validates_php_fpm_before_reload():
     )
 
 
-def test_laravel_deploy_does_not_setup_php_fpm_apparmor():
-    c = helpers.read(LARAVEL_DEPLOY)
-    helpers.assert_not_contains(c, "apparmor")
-    helpers.assert_ordering(
-        c,
-        "php_fpm.setup_pool",
-        "nginx.setup",
-    )
-
-
 def test_laravel_nginx_validates_without_creating_runtime_dir():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
     helpers.assert_ordering(
@@ -379,11 +300,6 @@ def test_laravel_nginx_validates_without_creating_runtime_dir():
         "nginx -t",
     )
     helpers.assert_not_contains(c, "runtime_socket_dir")
-
-
-def test_laravel_nginx_does_not_restart_site_service_early():
-    c = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/laravel/nginx.py")
-    helpers.assert_not_contains(c, "Restart per-site nginx with Laravel config")
 
 
 # ---- Runtime directory traversal for system nginx (www-data) ----

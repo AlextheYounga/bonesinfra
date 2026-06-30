@@ -1,0 +1,2 @@
+# Installed by bonesinfra
+{{ deploy_user }} ALL=(root) NOPASSWD: {{ bonesremote_path }} hook post-receive --site *, {{ bonesremote_path }} service restart --site *, {{ bonesremote_path }} release rollback --site *, {{ bonesremote_path }} release drop-failed --site *, {{ bonesremote_path }} release prune --site *
