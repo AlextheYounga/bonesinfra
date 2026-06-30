@@ -223,14 +223,13 @@ ______________________________________________________________________
 
 ## Phase 7: Align Sudoers And Registry Hooks
 
-Purpose: ensure the existing `bonesremote init` sudoers setup stays narrow and
+Purpose: ensure the `bonesinfra` sudoers setup stays narrow and
 registry-backed.
 
 Changes:
 
 - Keep the single historical sudoers drop-in at `/etc/sudoers.d/bonesdeploy`.
-- Keep sudoers installation in `bonesremote init` unless a concrete host
-  provisioning requirement appears.
+- Install sudoers during `bonesinfra` host provisioning.
 - Keep the allowed commands narrow and registry-backed/site-literal.
 - Do not install rules shaped like `bonesremote * --config *`.
 
@@ -247,9 +246,9 @@ Bad shape:
 git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *
 ```
 
-`bonesremote` provides and installs the command contract. `bonesinfra` should
-not add per-project sudoers files or aggregate-file management without a real
-lifecycle requirement.
+`bonesremote` defines the command contract. `bonesinfra` installs the single
+validated drop-in and should not add per-project sudoers files or
+aggregate-file management without a real lifecycle requirement.
 
 ______________________________________________________________________
 
@@ -419,7 +418,7 @@ The migration is complete for `bonesinfra` when all of these are true:
 - AppArmor and service templates do not require runtime access to git-owned
   config.
 - `/etc/bonesdeploy/sites` exists for the trusted registry.
-- Sudoers rules remain narrow and are owned by `bonesremote init`.
+- Sudoers rules remain narrow and are installed by `bonesinfra`.
 - Tests encode the new ownership and boundary rules.
 - Documentation describes `bonesinfra` as provisioning only, not deployment
   lifecycle ownership.

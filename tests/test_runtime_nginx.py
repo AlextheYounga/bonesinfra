@@ -1,7 +1,6 @@
 import pytest
 
 from bonesinfra.deploys.runtime import nginx as runtime_nginx
-from bonesinfra.deploys.ssl import plan as ssl_plan
 from bonesinfra.domain.context import DeployContext
 from bonesinfra.domain.paths import DeploymentPaths
 
@@ -74,10 +73,3 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="domain or preview_domain"):
         runtime_nginx.setup(ctx, paths, tmp_path)
-
-
-def test_ssl_setup_requires_a_real_domain(tmp_path):
-    ctx = _make_ctx(tmp_path, domain="", preview_domain="preview.example.com")
-
-    with pytest.raises(SystemExit, match="1"):
-        ssl_plan.deploy_ssl(ctx)

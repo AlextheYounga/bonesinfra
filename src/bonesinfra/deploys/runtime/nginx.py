@@ -62,7 +62,7 @@ def setup(ctx, paths, here):
     # SSL state comes from bones.toml (ssl_enabled), not runtime.toml — SSL is
     # owned by `ssl apply`, not `runtime apply`. This keeps runtime apply from
     # clobbering the SSL router config that ssl apply wrote.
-    nginx_ssl_enabled = ctx.config.ssl_enabled and bool(ctx.config.domain)
+    nginx_ssl_enabled = ctx.config.ssl_enabled and ctx.config.domain
     cert_path, key_path = letsencrypt_cert_paths(ctx.config.domain or nginx_server_name)
 
     render(

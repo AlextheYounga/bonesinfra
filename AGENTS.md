@@ -9,6 +9,7 @@ Before writing any code, stop at the first rung that holds:
 5. Does an already-installed dependency solve it? Use it.
 6. Can this be one line? Make it one line.
 7. Only then: write the minimum code that works.
+8. Can we delete anything after this change? We love deleting unnecessary functionality. Delete it.
 
 When you are done, please run `ruff check .`. Do not ignore errors or warnings.
 

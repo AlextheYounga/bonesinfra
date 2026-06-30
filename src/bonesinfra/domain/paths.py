@@ -13,11 +13,8 @@ ETC_APPARMOR_D = "/etc/apparmor.d"
 ETC_SSL_CERTS = "/etc/ssl/certs"
 ETC_SSL_PRIVATE = "/etc/ssl/private"
 ETC_SUDOERS_D = "/etc/sudoers.d"
-ETC_BONESDEPLOY_SITES = "/etc/bonesdeploy/sites"
 
 RUNTIME_SOCKET_PARENT = "/run"
-BONES_DIR = "bones"
-BONES_TOML = "bones.toml"
 NGINX_CONF = "nginx.conf"
 INDEX_HTML = "index.html"
 GIT_HEAD = "HEAD"
@@ -34,7 +31,6 @@ BONESDEPLOY_NGINX_DEFAULT_DENY_SITE = "00-bonesdeploy-default-deny.conf"
 BONESDEPLOY_NGINX_DEFAULT_DENY_CERT = "bonesdeploy-default-deny.crt"
 BONESDEPLOY_NGINX_DEFAULT_DENY_KEY = "bonesdeploy-default-deny.key"
 
-BONESDEPLOY_BINARY = "bonesdeploy"
 BONESREMOTE_BINARY = "bonesremote"
 
 USR_LOCAL_BIN = "/usr/local/bin"
@@ -45,10 +41,8 @@ BONESDEPLOY_REPO = "https://github.com/AlextheYounga/bonesdeploy.git"
 
 
 def _parent_or_default(path: str, fallback: str) -> str:
-    parent = Path(path).parent
-    if parent and str(parent) != ".":
-        return str(parent)
-    return fallback
+    parent = str(Path(path).parent)
+    return fallback if parent == "." else parent
 
 
 @dataclass
@@ -56,8 +50,6 @@ class DeploymentPaths:
     repo: str
     repo_parent: str
     repo_head: str
-    repo_bones: str
-    repo_bones_toml: str
     site_nginx_config: str
     conf_root: str
     project_root: str
@@ -77,14 +69,12 @@ class DeploymentPaths:
     nginx_default_deny_ssl_certificate_key: str
     nginx_default_site_enabled: str
     systemd_site_nginx_service: str
-    apparmor_profile_path: str
     runtime_socket_dir: str
     runtime_nginx_dir: str
     runtime_nginx_socket: str
     runtime_nginx_pid: str
     runtime_php_fpm_socket: str
     acme_webroot: str
-    site_registry_path: str
     sudoers_path: str
     usr_local_bin: str
     bonesremote_global_link: str
@@ -106,15 +96,12 @@ class DeploymentPaths:
         current = Path(project_root) / CURRENT_LINK
         runtime_socket_dir = Path(RUNTIME_SOCKET_PARENT) / project_name
         runtime_nginx_dir = runtime_socket_dir / "nginx"
-        repo_bones = Path(repo_path) / BONES_DIR
         conf_root = Path(DEFAULT_CONF_ROOT_PARENT) / project_name
 
         return cls(
             repo=repo_path,
             repo_parent=_parent_or_default(repo_path, DEFAULT_REPO_PARENT),
             repo_head=str(Path(repo_path) / GIT_HEAD),
-            repo_bones=str(repo_bones),
-            repo_bones_toml=str(repo_bones / BONES_TOML),
             site_nginx_config=str(conf_root / NGINX_CONF),
             conf_root=str(conf_root),
             project_root=project_root,
@@ -136,14 +123,12 @@ class DeploymentPaths:
             nginx_default_deny_ssl_certificate_key=str(Path(ETC_SSL_PRIVATE) / BONESDEPLOY_NGINX_DEFAULT_DENY_KEY),
             nginx_default_site_enabled=str(Path(ETC_NGINX_SITES_ENABLED) / DEFAULT_NGINX_SITE),
             systemd_site_nginx_service=str(Path(ETC_SYSTEMD_SYSTEM) / f"{project_name}-nginx.service"),
-            apparmor_profile_path=str(Path(ETC_APPARMOR_D) / f"bonesdeploy-{project_name}-nginx"),
             runtime_socket_dir=str(runtime_socket_dir),
             runtime_nginx_dir=str(runtime_nginx_dir),
             runtime_nginx_socket=str(runtime_nginx_dir / NGINX_SOCKET),
             runtime_nginx_pid=str(runtime_nginx_dir / NGINX_PID),
             runtime_php_fpm_socket=str(runtime_socket_dir / PHP_FPM_SOCKET),
             acme_webroot=f"/var/www/{project_name}",
-            site_registry_path=str(Path(ETC_BONESDEPLOY_SITES) / f"{project_name}.toml"),
             sudoers_path=str(Path(ETC_SUDOERS_D) / "bonesdeploy"),
             usr_local_bin=USR_LOCAL_BIN,
             bonesremote_global_link=str(Path(USR_LOCAL_BIN) / BONESREMOTE_BINARY),

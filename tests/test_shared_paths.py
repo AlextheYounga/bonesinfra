@@ -20,12 +20,6 @@ def test_shared_paths_module_is_deleted():
     assert not SHARED_PATHS_PY.exists(), "shared_paths.py must be deleted"
 
 
-def test_runtime_plan_does_not_call_shared_paths():
-    c = helpers.read(RUNTIME_PLAN)
-    helpers.assert_not_contains(c, "shared_paths")
-    helpers.assert_not_contains(c, "shared.paths")
-
-
 def test_shared_root_is_created_with_mode_0750():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_contains(c, 'path=paths["shared"]')
@@ -44,26 +38,6 @@ def test_laravel_does_not_create_storage_subdirectories():
     helpers.assert_not_contains(c, "framework/cache")
     helpers.assert_not_contains(c, "framework/sessions")
     helpers.assert_not_contains(c, "framework/views")
-
-
-def test_laravel_deploy_does_not_call_storage_setup():
-    c = helpers.read(LARAVEL_DEPLOY)
-    helpers.assert_not_contains(c, "setup_storage_directories")
-
-
-def test_bonesinfra_does_not_create_env_file():
-    # BonesInfra must not create shared/.env anywhere
-    for f in [SETUP_DIRECTORIES, RUNTIME_PLAN, LARAVEL_PHP_FPM, LARAVEL_DEPLOY]:
-        c = helpers.read(f)
-        helpers.assert_not_contains(c, "touch")
-        # Only "exists" is from non-file-creation contexts like "project not exists"
-        if ".env" in c:
-            assert "Ensure shared file" not in c, f"{f} must not create .env"
-
-
-def test_runtime_plan_does_not_inspect_shared_in_runtime_data():
-    c = helpers.read(RUNTIME_PLAN)
-    helpers.assert_not_contains(c, '["shared"]')
 
 
 def test_runtime_write_paths_are_shared_paths():

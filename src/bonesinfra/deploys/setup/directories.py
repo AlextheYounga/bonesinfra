@@ -1,4 +1,3 @@
-from pathlib import Path
 from shlex import quote
 
 from pyinfra.operations import server
@@ -14,14 +13,6 @@ def _user_env_command(user, command):
 
 def setup_repo_and_project(ctx, paths):
     mkdir(
-        name="Ensure BonesDeploy site registry directory exists",
-        path=str(Path(paths["site_registry_path"]).parent),
-        user="root",
-        group="root",
-        mode="0750",
-    )
-
-    mkdir(
         name="Ensure bare repo parent directory exists",
         path=paths["repo_parent"],
         user=ctx.config.deploy_user,
@@ -33,13 +24,6 @@ def setup_repo_and_project(ctx, paths):
         commands=[_user_env_command(ctx.config.deploy_user, f"git init --bare {quote(paths['repo'])}")],
         _sudo=True,
         _sudo_user=ctx.config.deploy_user,
-    )
-
-    mkdir(
-        name="Ensure bare repo bones directory exists",
-        path=paths["repo_bones"],
-        user=ctx.config.deploy_user,
-        group=ctx.config.deploy_user,
     )
 
     mkdir(

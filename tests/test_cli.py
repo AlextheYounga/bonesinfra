@@ -42,7 +42,7 @@ def test_runtime_apply_rejects_missing_host():
     assert "missing host" in result.stderr.lower()
 
 
-def test_ssl_apply_rejects_missing_host():
+def test_ssl_apply_rejects_missing_domain_email():
     result = _run_no_input("ssl", "apply", "--config", "/dev/null")
-    assert result.returncode == 3, f"Expected exit 3 for missing host, got {result.returncode}"
-    assert "missing host" in result.stderr.lower()
+    assert result.returncode == 3, f"Expected exit 3 for missing domain/email, got {result.returncode}"
+    assert "ssl.domain" in result.stderr.lower()

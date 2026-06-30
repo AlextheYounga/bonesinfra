@@ -200,7 +200,7 @@ services once the registry becomes required input.
 
 ### 9. Sudoers Contract Support
 
-`bonesremote init` installs the single sudoers drop-in for BonesDeploy sites:
+`bonesinfra` installs the single sudoers drop-in for BonesDeploy sites:
 
 ```text
 /etc/sudoers.d/bonesdeploy
@@ -226,7 +226,7 @@ git ALL=(root) NOPASSWD: /usr/local/bin/bonesremote * --config *
 ```
 
 The exact command surface is a `bonesremote` contract. `bonesinfra` installs
-only the final agreed narrow rules.
+only the final agreed narrow rules and validates them with `visudo`.
 
 ______________________________________________________________________
 
@@ -340,7 +340,7 @@ It should not decide which release is active after deployment starts.
 Restarting services after activation belongs to `bonesremote`.
 
 `bonesinfra` creates the systemd units.
-`bonesremote init` owns sudoers installation.
+`bonesinfra` owns sudoers installation.
 
 It should not be part of the deploy-time restart path.
 

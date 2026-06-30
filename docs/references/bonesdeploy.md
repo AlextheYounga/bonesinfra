@@ -265,7 +265,7 @@ sudo cargo install --locked --root /usr/local --git https://github.com/AlextheYo
 Then run the remote setup:
 
 ```sh
-sudo bonesremote init
+bonesdeploy remote setup
 ```
 
 This installs a sudoers drop-in at `/etc/sudoers.d/bonesdeploy` so the deploy user can run only the privileged `bonesremote` commands without a password.
@@ -11849,7 +11849,7 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
   - Passes `bones.toml` deployment values plus computed paths and variables as JSON on stdin.
   - Initializes bare git repository at `repo_path`.
   - Creates initial placeholder release with default page.
-  - Installs `bonesremote` from source and runs `bonesremote init`.
+  - Installs `bonesremote` from source and installs the validated `/etc/sudoers.d/bonesdeploy` drop-in.
   - Provisions machine-level dependencies (users, groups, firewall, system packages).
 
 - **remote runtime**:
@@ -11929,7 +11929,7 @@ Templates inherit the same `bones.toml` schema and customize permissions paths, 
 
 ## Security Notes
 
-- Sudo access for the deployment user is strictly limited to passwordless execution of `bonesremote service restart --config *` via the `/etc/sudoers.d/bonesdeploy` drop-in installed by `bonesremote init`.
+- Sudo access for the deployment user is strictly limited to passwordless execution of the narrow allowed `bonesremote` subcommands via the `/etc/sudoers.d/bonesdeploy` drop-in installed by `bonesinfra`.
 - No broader sudo privileges are granted — the deploy user cannot run arbitrary commands as root, read root-owned files, or write outside their owned directories.
 - All release artifacts are created with the setgid bit on `releases/` so the runtime group inherits read access without needing a post-deploy chown.
 - The build workspace (`build/`) is private to the deploy user (`0700`), invisible to other processes.
@@ -12678,7 +12678,7 @@ Their responsibilities are not:
 - installing Podman or language runtimes.
 - creating base directories under `/srv`, `/run`, `/etc`, or `/var/lib`.
 - rendering or installing nginx, systemd, or AppArmor files.
-- installing sudoers policy; `bonesremote init` installs the single narrow sudoers drop-in, and `bonesinfra` does not manage sudoers.
+- installing sudoers policy; `bonesinfra` installs the single narrow sudoers drop-in.
 - changing firewall rules.
 - deciding host-level package policy.
 
@@ -12982,7 +12982,7 @@ The following concerns belong to `bonesinfra`, not `bonesdeploy` or `bonesremote
 - rendering and installing systemd units.
 - rendering and installing nginx config.
 - rendering and installing AppArmor profiles.
-- installing sudoers policy. `bonesremote init` owns the narrow sudoers drop-in.
+- installing sudoers policy. `bonesinfra` owns the narrow sudoers drop-in.
 - obtaining TLS certificates.
 - configuring firewall rules.
 - applying OS hardening.
