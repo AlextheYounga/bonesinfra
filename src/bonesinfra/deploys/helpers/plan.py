@@ -1,4 +1,4 @@
-from bonesinfra.deploys.helpers import aptui, crates, neovim, packages, starship
+from bonesinfra.deploys.helpers import aptui, neovim, packages, starship
 from bonesinfra.deploys.helpers.packages import HELPER_APT_PACKAGES
 
 
@@ -9,4 +9,3 @@ def deploy_helpers(ctx):
     starship.install()
     neovim.install()
     aptui.install_aptui()
-    crates.install_helper_crates()
