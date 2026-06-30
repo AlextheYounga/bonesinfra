@@ -74,6 +74,21 @@ def test_setup_uses_resolved_placeholder_paths():
     helpers.assert_contains(c2, "placeholder_index")
 
 
+def test_setup_seeds_bare_repo_post_receive_hook():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_contains(c, '"Install bare repo post-receive hook"')
+    helpers.assert_contains(c, "dest=f\"{paths['repo']}/hooks/post-receive\"")
+    helpers.assert_contains(c, "user=ctx.config.deploy_user")
+    helpers.assert_contains(c, 'mode="0755"')
+
+
+def test_post_receive_hook_execs_bonesremote():
+    c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/hooks/post-receive")
+    helpers.assert_contains(c, "set -euo pipefail")
+    helpers.assert_contains(c, "SITE=${SITE%.git}")
+    helpers.assert_contains(c, 'exec sudo bonesremote hook post-receive --site "$SITE"')
+
+
 def test_setup_avoids_usermod_for_existing_runtime_user():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "host.get_fact(Users)")

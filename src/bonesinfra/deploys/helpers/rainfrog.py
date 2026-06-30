@@ -6,8 +6,6 @@ from pyinfra.operations import server
 def install():
     server.shell(
         name="Install rainfrog binary",
-        commands=[
-            ("curl -LSsf https://raw.githubusercontent.com/achristmascarl/rainfrog/main/install.sh | bash")
-        ],
+        commands=[("curl -LSsf https://raw.githubusercontent.com/achristmascarl/rainfrog/main/install.sh | bash")],
         _sudo=True,
     )

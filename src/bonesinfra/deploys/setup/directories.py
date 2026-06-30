@@ -1,7 +1,8 @@
 from shlex import quote
 
-from pyinfra.operations import server
+from pyinfra.operations import files, server
 
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import mkdir
 
 
@@ -24,6 +25,16 @@ def setup_repo_and_project(ctx, paths):
         commands=[_user_env_command(ctx.config.deploy_user, f"git init --bare {quote(paths['repo'])}")],
         _sudo=True,
         _sudo_user=ctx.config.deploy_user,
+    )
+
+    files.put(
+        name="Install bare repo post-receive hook",
+        src=str(ASSETS_DIR / "hooks/post-receive"),
+        dest=f"{paths['repo']}/hooks/post-receive",
+        user=ctx.config.deploy_user,
+        group=ctx.config.deploy_user,
+        mode="0755",
+        _sudo=True,
     )
 
     mkdir(
