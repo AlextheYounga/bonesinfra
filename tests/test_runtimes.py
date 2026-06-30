@@ -1,8 +1,7 @@
 import importlib
 from types import SimpleNamespace
 
-from bonesinfra.app import runtime_catalog
-from bonesinfra.runtimes import list_runtimes
+from bonesinfra.runtimes import get_runtime, list_runtimes
 from bonesinfra.runtimes.laravel import php_fpm
 
 from . import helpers
@@ -30,7 +29,7 @@ def test_runtime_registry_is_explicit():
 
 
 def test_laravel_questions_are_exposed():
-    assert runtime_catalog.get_questions("laravel")
+    assert get_runtime("laravel").questions()
 
 
 def test_common_php_fpm_pool_socket_path_is_distro_standard():

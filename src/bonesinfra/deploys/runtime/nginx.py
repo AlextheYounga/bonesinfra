@@ -2,12 +2,13 @@ from pathlib import Path
 
 from pyinfra.operations import files, server, systemd
 
-from bonesinfra.deploys import nginx_safety
+from bonesinfra.deploys._shared import nginx_safety
 from bonesinfra.domain.context import template_data
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
-def setup(ctx, paths, here):
+def setup(ctx, paths):
     # 0711: system nginx (www-data) needs traversal to reach the per-site
     # nginx socket at /run/<project>/nginx/nginx.sock. 0750 would block it.
     mkdir(
@@ -35,7 +36,7 @@ def setup(ctx, paths, here):
 
     render(
         "Deploy per-site nginx config",
-        here / "assets/nginx/site-nginx.conf.j2",
+        ASSETS_DIR / "nginx/site-nginx.conf.j2",
         paths["site_nginx_config"],
         group=ctx.runtime.runtime_group,
         mode="0640",
@@ -44,7 +45,7 @@ def setup(ctx, paths, here):
 
     render(
         "Deploy per-site nginx systemd service",
-        here / "assets/nginx/site-nginx.service.j2",
+        ASSETS_DIR / "nginx/site-nginx.service.j2",
         paths["systemd_site_nginx_service"],
         mode="0644",
         **template_data(ctx, paths=paths),
@@ -67,7 +68,7 @@ def setup(ctx, paths, here):
 
     render(
         "Deploy router nginx config",
-        here / "assets/nginx/router.conf.j2",
+        ASSETS_DIR / "nginx/router.conf.j2",
         paths["nginx_site_available"],
         mode="0644",
         nginx_server_name=nginx_server_name,
@@ -77,7 +78,7 @@ def setup(ctx, paths, here):
         **template_data(ctx, paths=paths),
     )
 
-    nginx_safety.install_default_deny_server(paths, here)
+    nginx_safety.install_default_deny_server(paths)
 
     files.link(
         name="Enable router nginx site",

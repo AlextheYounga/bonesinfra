@@ -1,37 +1,27 @@
-from pathlib import Path
-
 from pyinfra.operations import server, systemd
 
-from bonesinfra.deploys import nginx_safety
+from bonesinfra.deploys._shared import nginx_safety
 from bonesinfra.domain.context import template_data
-from bonesinfra.domain.paths import DeploymentPaths
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
 def deploy_ssl(ctx):
-    paths = DeploymentPaths.new(
-        ctx.config.project_name,
-        ctx.config.repo_path,
-        ctx.config.project_root,
-        ctx.runtime.web_root,
-    ).__dict__
-    here = Path(__file__).parent.parent.parent
+    paths = ctx.paths_dict
 
-    # Dedicated, www-data-traversable webroot so the ACME challenge never
-    # depends on the release tree's permissions (SSL is separate from runtime).
     mkdir(
         name="Ensure ACME webroot exists",
         path=paths["acme_webroot"],
         mode="0755",
     )
 
-    nginx_safety.install_default_deny_server(paths, here)
-    _render_router_config(ctx, paths, here, ssl_enabled=False, stage="certbot challenge")
+    nginx_safety.install_default_deny_server(paths)
+    _render_router_config(ctx, paths, ssl_enabled=False, stage="certbot challenge")
     obtain_certificate(ctx, paths)
-    _render_router_config(ctx, paths, here, ssl_enabled=True, stage="SSL enable")
+    _render_router_config(ctx, paths, ssl_enabled=True, stage="SSL enable")
 
 
-def _render_router_config(ctx, paths, here, ssl_enabled, stage):
+def _render_router_config(ctx, paths, ssl_enabled, stage):
     nginx_server_name = ctx.config.domain
 
     extra = {
@@ -45,7 +35,7 @@ def _render_router_config(ctx, paths, here, ssl_enabled, stage):
 
     render(
         f"Render nginx config ({stage})",
-        here / "assets/nginx/router.conf.j2",
+        ASSETS_DIR / "nginx/router.conf.j2",
         paths["nginx_site_available"],
         mode="0644",
         **extra,

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bonesinfra"
-version = "0.2.0"
+version = "0.2.1"
 description = "Deployment automation for BonesDeploy"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,7 +22,7 @@ bonesinfra = "bonesinfra.__main__:main"
 
 [tool.setuptools.package-data]
 bonesinfra = [
-    "assets/**/*.j2",
+    "assets/**/*",
     "runtimes/**/assets/**/*.j2",
 ]
 

@@ -1,9 +1,10 @@
 from pyinfra.operations import files, server
 
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import render
 
 
-def install_default_deny_server(paths, here):
+def install_default_deny_server(paths):
     # ponytail: self-signed is enough here because this server never serves
     # content; it only gives nginx a TLS default that can return 444.
     server.shell(
@@ -26,7 +27,7 @@ def install_default_deny_server(paths, here):
 
     render(
         "Deploy nginx default-deny server",
-        here / "assets/nginx/default-deny.conf.j2",
+        ASSETS_DIR / "nginx/default-deny.conf.j2",
         paths["nginx_default_deny_site_available"],
         mode="0644",
         paths=paths,
