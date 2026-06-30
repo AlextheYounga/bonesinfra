@@ -12,6 +12,7 @@ SETUP_FAIL2BAN = helpers.SRC_DIR / "bonesinfra/deploys/setup/fail2ban.py"
 SETUP_UNATTENDED_UPGRADES = helpers.SRC_DIR / "bonesinfra/deploys/setup/unattended_upgrades.py"
 SETUP_BONESREMOTE = helpers.SRC_DIR / "bonesinfra/deploys/setup/bonesremote.py"
 SETUP_SUDOERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/sudoers.py"
+HELPERS_NEOVIM = helpers.SRC_DIR / "bonesinfra/deploys/helpers/neovim.py"
 RUNTIME_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py"
 RUNTIME_PACKAGES = helpers.SRC_DIR / "bonesinfra/deploys/runtime/packages.py"
 RUNTIME_APPARMOR = helpers.SRC_DIR / "bonesinfra/deploys/runtime/apparmor.py"
@@ -155,6 +156,13 @@ def test_setup_unattended_upgrades_installs_apt_configs():
     c = helpers.read(SETUP_UNATTENDED_UPGRADES)
     helpers.assert_contains(c, '"/etc/apt/apt.conf.d/20auto-upgrades"')
     helpers.assert_contains(c, '"/etc/apt/apt.conf.d/50unattended-upgrades"')
+
+
+def test_helpers_neovim_installs_config_from_repo():
+    c = helpers.read(HELPERS_NEOVIM)
+    helpers.assert_contains(c, '"https://github.com/AlextheYounga/myneovim.git"')
+    helpers.assert_contains(c, "git clone --depth=1")
+    helpers.assert_contains(c, "reset --hard FETCH_HEAD")
 
 
 # ---- runtime plan ----
