@@ -1,26 +1,29 @@
-from pathlib import Path
-
-from bonesinfra.deploys.setup import bonesremote, directories, firewall, packages, placeholder, sudoers, users
+from bonesinfra.deploys.setup import (
+    bonesremote,
+    directories,
+    fail2ban,
+    firewall,
+    packages,
+    placeholder,
+    sudoers,
+    unattended_upgrades,
+    users,
+)
 from bonesinfra.deploys.setup.packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTARY_PACKAGES
-from bonesinfra.domain.paths import DeploymentPaths
 
 
 def deploy_setup(ctx):
-    paths = DeploymentPaths.new(
-        ctx.config.project_name,
-        ctx.config.repo_path,
-        ctx.config.project_root,
-        ctx.runtime.web_root,
-    ).__dict__
-    here = Path(__file__).parent.parent.parent
+    paths = ctx.paths_dict
     all_pkgs = BASE_SYSTEM_PACKAGES + SUPPLEMENTARY_PACKAGES
 
     packages.install_system(all_pkgs)
     users.install_rust()
     users.ensure_users_and_groups(ctx)
     directories.setup_repo_and_project(ctx, paths)
-    placeholder.seed(ctx, paths, here)
+    placeholder.seed(ctx, paths)
     firewall.configure(ctx)
+    fail2ban.configure(ctx)
+    unattended_upgrades.configure()
     users.install_authorized_key(ctx)
     bonesremote.install()
-    sudoers.install(ctx, paths, here)
+    sudoers.install(ctx, paths)

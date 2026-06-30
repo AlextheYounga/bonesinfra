@@ -1,0 +1,16 @@
+from pyinfra.operations import server
+
+CARGO_BIN = "/root/.cargo/bin/cargo"
+HELPER_CARGO_CRATES: list[str] = [
+    "rainfrog",
+    "tuimux",
+]
+
+
+def install_helper_crates():
+    for crate in HELPER_CARGO_CRATES:
+        server.shell(
+            name=f"Install {crate} binary",
+            commands=[f"{CARGO_BIN} install {crate}"],
+            _sudo=True,
+        )

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from bonesinfra.domain.paths import DeploymentPaths
-from bonesinfra.infra.toml_store import load_toml
 
 DEPLOY_USER = "git"
 
@@ -25,7 +25,8 @@ class DeployContext:
         config_path: str,
         runtime_config_path: str | None = None,
     ) -> DeployContext:
-        bones_cfg = load_toml(config_path)
+        with Path(config_path).open("rb") as f:
+            bones_cfg = tomllib.load(f)
         project_name = bones_cfg.get("project_name", "")
         repo_path = bones_cfg.get("repo_path", "")
         project_root = bones_cfg.get("project_root", "")
@@ -36,7 +37,8 @@ class DeployContext:
         if runtime_config_path:
             rpath = Path(runtime_config_path)
             if rpath.exists():
-                runtime_cfg = load_toml(str(rpath))
+                with rpath.open("rb") as f:
+                    runtime_cfg = tomllib.load(f)
 
         config = BonesConfig(
             remote_name=bones_cfg.get("remote_name", ""),
@@ -72,14 +74,29 @@ class DeployContext:
     def ssh_port(self) -> int:
         return int(self.config.port)
 
+    @property
+    def paths(self) -> DeploymentPaths:
+        try:
+            return self._paths
+        except AttributeError:
+            pass
+        self._paths = DeploymentPaths.new(
+            self.config.project_name,
+            self.config.repo_path,
+            self.config.project_root,
+            self.runtime.web_root,
+        )
+        return self._paths
+
+    @property
+    def paths_dict(self) -> dict[str, Any]:
+        return self.paths.__dict__
+
 
 def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **extra: Any) -> dict[str, Any]:
     """Build flat template context from DeployContext for Jinja2 template rendering."""
     if paths is None:
-        p = DeploymentPaths.new(
-            ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root
-        )
-        paths = p.__dict__
+        paths = ctx.paths_dict
 
     data: dict[str, Any] = {
         "project_name": ctx.config.project_name,

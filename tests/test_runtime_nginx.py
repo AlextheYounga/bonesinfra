@@ -47,7 +47,7 @@ def test_runtime_nginx_uses_preview_domain_when_domain_is_empty(tmp_path, monkey
 
     monkeypatch.setattr(runtime_nginx, "render", fake_render)
 
-    runtime_nginx.setup(ctx, paths, tmp_path)
+    runtime_nginx.setup(ctx, paths)
 
     router_call = next(call for _, call in calls if "nginx_server_name" in call)
     assert router_call["nginx_server_name"] == "preview.example.com"
@@ -72,4 +72,4 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime_nginx, "render", _noop)
 
     with pytest.raises(ValueError, match="domain or preview_domain"):
-        runtime_nginx.setup(ctx, paths, tmp_path)
+        runtime_nginx.setup(ctx, paths)

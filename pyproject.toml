@@ -22,7 +22,7 @@ bonesinfra = "bonesinfra.__main__:main"
 
 [tool.setuptools.package-data]
 bonesinfra = [
-    "assets/**/*.j2",
+    "assets/**/*",
     "runtimes/**/assets/**/*.j2",
 ]
 
