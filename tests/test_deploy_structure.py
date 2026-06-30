@@ -8,6 +8,8 @@ SETUP_USERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/users.py"
 SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
 SETUP_PLACEHOLDER = helpers.SRC_DIR / "bonesinfra/deploys/setup/placeholder.py"
 SETUP_FIREWALL = helpers.SRC_DIR / "bonesinfra/deploys/setup/firewall.py"
+SETUP_FAIL2BAN = helpers.SRC_DIR / "bonesinfra/deploys/setup/fail2ban.py"
+SETUP_UNATTENDED_UPGRADES = helpers.SRC_DIR / "bonesinfra/deploys/setup/unattended_upgrades.py"
 SETUP_BONESREMOTE = helpers.SRC_DIR / "bonesinfra/deploys/setup/bonesremote.py"
 SETUP_SUDOERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/sudoers.py"
 RUNTIME_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/runtime/plan.py"
@@ -31,6 +33,8 @@ def test_setup_plan_calls_all_steps():
     helpers.assert_contains(c, "directories.setup_repo_and_project")
     helpers.assert_contains(c, "placeholder.seed")
     helpers.assert_contains(c, "firewall.configure")
+    helpers.assert_contains(c, "fail2ban.configure")
+    helpers.assert_contains(c, "unattended_upgrades.configure")
     helpers.assert_contains(c, "users.install_authorized_key")
     helpers.assert_contains(c, "bonesremote.install")
     helpers.assert_contains(c, "sudoers.install")
@@ -138,6 +142,19 @@ def test_setup_firewall_status_gated_by_show_status():
     c = helpers.read(SETUP_FIREWALL)
     helpers.assert_contains(c, "ufw status verbose")
     helpers.assert_contains(c, "firewall_show_status")
+
+
+def test_setup_fail2ban_configures_sshd_jail_and_service():
+    c = helpers.read(SETUP_FAIL2BAN)
+    helpers.assert_contains(c, '"/etc/fail2ban/jail.local"')
+    helpers.assert_contains(c, '"fail2ban"')
+    helpers.assert_contains(c, "ssh_port=int(ctx.config.port)")
+
+
+def test_setup_unattended_upgrades_installs_apt_configs():
+    c = helpers.read(SETUP_UNATTENDED_UPGRADES)
+    helpers.assert_contains(c, '"/etc/apt/apt.conf.d/20auto-upgrades"')
+    helpers.assert_contains(c, '"/etc/apt/apt.conf.d/50unattended-upgrades"')
 
 
 # ---- runtime plan ----

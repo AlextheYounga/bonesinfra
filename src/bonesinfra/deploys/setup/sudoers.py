@@ -2,13 +2,14 @@ from shlex import quote
 
 from pyinfra.operations import server
 
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import render
 
 
-def install(ctx, paths, here):
+def install(ctx, paths):
     render(
         "Install BonesDeploy sudoers drop-in",
-        here / "assets/sudoers/bonesdeploy.j2",
+        ASSETS_DIR / "sudoers/bonesdeploy.j2",
         paths["sudoers_path"],
         user="root",
         group="root",

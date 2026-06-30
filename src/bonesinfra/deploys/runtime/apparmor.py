@@ -1,10 +1,11 @@
 from pyinfra.operations import server, systemd
 
 from bonesinfra.domain.context import template_data
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import render
 
 
-def setup(ctx, paths, here):
+def setup(ctx, paths):
     systemd.service(
         name="Ensure apparmor service is enabled and started",
         service="apparmor",
@@ -24,7 +25,7 @@ def setup(ctx, paths, here):
 
     render(
         "Deploy per-project apparmor profile",
-        here / "assets/apparmor/project-nginx-profile.j2",
+        ASSETS_DIR / "apparmor/project-nginx-profile.j2",
         apparmor_profile_path,
         mode="0644",
         apparmor_profile_name=apparmor_profile_name,

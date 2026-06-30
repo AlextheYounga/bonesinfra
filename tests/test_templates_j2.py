@@ -104,3 +104,22 @@ def test_common_static_nginx_serves_dist():
 def test_common_apparmor_profile_uses_configurable_network():
     c = _read("runtimes/common/assets/app-profile.j2")
     helpers.assert_contains(c, '{{ apparmor_network | default("network unix stream,") }}')
+
+
+def test_fail2ban_template_enables_sshd_on_configured_port():
+    c = _read("assets/fail2ban/jail.local.j2")
+    helpers.assert_contains(c, "[sshd]")
+    helpers.assert_contains(c, "enabled = true")
+    helpers.assert_contains(c, "port = {{ ssh_port }}")
+
+
+def test_unattended_upgrades_template_enables_periodic_security_updates():
+    c = _read("assets/unattended-upgrades/20auto-upgrades.j2")
+    helpers.assert_contains(c, 'APT::Periodic::Update-Package-Lists "1";')
+    helpers.assert_contains(c, 'APT::Periodic::Unattended-Upgrade "1";')
+
+
+def test_unattended_upgrades_template_uses_distro_variables():
+    c = _read("assets/unattended-upgrades/50unattended-upgrades.j2")
+    helpers.assert_contains(c, '"${distro_id}:${distro_codename}-security";')
+    helpers.assert_contains(c, 'Unattended-Upgrade::Automatic-Reboot "false";')

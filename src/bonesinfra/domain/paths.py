@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+ASSETS_DIR = Path(__file__).parent.parent / "assets"
+
 DEFAULT_REPO_PARENT = "/srv/git"
 DEFAULT_PROJECT_ROOT_PARENT = "/srv/sites"
 DEFAULT_CONF_ROOT_PARENT = "/srv/conf"

@@ -81,6 +81,7 @@ Expected private command shapes:
 ```sh
 bonesinfra runtime list
 bonesinfra runtime questions <runtime>
+bonesinfra helpers apply --config <bones.toml>
 bonesinfra setup apply --config <bones.toml>
 bonesinfra runtime apply --config <bones.toml> --runtime-config <runtime.toml>
 bonesinfra ssl apply --config <bones.toml>

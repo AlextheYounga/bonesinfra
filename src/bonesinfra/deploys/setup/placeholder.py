@@ -1,13 +1,14 @@
 from pyinfra.operations import files
 
 from bonesinfra.domain.context import template_data
+from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import render
 
 
-def seed(ctx, paths, here):
+def seed(ctx, paths):
     render(
         "Seed placeholder index page",
-        here / "assets/nginx/index.html.j2",
+        ASSETS_DIR / "nginx/index.html.j2",
         paths["placeholder_index"],
         user="root",
         group=ctx.runtime.runtime_group,
