@@ -1,4 +1,4 @@
-from bonesinfra.deploys.helpers import aptui, neovim, packages, starship
+from bonesinfra.deploys.helpers import neovim, packages, rainfrog, starship
 from bonesinfra.deploys.helpers.packages import HELPER_APT_PACKAGES
 
 
@@ -8,4 +8,4 @@ def deploy_helpers(ctx):
     packages.install_debian_command_aliases()
     starship.install()
     neovim.install()
-    aptui.install_aptui()
+    rainfrog.install()

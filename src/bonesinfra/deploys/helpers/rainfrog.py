@@ -3,7 +3,7 @@ from pyinfra.operations import server
 
 # Install https://github.com/achristmascarl/rainfrog
 # This is too big to be installed as a cargo crate, so we install it via the install script.
-def install_rainfrog():
+def install():
     server.shell(
         name="Install rainfrog binary",
         commands=[
