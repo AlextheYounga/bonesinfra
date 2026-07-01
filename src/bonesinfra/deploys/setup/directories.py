@@ -75,6 +75,17 @@ def setup_repo_and_project(ctx, paths):
         mode="0750",
     )
 
+    env_path = f"{paths['shared']}/.env"
+    server.shell(
+        name="Seed blank .env in shared directory",
+        commands=[
+            f"touch {quote(env_path)}"
+            f" && chown {quote(ctx.runtime.runtime_user)}:{quote(ctx.runtime.runtime_group)} {quote(env_path)}"
+            f" && chmod 640 {quote(env_path)}",
+        ],
+        _sudo=True,
+    )
+
     mkdir(
         name="Ensure placeholder release directory exists",
         path=paths["placeholder_web_root"],
