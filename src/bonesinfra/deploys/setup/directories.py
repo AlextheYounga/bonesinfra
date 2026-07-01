@@ -27,6 +27,14 @@ def setup_repo_and_project(ctx, paths):
         _sudo_user=ctx.config.deploy_user,
     )
 
+    repo = quote(paths["repo"])
+    server.shell(
+        name="Set bare repo default branch",
+        commands=[f"git --git-dir {repo} symbolic-ref HEAD refs/heads/{ctx.config.branch}"],
+        _sudo=True,
+        _sudo_user=ctx.config.deploy_user,
+    )
+
     files.put(
         name="Install bare repo post-receive hook",
         src=str(ASSETS_DIR / "hooks/post-receive"),

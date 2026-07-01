@@ -473,17 +473,56 @@ Responsibilities:
 - ensure runtime group
 - create bare repo parent
 - initialize bare git repo
+- set bare repo default branch (symbolic-ref HEAD refs/heads/<branch>)
 - create project root
 - create releases directory
 - create shared directory
 - create trusted site registry parent directory
 - seed placeholder release
 - install deploy authorized key
+- install thin post-receive hook (delegates to `bonesremote hook post-receive`)
 - configure firewall
 - install `bonesremote`
 - install validated `/etc/sudoers.d/bonesdeploy`
 
 Setup should run as root or bootstrap SSH user.
+
+## Runtime Identity Model
+
+The current model uses a single per-project identity:
+
+- **Runtime user**: `<site>` (system user, nologin, no home)
+- **Runtime group**: `<site>`
+- **No separate release group** — releases are owned/sealed using the runtime group
+- Directories: `releases/` is `root:runtime_group 2750`, `shared/` is `runtime_user:runtime_group 0750`
+- The deploy user (`git`) is NOT added to the runtime group
+- The `release_group` key is deprecated; if it appears in `runtime.toml` input, bonesinfra logs a warning and ignores it
+
+## Sudoers Contract
+
+The deploy user can run only these narrow commands via sudo:
+
+```
+bonesremote hook post-receive --site *
+bonesremote service restart --site *
+bonesremote release rollback --site *
+bonesremote release drop-failed --site *
+bonesremote release prune --site *
+```
+
+The hook command itself owns the privileged deploy orchestration. No broad `bonesremote deploy --site *` sudo is granted.
+
+## Post-Receive Hook
+
+A thin bash script at `<repo>/hooks/post-receive` derives the site name from `$GIT_DIR` and delegates:
+
+```bash
+exec sudo bonesremote hook post-receive --site "$SITE"
+```
+
+Branch filtering and deploy policy belong in `bonesremote hook post-receive`, not in the shell hook.
+
+Source code must be pushed to the configured deployment branch before deploy can succeed. The bare repo's default branch (HEAD) is set via `git symbolic-ref HEAD refs/heads/<branch>` during provisioning.
 
 ______________________________________________________________________
 
