@@ -3,6 +3,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from bonesinfra.domain.context import DeployContext, template_data
 
 
@@ -78,3 +80,47 @@ branch = "main"
 
     td = template_data(ctx)
     assert td["branch"] == "main"
+
+
+@pytest.mark.parametrize(
+    ("runtime_toml", "message"),
+    [
+        ('[shared]\npaths = ".env"\n', "must be a list"),
+        (
+            '[shared]\npaths = [{ path = "/etc/passwd", type = "file" }]\n',
+            "path must be relative",
+        ),
+        (
+            '[shared]\npaths = [{ path = "../secrets", type = "dir" }]\n',
+            "normal components only",
+        ),
+        (
+            '[shared]\npaths = [{ path = "foo/./bar", type = "dir" }]\n',
+            "normal components only",
+        ),
+        (
+            '[shared]\npaths = [{ path = "foo/../bar", type = "dir" }]\n',
+            "normal components only",
+        ),
+        (
+            '[shared]\npaths = [{ path = "database.sqlite", type = "socket" }]\n',
+            "invalid shared path type",
+        ),
+    ],
+)
+def test_invalid_shared_paths_are_rejected(runtime_toml, message):
+    with TemporaryDirectory() as tmp:
+        config_path = Path(tmp) / "bones.toml"
+        config_path.write_text(
+            """
+project_name = "lawsnipe"
+repo_path = "/srv/git/lawsnipe.git"
+project_root = "/srv/sites/lawsnipe"
+host = "example.com"
+""".lstrip()
+        )
+        runtime_config_path = Path(tmp) / "runtime.toml"
+        runtime_config_path.write_text(runtime_toml)
+
+        with pytest.raises((TypeError, ValueError), match=message):
+            DeployContext.from_files(str(config_path), str(runtime_config_path))

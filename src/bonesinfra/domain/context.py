@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from bonesinfra.domain.paths import DeploymentPaths
@@ -61,6 +61,7 @@ class DeployContext:
             web_root=runtime_cfg.get("web_root", DEFAULT_WEB_ROOT),
             runtime_user=runtime_cfg.get("runtime_user", project_name),
             runtime_group=runtime_cfg.get("runtime_group", project_name),
+            shared_paths=_parse_shared_paths(runtime_cfg),
             runtime_data=runtime_cfg,
         )
 
@@ -146,4 +147,64 @@ class RuntimeConfig:
     web_root: str
     runtime_user: str
     runtime_group: str
+    shared_paths: list[SharedPath] = field(default_factory=list)
     runtime_data: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SharedPath:
+    path: str
+    type: str
+
+
+def _parse_shared_paths(runtime_cfg: dict[str, Any]) -> list[SharedPath]:
+    shared = runtime_cfg.get("shared")
+    if shared is None:
+        return []
+    if not isinstance(shared, dict):
+        raise TypeError("runtime.toml [shared] must be a table")
+
+    paths = shared.get("paths", [])
+    if not isinstance(paths, list):
+        raise TypeError("runtime.toml [shared].paths must be a list")
+
+    return [_parse_shared_path(entry) for entry in paths]
+
+
+def _parse_shared_path(entry: Any) -> SharedPath:
+    if not isinstance(entry, dict):
+        raise TypeError("runtime.toml [shared].paths entries must be tables")
+
+    raw_path = entry.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError("runtime.toml [shared].paths entries need a non-empty string path")
+
+    path = _validate_shared_path(raw_path)
+    path_type = entry.get("type")
+    if path_type not in {"file", "dir"}:
+        raise ValueError(f"invalid shared path type for {path}: {path_type!r}")
+
+    return SharedPath(path=path, type=path_type)
+
+
+def _validate_shared_path(raw_path: str) -> str:
+    if "\\" in raw_path:
+        raise ValueError(f"invalid shared path {raw_path!r}: use forward slashes")
+    if raw_path.startswith("/"):
+        raise ValueError(f"invalid shared path {raw_path!r}: path must be relative")
+
+    for part in raw_path.split("/"):
+        if part in {"", ".", ".."}:
+            raise ValueError(f"invalid shared path {raw_path!r}: path must use normal components only")
+
+    path = PurePosixPath(raw_path)
+
+    parts = path.parts
+    if not parts:
+        raise ValueError("invalid shared path '': path must not be empty")
+
+    for part in parts:
+        if part in {"", ".", ".."}:
+            raise ValueError(f"invalid shared path {raw_path!r}: path must use normal components only")
+
+    return path.as_posix()

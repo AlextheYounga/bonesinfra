@@ -223,7 +223,7 @@ Domain code should not import pyinfra.
 `domain/context.py` defines three dataclasses:
 
 - **`BonesConfig`**: strictly typed fields from `bones.toml` (top-level keys: `project_name`, `host`, `ssh_user`, `domain`, `email`, `deploy_user`, etc.)
-- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, plus `runtime_data` dict for dynamic runtime.toml keys
+- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, validated `shared_paths`, plus `runtime_data` dict for dynamic runtime.toml keys
 - **`DeployContext`**: wraps `config: BonesConfig` + `runtime: RuntimeConfig` — the single object passed through to deploy plans
 
 No flat dict. No `host.data` side-channel.
@@ -477,6 +477,7 @@ Responsibilities:
 - create project root
 - create releases directory
 - create shared directory
+- seed blank `shared/.env`
 - create trusted site registry parent directory
 - seed placeholder release
 - install deploy authorized key
@@ -536,6 +537,7 @@ Responsibilities:
 - configure AppArmor
 - configure nginx router
 - configure per-site nginx service
+- provision declared `[shared].paths` under `shared/`
 - run runtime-specific deploy operations
 
 Runtime setup is separate from SSL.
