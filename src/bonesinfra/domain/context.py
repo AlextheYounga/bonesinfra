@@ -103,6 +103,7 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
         "project_root": ctx.config.project_root,
         "web_root": ctx.runtime.web_root,
         "repo_path": ctx.config.repo_path,
+        "branch": ctx.config.branch,
         "deploy_user": ctx.config.deploy_user,
         "runtime_user": ctx.runtime.runtime_user,
         "runtime_group": ctx.runtime.runtime_group,

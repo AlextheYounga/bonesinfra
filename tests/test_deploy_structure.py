@@ -82,6 +82,13 @@ def test_setup_seeds_bare_repo_post_receive_hook():
     helpers.assert_contains(c, 'mode="0755"')
 
 
+def test_bare_repo_init_sets_default_branch():
+    c = helpers.read(SETUP_DIRECTORIES)
+    helpers.assert_contains(c, '"Set bare repo default branch"')
+    helpers.assert_contains(c, "git --git-dir")
+    helpers.assert_contains(c, "symbolic-ref HEAD refs/heads/{ctx.config.branch}")
+
+
 def test_post_receive_hook_execs_bonesremote():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/assets/hooks/post-receive")
     helpers.assert_contains(c, "set -euo pipefail")
