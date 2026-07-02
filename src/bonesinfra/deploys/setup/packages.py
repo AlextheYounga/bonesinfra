@@ -1,4 +1,4 @@
-from pyinfra.operations import apt
+from pyinfra.operations import apt, server
 
 BASE_SYSTEM_PACKAGES: list[str] = [
     "build-essential",
@@ -10,7 +10,11 @@ BASE_SYSTEM_PACKAGES: list[str] = [
     "sudo",
     "nginx",
     "openssl",
+    "aardvark-dns",
+    "netavark",
+    "passt",
     "podman",
+    "slirp4netns",
     "apparmor",
     "apparmor-utils",
     "unattended-upgrades",
@@ -36,5 +40,13 @@ def install_system(packages):
         present=True,
         update=True,
         cache_time=3600,
+        _sudo=True,
+    )
+
+
+def install_rust():
+    server.shell(
+        name="Install rustup and cargo",
+        commands=["curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"],
         _sudo=True,
     )

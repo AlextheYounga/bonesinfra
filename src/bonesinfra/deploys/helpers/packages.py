@@ -21,6 +21,7 @@ HELPER_APT_PACKAGES: list[str] = [
     "jq",
     "lsb-release",
     "lsof",
+    "lynis",
     "moreutils",
     "mutt",
     "ncdu",

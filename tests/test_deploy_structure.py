@@ -277,9 +277,13 @@ def test_runtime_uses_template_runtime():
     helpers.assert_contains(c, "get_runtime(template)")
 
 
-def test_setup_installs_podman():
+def test_setup_installs_podman_networking():
     c = helpers.read(SETUP_PACKAGES)
     helpers.assert_contains(c, '"podman"')
+    helpers.assert_contains(c, '"netavark"')
+    helpers.assert_contains(c, '"aardvark-dns"')
+    helpers.assert_contains(c, '"passt"')
+    helpers.assert_contains(c, '"slirp4netns"')
 
 
 # ---- ssl plan ----
