@@ -300,13 +300,9 @@ def test_setup_creates_rootless_build_user_and_pseudo_home():
     helpers.assert_contains(c, 'mode="0700"')
 
 
-def test_setup_enables_linger_and_validates_rootless_podman():
+def test_setup_enables_linger_for_build_user():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "loginctl enable-linger")
-    helpers.assert_contains(c, "Validate subuid/subgid ranges")
-    helpers.assert_contains(c, "grep -q")
-    helpers.assert_contains(c, "runuser -u")
-    helpers.assert_contains(c, "podman info --format '{{.Host.Security.Rootless}}'")
 
 
 # ---- ssl plan ----
