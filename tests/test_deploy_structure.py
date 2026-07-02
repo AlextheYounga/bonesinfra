@@ -284,6 +284,29 @@ def test_setup_installs_podman_networking():
     helpers.assert_contains(c, '"aardvark-dns"')
     helpers.assert_contains(c, '"passt"')
     helpers.assert_contains(c, '"slirp4netns"')
+    helpers.assert_contains(c, '"uidmap"')
+    helpers.assert_contains(c, '"fuse-overlayfs"')
+    helpers.assert_contains(c, '"dbus-user-session"')
+
+
+def test_setup_creates_rootless_build_user_and_pseudo_home():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "build_user_for(ctx.config.project_name)")
+    helpers.assert_contains(c, "group=build_group")
+    helpers.assert_contains(c, 'home="/nonexistent"')
+    helpers.assert_contains(c, 'shell="/usr/sbin/nologin"')
+    helpers.assert_contains(c, "path=BUILD_USER_HOME_ROOT")
+    helpers.assert_contains(c, "path=build_home")
+    helpers.assert_contains(c, 'mode="0700"')
+
+
+def test_setup_enables_linger_and_validates_rootless_podman():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "loginctl enable-linger")
+    helpers.assert_contains(c, "Validate subuid/subgid ranges")
+    helpers.assert_contains(c, "grep -q")
+    helpers.assert_contains(c, "runuser -u")
+    helpers.assert_contains(c, "podman info --format '{{.Host.Security.Rootless}}'")
 
 
 # ---- ssl plan ----
