@@ -29,6 +29,9 @@ host = "example.com"
     assert ctx.runtime.runtime_user == "lawsnipe"
     assert ctx.runtime.runtime_group == "lawsnipe"
     assert ctx.ssh_port == 22
+    assert ctx.config.build_resources.cpu_quota_percent == 75
+    assert ctx.config.build_resources.memory_high_percent == 60
+    assert ctx.config.build_resources.memory_max_percent == 75
 
     td = template_data(ctx)
     assert td["runtime_user"] == "lawsnipe"
@@ -61,6 +64,56 @@ runtime_group = "lawsnipe-web"
     assert ctx.runtime.web_root == "public"
     assert ctx.runtime.runtime_user == "lawsnipe-web"
     assert ctx.runtime.runtime_group == "lawsnipe-web"
+
+
+def test_build_resources_are_configurable():
+    with TemporaryDirectory() as tmp:
+        config_path = Path(tmp) / "bones.toml"
+        config_path.write_text(
+            """
+project_name = "lawsnipe"
+repo_path = "/srv/git/lawsnipe.git"
+project_root = "/srv/sites/lawsnipe"
+host = "example.com"
+
+[build_resources]
+cpu_quota_percent = 50
+memory_high_percent = 70
+memory_max_percent = 90
+""".lstrip()
+        )
+
+        ctx = DeployContext.from_files(str(config_path))
+
+    assert ctx.config.build_resources.cpu_quota_percent == 50
+    assert ctx.config.build_resources.memory_high_percent == 70
+    assert ctx.config.build_resources.memory_max_percent == 90
+
+
+@pytest.mark.parametrize(
+    ("table", "message"),
+    [
+        ("cpu_quota_percent = 0", "cpu_quota_percent"),
+        ("memory_high_percent = 90\nmemory_max_percent = 80", "must not exceed"),
+    ],
+)
+def test_invalid_build_resources_are_rejected(table, message):
+    with TemporaryDirectory() as tmp:
+        config_path = Path(tmp) / "bones.toml"
+        config_path.write_text(
+            f"""
+project_name = "lawsnipe"
+repo_path = "/srv/git/lawsnipe.git"
+project_root = "/srv/sites/lawsnipe"
+host = "example.com"
+
+[build_resources]
+{table}
+""".lstrip()
+        )
+
+        with pytest.raises(ValueError, match=message):
+            DeployContext.from_files(str(config_path))
 
 
 def test_branch_in_template_data():

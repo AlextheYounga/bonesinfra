@@ -54,10 +54,12 @@ user manager for rootless Podman. Runtime application users remain home-less
 and non-login.
 
 Each build user's outer `user-<UID>.slice` is limited by root-owned systemd
-resource control. CPUQuota is 75% of the server's online CPU capacity;
-MemoryHigh=60% is the soft reclaim/throttling threshold and MemoryMax=75% is
-the hard cgroup ceiling, so an over-limit build fails rather than starving the
-host. These are host-level limits, not rootless Podman delegation.
+resource control. The defaults are configurable in `bones.toml` under
+`[build_resources]`: `cpu_quota_percent = 75`, `memory_high_percent = 60`, and
+`memory_max_percent = 75`. CPUQuota is that percentage of each online CPU;
+MemoryHigh is the soft reclaim/throttling threshold, while MemoryMax is the hard
+cgroup ceiling, so exceeding it fails the build rather than starving the host.
+These are host-level limits, not rootless Podman delegation.
 
 BonesInfra does not own:
 
@@ -365,6 +367,9 @@ project_name, host, ssh_user, port, repo_path, project_root,
 branch, preview_domain, releases_keep, ssl_enabled, domain, email,
 remote_name, deploy_user
 ```
+
+Build resource policy is read from the optional `[build_resources]` table in
+`bones.toml` (the defaults are shown above).
 
 ## RuntimeConfig
 

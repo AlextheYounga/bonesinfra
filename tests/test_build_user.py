@@ -25,3 +25,7 @@ def test_cpu_quota_is_three_quarters_of_online_cpu_capacity(online_cpu_count, qu
 def test_cpu_quota_rejects_missing_online_cpus():
     with pytest.raises(ValueError, match="positive"):
         cpu_quota_for(0)
+
+
+def test_cpu_quota_uses_configured_per_cpu_percentage():
+    assert cpu_quota_for(4, 50) == "200%"

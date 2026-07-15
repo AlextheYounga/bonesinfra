@@ -5,6 +5,7 @@ from pyinfra.facts.hardware import Cpus
 from pyinfra.facts.server import Users
 from pyinfra.operations import server
 
+from bonesinfra.domain.context import DEFAULT_BUILD_CPU_QUOTA_PERCENT
 from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import mkdir, render
 
@@ -42,17 +43,18 @@ def build_home_for(project_name: str) -> str:
     return f"{BUILD_USER_HOME_ROOT}/{build_user_for(project_name)}"
 
 
-def cpu_quota_for(online_cpu_count: int) -> str:
+def cpu_quota_for(online_cpu_count: int, per_cpu_percent: int = DEFAULT_BUILD_CPU_QUOTA_PERCENT) -> str:
     if online_cpu_count < 1:
         raise ValueError("online_cpu_count must be positive")
-    return f"{online_cpu_count * 75}%"
+    return f"{online_cpu_count * per_cpu_percent}%"
 
 
 def ensure_users_and_groups(ctx):
     build_user = build_user_for(ctx.config.project_name)
     build_group = build_group_for(ctx.config.project_name)
     build_home = build_home_for(ctx.config.project_name)
-    cpu_quota = cpu_quota_for(host.get_fact(Cpus))
+    resources = ctx.config.build_resources
+    cpu_quota = cpu_quota_for(host.get_fact(Cpus), resources.cpu_quota_percent)
     staged_dropin = f"{BUILD_SYSTEMD_STAGING_ROOT}/{build_user}.slice.conf"
 
     server.user(
@@ -137,6 +139,8 @@ def ensure_users_and_groups(ctx):
         src=ASSETS_DIR / "systemd/bonesdeploy-build.slice.j2",
         dest=staged_dropin,
         cpu_quota=cpu_quota,
+        memory_high=f"{resources.memory_high_percent}%",
+        memory_max=f"{resources.memory_max_percent}%",
     )
     server.shell(
         name=f"Install and apply resource limits for {build_user}",
@@ -146,7 +150,8 @@ def ensure_users_and_groups(ctx):
             'install -d -m 0755 "${dropin%/*}"; '
             f'cmp -s {quote(staged_dropin)} "$dropin" || {{ '
             f'install -m 0644 {quote(staged_dropin)} "$dropin"; systemctl daemon-reload; '
-            f'systemctl set-property --runtime "$slice" CPUQuota={cpu_quota} MemoryHigh=60% MemoryMax=75%; }}'
+            f'systemctl set-property --runtime "$slice" CPUQuota={cpu_quota} '
+            f"MemoryHigh={resources.memory_high_percent}% MemoryMax={resources.memory_max_percent}%; }}"
         ],
         _sudo=True,
     )

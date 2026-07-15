@@ -12,6 +12,9 @@ DEPLOY_USER = "git"
 DEFAULT_SSH_USER = "root"
 DEFAULT_SSH_PORT = "22"
 DEFAULT_WEB_ROOT = "public"
+DEFAULT_BUILD_CPU_QUOTA_PERCENT = 75
+DEFAULT_BUILD_MEMORY_HIGH_PERCENT = 60
+DEFAULT_BUILD_MEMORY_MAX_PERCENT = 75
 
 
 @dataclass
@@ -32,6 +35,7 @@ class DeployContext:
         project_root = bones_cfg.get("project_root", "")
         host = bones_cfg.get("host", "")
         port = int(bones_cfg.get("port", DEFAULT_SSH_PORT))
+        build_resources = _parse_build_resources(bones_cfg)
 
         runtime_cfg = {}
         if runtime_config_path:
@@ -55,6 +59,7 @@ class DeployContext:
             domain=bones_cfg.get("domain", ""),
             email=bones_cfg.get("email", ""),
             deploy_user=DEPLOY_USER,
+            build_resources=build_resources,
         )
 
         runtime = RuntimeConfig(
@@ -124,6 +129,24 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
     return data
 
 
+@dataclass(frozen=True)
+class BuildResourceLimits:
+    cpu_quota_percent: int = DEFAULT_BUILD_CPU_QUOTA_PERCENT
+    memory_high_percent: int = DEFAULT_BUILD_MEMORY_HIGH_PERCENT
+    memory_max_percent: int = DEFAULT_BUILD_MEMORY_MAX_PERCENT
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("cpu_quota_percent", self.cpu_quota_percent),
+            ("memory_high_percent", self.memory_high_percent),
+            ("memory_max_percent", self.memory_max_percent),
+        ):
+            if type(value) is not int or not 1 <= value <= 100:  # noqa: PLR2004
+                raise ValueError(f"{name} must be an integer from 1 to 100")
+        if self.memory_high_percent > self.memory_max_percent:
+            raise ValueError("memory_high_percent must not exceed memory_max_percent")
+
+
 @dataclass
 class BonesConfig:
     remote_name: str
@@ -140,6 +163,7 @@ class BonesConfig:
     domain: str
     email: str
     deploy_user: str
+    build_resources: BuildResourceLimits = field(default_factory=BuildResourceLimits)
 
 
 @dataclass
@@ -155,6 +179,17 @@ class RuntimeConfig:
 class SharedPath:
     path: str
     type: str
+
+
+def _parse_build_resources(bones_cfg: dict[str, Any]) -> BuildResourceLimits:
+    raw = bones_cfg.get("build_resources", {})
+    if not isinstance(raw, dict):
+        raise TypeError("bones.toml [build_resources] must be a table")
+    return BuildResourceLimits(
+        cpu_quota_percent=int(raw.get("cpu_quota_percent", DEFAULT_BUILD_CPU_QUOTA_PERCENT)),
+        memory_high_percent=int(raw.get("memory_high_percent", DEFAULT_BUILD_MEMORY_HIGH_PERCENT)),
+        memory_max_percent=int(raw.get("memory_max_percent", DEFAULT_BUILD_MEMORY_MAX_PERCENT)),
+    )
 
 
 def _parse_shared_paths(runtime_cfg: dict[str, Any]) -> list[SharedPath]:
