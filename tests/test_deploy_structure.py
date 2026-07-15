@@ -321,6 +321,7 @@ def test_setup_enables_linger_for_build_user():
     helpers.assert_contains(c, "getsubids -g $(id -un)")
     helpers.assert_contains(c, 'test -S "/run/user/$(id -u)/bus"')
     helpers.assert_contains(c, "podman info")
+    helpers.assert_contains(c, "_chdir=build_home")
     helpers.assert_not_contains(c, "Delegate=")
     helpers.assert_not_contains(c, "cgroup.controllers")
     helpers.assert_not_contains(c, "python3 -c")

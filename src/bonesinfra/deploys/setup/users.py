@@ -133,6 +133,7 @@ def ensure_users_and_groups(ctx):
         ],
         _sudo=True,
         _sudo_user=build_user,
+        _chdir=build_home,
     )
 
 
