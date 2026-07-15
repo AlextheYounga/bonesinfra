@@ -1,10 +1,13 @@
 """Operation ordering and separation of concerns in deploy plans."""
 
+from jinja2 import Template
+
 from . import helpers
 
 SETUP_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/setup/plan.py"
 SETUP_PACKAGES = helpers.SRC_DIR / "bonesinfra/deploys/setup/packages.py"
 SETUP_USERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/users.py"
+BUILD_SLICE_DROPIN = helpers.SRC_DIR / "bonesinfra/assets/systemd/bonesdeploy-build.slice.j2"
 SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
 SETUP_PLACEHOLDER = helpers.SRC_DIR / "bonesinfra/deploys/setup/placeholder.py"
 SETUP_FIREWALL = helpers.SRC_DIR / "bonesinfra/deploys/setup/firewall.py"
@@ -325,6 +328,23 @@ def test_setup_enables_linger_for_build_user():
     helpers.assert_not_contains(c, "Delegate=")
     helpers.assert_not_contains(c, "cgroup.controllers")
     helpers.assert_not_contains(c, "python3 -c")
+
+
+def test_setup_limits_the_numeric_build_user_slice_idempotently():
+    c = helpers.read(SETUP_USERS)
+    dropin = helpers.read(BUILD_SLICE_DROPIN)
+
+    helpers.assert_contains(c, "host.get_fact(Cpus)")
+    helpers.assert_contains(c, "user-$(id -u")
+    helpers.assert_contains(c, "bonesdeploy-build.conf")
+    helpers.assert_contains(c, "cmp -s")
+    helpers.assert_contains(c, "systemctl daemon-reload")
+    helpers.assert_contains(c, "systemctl set-property --runtime")
+    helpers.assert_not_contains(c, "Delegate=")
+    helpers.assert_contains(dropin, "CPUQuota={{ cpu_quota }}")
+    helpers.assert_contains(dropin, "MemoryHigh=60%")
+    helpers.assert_contains(dropin, "MemoryMax=75%")
+    assert Template(dropin).render(cpu_quota="300%") == "[Slice]\nCPUQuota=300%\nMemoryHigh=60%\nMemoryMax=75%"
 
 
 # ---- ssl plan ----

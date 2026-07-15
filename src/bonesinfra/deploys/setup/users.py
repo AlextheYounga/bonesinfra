@@ -1,12 +1,15 @@
 from shlex import quote
 
 from pyinfra import host
+from pyinfra.facts.hardware import Cpus
 from pyinfra.facts.server import Users
 from pyinfra.operations import server
 
-from bonesinfra.infra.deploy_helpers import mkdir
+from bonesinfra.domain.paths import ASSETS_DIR
+from bonesinfra.infra.deploy_helpers import mkdir, render
 
 BUILD_USER_HOME_ROOT = "/var/lib/bonesdeploy/users"
+BUILD_SYSTEMD_STAGING_ROOT = "/run/bonesdeploy"
 
 
 def install_rust():
@@ -39,10 +42,18 @@ def build_home_for(project_name: str) -> str:
     return f"{BUILD_USER_HOME_ROOT}/{build_user_for(project_name)}"
 
 
+def cpu_quota_for(online_cpu_count: int) -> str:
+    if online_cpu_count < 1:
+        raise ValueError("online_cpu_count must be positive")
+    return f"{online_cpu_count * 75}%"
+
+
 def ensure_users_and_groups(ctx):
     build_user = build_user_for(ctx.config.project_name)
     build_group = build_group_for(ctx.config.project_name)
     build_home = build_home_for(ctx.config.project_name)
+    cpu_quota = cpu_quota_for(host.get_fact(Cpus))
+    staged_dropin = f"{BUILD_SYSTEMD_STAGING_ROOT}/{build_user}.slice.conf"
 
     server.user(
         name="Ensure deploy user exists",
@@ -115,6 +126,28 @@ def ensure_users_and_groups(ctx):
     server.shell(
         name=f"Start systemd user manager for {build_user}",
         commands=[f"systemctl start user@$(id -u {quote(build_user)}).service"],
+        _sudo=True,
+    )
+    mkdir(
+        name="Ensure systemd drop-in staging directory exists",
+        path=BUILD_SYSTEMD_STAGING_ROOT,
+    )
+    render(
+        name=f"Stage resource limits for {build_user}",
+        src=ASSETS_DIR / "systemd/bonesdeploy-build.slice.j2",
+        dest=staged_dropin,
+        cpu_quota=cpu_quota,
+    )
+    server.shell(
+        name=f"Install and apply resource limits for {build_user}",
+        commands=[
+            f"slice=user-$(id -u {quote(build_user)}).slice; "
+            'dropin="/etc/systemd/system/$slice.d/bonesdeploy-build.conf"; '
+            'install -d -m 0755 "${dropin%/*}"; '
+            f'cmp -s {quote(staged_dropin)} "$dropin" || {{ '
+            f'install -m 0644 {quote(staged_dropin)} "$dropin"; systemctl daemon-reload; '
+            f'systemctl set-property --runtime "$slice" CPUQuota={cpu_quota} MemoryHigh=60% MemoryMax=75%; }}'
+        ],
         _sudo=True,
     )
     server.shell(

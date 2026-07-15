@@ -53,6 +53,12 @@ distribution-allocated subordinate UID/GID mappings, and a lingering systemd
 user manager for rootless Podman. Runtime application users remain home-less
 and non-login.
 
+Each build user's outer `user-<UID>.slice` is limited by root-owned systemd
+resource control. CPUQuota is 75% of the server's online CPU capacity;
+MemoryHigh=60% is the soft reclaim/throttling threshold and MemoryMax=75% is
+the hard cgroup ceiling, so an over-limit build fails rather than starving the
+host. These are host-level limits, not rootless Podman delegation.
+
 BonesInfra does not own:
 
 - public user UX
