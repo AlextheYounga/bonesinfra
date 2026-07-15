@@ -48,6 +48,11 @@ BonesInfra owns:
 - runtime services
 - nginx/AppArmor/systemd provisioning details
 
+Setup provisioning gives each `<site>-build` user its own persistent home,
+distribution-allocated subordinate UID/GID mappings, and a lingering systemd
+user manager for rootless Podman. Runtime application users remain home-less
+and non-login.
+
 BonesInfra does not own:
 
 - public user UX

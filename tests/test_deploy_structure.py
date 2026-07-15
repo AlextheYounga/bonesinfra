@@ -293,16 +293,37 @@ def test_setup_creates_rootless_build_user_and_pseudo_home():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "build_user_for(ctx.config.project_name)")
     helpers.assert_contains(c, "group=build_group")
-    helpers.assert_contains(c, 'home="/nonexistent"')
+    helpers.assert_contains(c, "home=build_home")
+    helpers.assert_contains(c, "create_home=True")
     helpers.assert_contains(c, 'shell="/usr/sbin/nologin"')
     helpers.assert_contains(c, "path=BUILD_USER_HOME_ROOT")
     helpers.assert_contains(c, "path=build_home")
     helpers.assert_contains(c, 'mode="0700"')
+    helpers.assert_ordering(c, "path=BUILD_USER_HOME_ROOT", 'name="Ensure build user exists"')
+    build_user = c.split('name="Ensure build user exists"')[1].split(")")[0]
+    helpers.assert_not_contains(build_user, "system=True")
+
+
+def test_setup_keeps_runtime_user_homeless_and_non_login():
+    c = helpers.read(SETUP_USERS)
+    runtime_user = c.split('name="Ensure runtime user exists with groups"')[1].split(")")[0]
+
+    helpers.assert_contains(runtime_user, 'home="/nonexistent"')
+    helpers.assert_contains(runtime_user, 'shell="/usr/sbin/nologin"')
+    helpers.assert_contains(runtime_user, "create_home=False")
 
 
 def test_setup_enables_linger_for_build_user():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "loginctl enable-linger")
+    helpers.assert_contains(c, "systemctl start user@$(id -u")
+    helpers.assert_contains(c, "getsubids $(id -un)")
+    helpers.assert_contains(c, "getsubids -g $(id -un)")
+    helpers.assert_contains(c, 'test -S "/run/user/$(id -u)/bus"')
+    helpers.assert_contains(c, "podman info")
+    helpers.assert_not_contains(c, "Delegate=")
+    helpers.assert_not_contains(c, "cgroup.controllers")
+    helpers.assert_not_contains(c, "python3 -c")
 
 
 # ---- ssl plan ----
