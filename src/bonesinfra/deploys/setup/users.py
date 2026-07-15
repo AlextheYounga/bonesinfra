@@ -82,22 +82,26 @@ def ensure_users_and_groups(ctx):
     ):
         _ensure_group_membership(ctx.runtime.runtime_user, ctx.runtime.runtime_group)
 
-    server.user(
-        name="Ensure build user exists",
-        user=build_user,
-        group=build_group,
-        home="/nonexistent",
-        shell="/usr/sbin/nologin",
-        create_home=False,
-        _sudo=True,
-    )
-
     mkdir(
         name="Ensure bonesdeploy user home root exists",
         path=BUILD_USER_HOME_ROOT,
     )
+
+    # useradd allocates unused subuid/subgid ranges for new non-system users.
+    # ponytail: damaged existing mappings fail verification; repair them with
+    # administrator-selected usermod ranges rather than guessing new ownership.
+    server.user(
+        name="Ensure build user exists",
+        user=build_user,
+        group=build_group,
+        home=build_home,
+        shell="/usr/sbin/nologin",
+        create_home=True,
+        _sudo=True,
+    )
+
     mkdir(
-        name=f"Ensure podman pseudo-home for {build_user}",
+        name=f"Ensure persistent home for {build_user}",
         path=build_home,
         user=build_user,
         group=build_group,
@@ -107,6 +111,28 @@ def ensure_users_and_groups(ctx):
         name=f"Enable linger for {build_user}",
         commands=[f"loginctl enable-linger {quote(build_user)}"],
         _sudo=True,
+    )
+    server.shell(
+        name=f"Start systemd user manager for {build_user}",
+        commands=[f"systemctl start user@$(id -u {quote(build_user)}).service"],
+        _sudo=True,
+    )
+    server.shell(
+        name=f"Verify rootless Podman for {build_user}",
+        commands=[
+            'getsubids $(id -un) | grep -q . || (echo "ERROR: build user is missing subordinate UIDs" >&2; false)',
+            'getsubids -g $(id -un) | grep -q . || (echo "ERROR: build user is missing subordinate GIDs" >&2; false)',
+            "loginctl show-user $(id -un) -p Linger --value | grep -qx yes || "
+            '(echo "ERROR: build user lingering is disabled" >&2; false)',
+            "systemctl is-active --quiet user@$(id -u).service || "
+            '(echo "ERROR: build user manager is inactive" >&2; false)',
+            'test -S "/run/user/$(id -u)/bus" || (echo "ERROR: build user D-Bus socket is missing" >&2; false)',
+            f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
+            "podman info --format '{{.Host.Security.Rootless}}' | grep -qx true || "
+            '(echo "ERROR: rootless Podman is unavailable" >&2; false)',
+        ],
+        _sudo=True,
+        _sudo_user=build_user,
     )
 
 
