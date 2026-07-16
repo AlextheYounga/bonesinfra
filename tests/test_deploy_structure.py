@@ -344,8 +344,8 @@ def test_setup_limits_the_numeric_build_user_slice_idempotently():
     helpers.assert_contains(dropin, "CPUQuota={{ cpu_quota }}")
     helpers.assert_contains(dropin, "MemoryHigh={{ memory_high }}")
     helpers.assert_contains(dropin, "MemoryMax={{ memory_max }}")
-    assert Template(dropin).render(cpu_quota="300%", memory_high="60%", memory_max="75%") == (
-        "[Slice]\nCPUQuota=300%\nMemoryHigh=60%\nMemoryMax=75%"
+    assert Template(dropin).render(cpu_quota="300%", memory_high="80%", memory_max="80%") == (
+        "[Slice]\nCPUQuota=300%\nMemoryHigh=80%\nMemoryMax=80%"
     )
 
 
