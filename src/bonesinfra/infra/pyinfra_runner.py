@@ -30,9 +30,9 @@ def run(
 ) -> None:
     setup_output()
 
-    hostname = ctx.config.host
-    ssh_user = ctx.config.ssh_user
-    ssh_port = int(ctx.config.port)
+    hostname = ctx.app.server.host
+    ssh_user = ctx.app.server.ssh_user
+    ssh_port = int(ctx.app.server.port)
 
     host_data: dict[str, object] = {
         "ssh_user": ssh_user,

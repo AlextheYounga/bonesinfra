@@ -36,14 +36,13 @@ def test_run_passes_ssh_auth_through_inventory(monkeypatch):
     with TemporaryDirectory() as tmp:
         config_path = Path(tmp) / "bones.toml"
         config_path.write_text(
-            """
+            """[app]
 project_name = "lawsnipe"
-repo_path = "/srv/git/lawsnipe.git"
-project_root = "/srv/sites/lawsnipe"
+[app.server]
 host = "example.com"
 ssh_user = "root"
 port = 2222
-""".lstrip()
+"""
         )
 
         ctx = DeployContext.from_files(str(config_path))

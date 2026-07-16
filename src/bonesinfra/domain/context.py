@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 from bonesinfra.domain.paths import DeploymentPaths
@@ -12,73 +12,80 @@ DEPLOY_USER = "git"
 DEFAULT_SSH_USER = "root"
 DEFAULT_SSH_PORT = "22"
 DEFAULT_WEB_ROOT = "public"
-DEFAULT_BUILD_CPU_QUOTA_PERCENT = 80
-DEFAULT_BUILD_MEMORY_HIGH_PERCENT = 80
-DEFAULT_BUILD_MEMORY_MAX_PERCENT = 80
+DEFAULT_BUILD_CPU_QUOTA_PERCENT = 75
+DEFAULT_BUILD_MEMORY_HIGH_PERCENT = 60
+DEFAULT_BUILD_MEMORY_MAX_PERCENT = 75
 
 
 @dataclass
 class DeployContext:
-    config: BonesConfig
+    app: AppConfig
+    build: BuildConfig
     runtime: RuntimeConfig
 
     @classmethod
-    def from_files(
-        cls,
-        config_path: str,
-        runtime_config_path: str | None = None,
-    ) -> DeployContext:
+    def from_files(cls, config_path: str) -> DeployContext:
         with Path(config_path).open("rb") as f:
             bones_cfg = tomllib.load(f)
-        project_name = bones_cfg.get("project_name", "")
-        repo_path = bones_cfg.get("repo_path", "")
-        project_root = bones_cfg.get("project_root", "")
-        host = bones_cfg.get("host", "")
-        port = int(bones_cfg.get("port", DEFAULT_SSH_PORT))
-        build_resources = _parse_build_resources(bones_cfg)
+        app_cfg = _table(bones_cfg, "app")
+        server_cfg = _table(app_cfg, "server")
+        dns_cfg = _table(app_cfg, "dns")
+        deploy_cfg = _table(app_cfg, "deploy")
+        build_cfg = _table(bones_cfg, "build")
+        resources_cfg = _table(build_cfg, "resources")
+        runtime_cfg = _table(bones_cfg, "runtime")
+        permissions_cfg = _table(runtime_cfg, "permissions")
+        project_name = str(app_cfg.get("project_name", ""))
 
-        runtime_cfg = {}
-        if runtime_config_path:
-            rpath = Path(runtime_config_path)
-            if rpath.exists():
-                with rpath.open("rb") as f:
-                    runtime_cfg = tomllib.load(f)
-
-        config = BonesConfig(
-            remote_name=bones_cfg.get("remote_name", ""),
+        app = AppConfig(
+            remote_name=str(app_cfg.get("remote_name", "")),
             project_name=project_name,
-            ssh_user=bones_cfg.get("ssh_user", DEFAULT_SSH_USER),
-            host=host,
-            port=str(port),
-            repo_path=repo_path,
-            project_root=project_root,
-            branch=bones_cfg.get("branch", ""),
-            preview_domain=bones_cfg.get("preview_domain", ""),
-            releases_keep=int(bones_cfg.get("releases_keep", 5)),
-            ssl_enabled=bones_cfg.get("ssl_enabled", False),
-            domain=bones_cfg.get("domain", ""),
-            email=bones_cfg.get("email", ""),
-            deploy_user=DEPLOY_USER,
-            build_resources=build_resources,
+            server=ServerConfig(
+                host=str(server_cfg.get("host", "")),
+                ssh_user=str(server_cfg.get("ssh_user", DEFAULT_SSH_USER)),
+                port=str(int(server_cfg.get("port", DEFAULT_SSH_PORT))),
+            ),
+            dns=DnsConfig(
+                domain=str(dns_cfg.get("domain", "")),
+                preview_domain=str(dns_cfg.get("preview_domain", "")),
+                email=str(dns_cfg.get("email", "")),
+                ssl_enabled=bool(dns_cfg.get("ssl_enabled", False)),
+            ),
+            deploy=DeployConfig(
+                branch=str(deploy_cfg.get("branch", "master")),
+                deploy_on_push=bool(deploy_cfg.get("deploy_on_push", False)),
+                releases=int(deploy_cfg.get("releases", 5)),
+            ),
+        )
+        build = BuildConfig(
+            vars=_string_list(build_cfg.get("vars", []), "bones.toml [build].vars"),
+            resources=BuildResourceLimits(
+                cpu_quota_percent=int(resources_cfg.get("cpu_quota_percent", DEFAULT_BUILD_CPU_QUOTA_PERCENT)),
+                memory_high_percent=int(resources_cfg.get("memory_high_percent", DEFAULT_BUILD_MEMORY_HIGH_PERCENT)),
+                memory_max_percent=int(resources_cfg.get("memory_max_percent", DEFAULT_BUILD_MEMORY_MAX_PERCENT)),
+            ),
         )
 
         runtime = RuntimeConfig(
-            web_root=runtime_cfg.get("web_root", DEFAULT_WEB_ROOT),
-            runtime_user=runtime_cfg.get("runtime_user", project_name),
-            runtime_group=runtime_cfg.get("runtime_group", project_name),
-            shared_paths=_parse_shared_paths(runtime_cfg),
-            runtime_data=runtime_cfg,
+            runtime_user=str(runtime_cfg.get("runtime_user") or project_name),
+            runtime_group=str(runtime_cfg.get("runtime_group") or project_name),
+            permissions=RuntimePermissions(paths=_list(permissions_cfg, "paths")),
+            data={
+                key: value
+                for key, value in runtime_cfg.items()
+                if key not in {"runtime_user", "runtime_group", "permissions", "release_group"}
+            },
         )
 
-        return cls(config=config, runtime=runtime)
+        return cls(app=app, build=build, runtime=runtime)
 
     @property
     def host(self) -> str:
-        return self.config.host
+        return self.app.server.host
 
     @property
     def ssh_port(self) -> int:
-        return int(self.config.port)
+        return int(self.app.server.port)
 
     @property
     def paths(self) -> DeploymentPaths:
@@ -87,10 +94,9 @@ class DeployContext:
         except AttributeError:
             pass
         self._paths = DeploymentPaths.new(
-            self.config.project_name,
-            self.config.repo_path,
-            self.config.project_root,
-            self.runtime.web_root,
+            self.app.project_name,
+            f"/srv/git/{self.app.project_name}.git",
+            f"/srv/sites/{self.app.project_name}",
         )
         return self._paths
 
@@ -105,23 +111,23 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
         paths = ctx.paths_dict
 
     data: dict[str, Any] = {
-        "project_name": ctx.config.project_name,
-        "project_root": ctx.config.project_root,
-        "web_root": ctx.runtime.web_root,
-        "repo_path": ctx.config.repo_path,
-        "branch": ctx.config.branch,
-        "deploy_user": ctx.config.deploy_user,
+        "project_name": ctx.app.project_name,
+        "project_root": paths["project_root"],
+        "web_root": DEFAULT_WEB_ROOT,
+        "repo_path": paths["repo"],
+        "branch": ctx.app.deploy.branch,
+        "deploy_user": DEPLOY_USER,
         "runtime_user": ctx.runtime.runtime_user,
         "runtime_group": ctx.runtime.runtime_group,
         "project_root_parent": paths["project_root_parent"],
-        "ssh_port": int(ctx.config.port),
+        "ssh_port": int(ctx.app.server.port),
         "paths": paths,
-        "ssl_domain": ctx.config.domain,
-        "ssl_email": ctx.config.email,
-        "preview_domain": ctx.config.preview_domain,
+        "ssl_domain": ctx.app.dns.domain,
+        "ssl_email": ctx.app.dns.email,
+        "preview_domain": ctx.app.dns.preview_domain,
     }
 
-    for key, value in ctx.runtime.runtime_data.items():
+    for key, value in ctx.runtime.data.items():
         if key not in data:
             data[key] = value
 
@@ -148,98 +154,70 @@ class BuildResourceLimits:
 
 
 @dataclass
-class BonesConfig:
+class AppConfig:
     remote_name: str
     project_name: str
+    server: ServerConfig
+    dns: DnsConfig
+    deploy: DeployConfig
+
+
+@dataclass
+class ServerConfig:
     ssh_user: str
     host: str
     port: str
-    repo_path: str
-    project_root: str
-    branch: str
-    preview_domain: str
-    releases_keep: int
-    ssl_enabled: bool
+
+
+@dataclass
+class DnsConfig:
     domain: str
+    preview_domain: str
     email: str
-    deploy_user: str
-    build_resources: BuildResourceLimits = field(default_factory=BuildResourceLimits)
+    ssl_enabled: bool
+
+
+@dataclass
+class DeployConfig:
+    branch: str
+    deploy_on_push: bool
+    releases: int
+
+
+@dataclass
+class BuildConfig:
+    vars: list[str] = field(default_factory=list)
+    resources: BuildResourceLimits = field(default_factory=BuildResourceLimits)
+
+
+@dataclass(frozen=True)
+class RuntimePermissions:
+    paths: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
 class RuntimeConfig:
-    web_root: str
     runtime_user: str
     runtime_group: str
-    shared_paths: list[SharedPath] = field(default_factory=list)
-    runtime_data: dict[str, Any] = field(default_factory=dict)
+    permissions: RuntimePermissions = field(default_factory=RuntimePermissions)
+    data: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class SharedPath:
-    path: str
-    type: str
+def _table(parent: dict[str, Any], name: str) -> dict[str, Any]:
+    value = parent.get(name, {})
+    if not isinstance(value, dict):
+        raise TypeError(f"bones.toml [{name}] must be a table")
+    return value
 
 
-def _parse_build_resources(bones_cfg: dict[str, Any]) -> BuildResourceLimits:
-    raw = bones_cfg.get("build_resources", {})
-    if not isinstance(raw, dict):
-        raise TypeError("bones.toml [build_resources] must be a table")
-    return BuildResourceLimits(
-        cpu_quota_percent=int(raw.get("cpu_quota_percent", DEFAULT_BUILD_CPU_QUOTA_PERCENT)),
-        memory_high_percent=int(raw.get("memory_high_percent", DEFAULT_BUILD_MEMORY_HIGH_PERCENT)),
-        memory_max_percent=int(raw.get("memory_max_percent", DEFAULT_BUILD_MEMORY_MAX_PERCENT)),
-    )
+def _list(parent: dict[str, Any], name: str) -> list[dict[str, Any]]:
+    value = parent.get(name, [])
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise TypeError(f"bones.toml [{name}] must be a list of tables")
+    return value
 
 
-def _parse_shared_paths(runtime_cfg: dict[str, Any]) -> list[SharedPath]:
-    shared = runtime_cfg.get("shared")
-    if shared is None:
-        return []
-    if not isinstance(shared, dict):
-        raise TypeError("runtime.toml [shared] must be a table")
-
-    paths = shared.get("paths", [])
-    if not isinstance(paths, list):
-        raise TypeError("runtime.toml [shared].paths must be a list")
-
-    return [_parse_shared_path(entry) for entry in paths]
-
-
-def _parse_shared_path(entry: Any) -> SharedPath:
-    if not isinstance(entry, dict):
-        raise TypeError("runtime.toml [shared].paths entries must be tables")
-
-    raw_path = entry.get("path")
-    if not isinstance(raw_path, str) or not raw_path:
-        raise ValueError("runtime.toml [shared].paths entries need a non-empty string path")
-
-    path = _validate_shared_path(raw_path)
-    path_type = entry.get("type")
-    if path_type not in {"file", "dir"}:
-        raise ValueError(f"invalid shared path type for {path}: {path_type!r}")
-
-    return SharedPath(path=path, type=path_type)
-
-
-def _validate_shared_path(raw_path: str) -> str:
-    if "\\" in raw_path:
-        raise ValueError(f"invalid shared path {raw_path!r}: use forward slashes")
-    if raw_path.startswith("/"):
-        raise ValueError(f"invalid shared path {raw_path!r}: path must be relative")
-
-    for part in raw_path.split("/"):
-        if part in {"", ".", ".."}:
-            raise ValueError(f"invalid shared path {raw_path!r}: path must use normal components only")
-
-    path = PurePosixPath(raw_path)
-
-    parts = path.parts
-    if not parts:
-        raise ValueError("invalid shared path '': path must not be empty")
-
-    for part in parts:
-        if part in {"", ".", ".."}:
-            raise ValueError(f"invalid shared path {raw_path!r}: path must use normal components only")
-
-    return path.as_posix()
+def _string_list(value: Any, name: str) -> list[str]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise TypeError(f"{name} must be a list of strings")
+    return value

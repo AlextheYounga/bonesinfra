@@ -2,7 +2,7 @@ from pyinfra.operations import apt
 
 
 def install_apt(ctx):
-    pkgs = ctx.runtime.runtime_data.get("runtime_apt_packages", [])
+    pkgs = ctx.runtime.data.get("runtime_apt_packages", [])
     if not pkgs:
         return
     apt.packages(

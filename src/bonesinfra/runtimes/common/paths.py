@@ -11,7 +11,7 @@ def ensure_runtime_dirs(ctx):
     """
     # 0711: system nginx (www-data) must traverse /run/<project>/ to reach
     # the per-site nginx socket. 0750 would cause 502 on every public request.
-    project = ctx.config.project_name
+    project = ctx.app.project_name
     files.directory(
         name="Ensure runtime socket directory exists",
         path=f"{RUNTIME_SOCKET_PARENT}/{project}",

@@ -15,7 +15,7 @@ def questions():
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/sveltekit/sveltekit.sock"
-    origin = f"https://{ctx.config.domain}" if ctx.config.domain else "https://localhost"
+    origin = f"https://{ctx.app.dns.domain}" if ctx.app.dns.domain else "https://localhost"
     node.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)

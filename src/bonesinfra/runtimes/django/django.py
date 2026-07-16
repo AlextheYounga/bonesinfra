@@ -48,7 +48,7 @@ def questions():
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/gunicorn/gunicorn.sock"
-    wsgi_module = ctx.runtime.runtime_data.get("wsgi_module", "config.wsgi:application")
+    wsgi_module = ctx.runtime.data.get("wsgi_module", "config.wsgi:application")
     writable = [f"{paths['shared']}/staticfiles", f"{paths['shared']}/media"]
     gunicorn_bin = f"{paths['current']}/.venv/bin/gunicorn"
     python_packages.install_packages()

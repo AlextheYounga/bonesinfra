@@ -43,9 +43,8 @@ def runtime_questions(
 @runtime_app.command("apply")
 def runtime_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
-    runtime_config: str = typer.Option(..., "--runtime-config", help="Path to runtime.toml"),
 ):
-    ctx = DeployContext.from_files(config, runtime_config)
+    ctx = DeployContext.from_files(config)
     _validate_host(ctx)
     run(ctx=ctx, deploy=deploy_runtime)
 
@@ -64,7 +63,7 @@ def ssl_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
 ):
     ctx = DeployContext.from_files(config)
-    if not ctx.config.domain or not ctx.config.email:
+    if not ctx.app.dns.domain or not ctx.app.dns.email:
         print("Error: ssl.domain and ssl.email are required in bones.toml", file=sys.stderr)
         sys.exit(3)
     _validate_host(ctx)

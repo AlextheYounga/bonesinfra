@@ -5,7 +5,7 @@ from pyinfra.facts.hardware import Cpus
 from pyinfra.facts.server import Users
 from pyinfra.operations import server
 
-from bonesinfra.domain.context import DEFAULT_BUILD_CPU_QUOTA_PERCENT
+from bonesinfra.domain.context import DEFAULT_BUILD_CPU_QUOTA_PERCENT, DEPLOY_USER
 from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import mkdir, render
 
@@ -50,16 +50,16 @@ def cpu_quota_for(online_cpu_count: int, per_cpu_percent: int = DEFAULT_BUILD_CP
 
 
 def ensure_users_and_groups(ctx):
-    build_user = build_user_for(ctx.config.project_name)
-    build_group = build_group_for(ctx.config.project_name)
-    build_home = build_home_for(ctx.config.project_name)
-    resources = ctx.config.build_resources
+    build_user = build_user_for(ctx.app.project_name)
+    build_group = build_group_for(ctx.app.project_name)
+    build_home = build_home_for(ctx.app.project_name)
+    resources = ctx.build.resources
     cpu_quota = cpu_quota_for(host.get_fact(Cpus), resources.cpu_quota_percent)
     staged_dropin = f"{BUILD_SYSTEMD_STAGING_ROOT}/{build_user}.slice.conf"
 
     server.user(
         name="Ensure deploy user exists",
-        user=ctx.config.deploy_user,
+        user=DEPLOY_USER,
         shell="/bin/bash",
         ensure_home=True,
         _sudo=True,
@@ -176,8 +176,8 @@ def ensure_users_and_groups(ctx):
 
 
 def install_authorized_key(ctx):
-    deploy_user = ctx.config.deploy_user
-    ssh_user = ctx.config.ssh_user
+    deploy_user = DEPLOY_USER
+    ssh_user = ctx.app.server.ssh_user
     server.shell(
         name=f"Copy {ssh_user} SSH key to deploy user {deploy_user}",
         commands=[

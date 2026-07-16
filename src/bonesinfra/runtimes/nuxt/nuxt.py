@@ -19,7 +19,7 @@ def questions():
 
 
 def deploy(ctx):
-    is_static = ctx.runtime.runtime_data.get("is_static", True)
+    is_static = ctx.runtime.data.get("is_static", True)
     paths = service.runtime_paths(ctx)
 
     if is_static:

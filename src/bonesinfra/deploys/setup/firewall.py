@@ -2,15 +2,15 @@ from pyinfra.operations import server
 
 
 def configure(ctx):
-    if not ctx.runtime.runtime_data.get("firewall_enabled", True):
+    if not ctx.runtime.data.get("firewall_enabled", True):
         return
 
-    ssh_port = int(ctx.runtime.runtime_data.get("ssh_port", int(ctx.config.port)))
-    allowed_ports = ctx.runtime.runtime_data.get("firewall_allowed_ports", ["http", "https"])
-    port_aliases = ctx.runtime.runtime_data.get("firewall_port_aliases", {"http": 80, "https": 443})
-    rate_limit = ctx.runtime.runtime_data.get("firewall_ssh_rate_limit", False)
-    ssh_cidrs = ctx.runtime.runtime_data.get("firewall_ssh_allowed_cidrs", [])
-    manage_ssh = ctx.runtime.runtime_data.get("firewall_manage_ssh", True)
+    ssh_port = int(ctx.runtime.data.get("ssh_port", int(ctx.app.server.port)))
+    allowed_ports = ctx.runtime.data.get("firewall_allowed_ports", ["http", "https"])
+    port_aliases = ctx.runtime.data.get("firewall_port_aliases", {"http": 80, "https": 443})
+    rate_limit = ctx.runtime.data.get("firewall_ssh_rate_limit", False)
+    ssh_cidrs = ctx.runtime.data.get("firewall_ssh_allowed_cidrs", [])
+    manage_ssh = ctx.runtime.data.get("firewall_manage_ssh", True)
 
     cmds = []
 
@@ -27,8 +27,8 @@ def configure(ctx):
         port_num = port_aliases.get(port, port)
         cmds.append(f"ufw allow {port_num}/tcp")
 
-    incoming = ctx.runtime.runtime_data.get("firewall_default_incoming_policy", "deny")
-    outgoing = ctx.runtime.runtime_data.get("firewall_default_outgoing_policy", "allow")
+    incoming = ctx.runtime.data.get("firewall_default_incoming_policy", "deny")
+    outgoing = ctx.runtime.data.get("firewall_default_outgoing_policy", "allow")
     cmds.append(f"ufw --force default {incoming} incoming")
     cmds.append(f"ufw --force default {outgoing} outgoing")
     cmds.append("ufw --force enable")
@@ -39,7 +39,7 @@ def configure(ctx):
         _sudo=True,
     )
 
-    if ctx.runtime.runtime_data.get("firewall_show_status", True):
+    if ctx.runtime.data.get("firewall_show_status", True):
         server.shell(
             name="Display UFW status",
             commands=["ufw status verbose"],

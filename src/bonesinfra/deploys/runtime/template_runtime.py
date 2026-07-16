@@ -1,5 +1,5 @@
 def load(ctx):
-    template = ctx.runtime.runtime_data.get("template")
+    template = ctx.runtime.data.get("template")
     if not template:
         return
 

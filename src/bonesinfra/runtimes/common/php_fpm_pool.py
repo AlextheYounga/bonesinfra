@@ -19,7 +19,7 @@ def ensure_log_dir(ctx):
 
 
 def render_pool(ctx, *, here, paths, php_version):
-    project = ctx.config.project_name
+    project = ctx.app.project_name
     files.template(
         name="Deploy Laravel PHP-FPM pool config",
         src=str(here / "assets/php/php-fpm-pool.conf.j2"),

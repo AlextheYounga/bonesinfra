@@ -43,11 +43,11 @@ def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/puma/puma.sock"
     runtime_write_paths = [
-        f"{paths['shared']}/tmp",
+        f"{paths['shared']}/tmp",  # noqa: S108
         f"{paths['shared']}/log",
         f"{paths['shared']}/storage",
     ]
-    rails_env = ctx.runtime.runtime_data.get("rails_env", "production")
+    rails_env = ctx.runtime.data.get("rails_env", "production")
     ruby_packages.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)

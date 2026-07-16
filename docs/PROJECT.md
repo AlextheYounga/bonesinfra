@@ -55,7 +55,7 @@ and non-login.
 
 Each build user's outer `user-<UID>.slice` is limited by root-owned systemd
 resource control. The defaults are configurable in `bones.toml` under
-`[build_resources]`: `cpu_quota_percent = 75`, `memory_high_percent = 60`, and
+`[build.resources]`: `cpu_quota_percent = 75`, `memory_high_percent = 60`, and
 `memory_max_percent = 75`. CPUQuota is that percentage of each online CPU;
 MemoryHigh is the soft reclaim/throttling threshold, while MemoryMax is the hard
 cgroup ceiling, so exceeding it fails the build rather than starving the host.
@@ -96,11 +96,11 @@ bonesinfra runtime list
 bonesinfra runtime questions <runtime>
 bonesinfra helpers apply --config <bones.toml>
 bonesinfra setup apply --config <bones.toml>
-bonesinfra runtime apply --config <bones.toml> --runtime-config <runtime.toml>
+bonesinfra runtime apply --config <bones.toml>
 bonesinfra ssl apply --config <bones.toml>
 ```
 
-`ssh_user` is read from `bones.toml` (`ssh_user` key, default `"root"`) instead of a CLI flag.
+`ssh_user` is read from `bones.toml` (`app.server.ssh_user` key, default `"root"`) instead of a CLI flag.
 
 This command surface is an internal contract with `bonesdeploy`.
 
@@ -233,11 +233,12 @@ Responsibilities:
 
 Domain code should not import pyinfra.
 
-`domain/context.py` defines three dataclasses:
+`domain/context.py` mirrors the top-level `bones.toml` sections:
 
-- **`BonesConfig`**: strictly typed fields from `bones.toml` (top-level keys: `project_name`, `host`, `ssh_user`, `domain`, `email`, `deploy_user`, etc.)
-- **`RuntimeConfig`**: `web_root`, `runtime_user`, `runtime_group`, validated `shared_paths`, plus `runtime_data` dict for dynamic runtime.toml keys
-- **`DeployContext`**: wraps `config: BonesConfig` + `runtime: RuntimeConfig` — the single object passed through to deploy plans
+- **`AppConfig`**: the `[app]`, `[app.server]`, `[app.dns]`, and `[app.deploy]` tables
+- **`BuildConfig`**: the `[build]` and `[build.resources]` tables
+- **`RuntimeConfig`**: the typed `[runtime]` identity and permissions fields, plus dynamic runtime settings
+- **`DeployContext`**: wraps `app`, `build`, and `runtime` and provides derived deployment paths
 
 No flat dict. No `host.data` side-channel.
 
@@ -307,7 +308,7 @@ def deploy_setup(ctx):     # ctx: DeployContext
 
 Sub-modules receive `(ctx, paths)` — no flat dict.
 
-Deploy plans derive `paths` from `DeploymentPaths.new(ctx.config.project_name, ctx.config.repo_path, ctx.config.project_root, ctx.runtime.web_root)` and pass it to sub-modules along with `ctx`.
+Deploy plans use `ctx.paths_dict`, derived from `ctx.app.project_name`, and pass it to sub-modules along with `ctx`.
 
 Raw pyinfra operations should live in focused modules.
 
@@ -349,42 +350,46 @@ ______________________________________________________________________
 
 `DeployContext` is the main object passed from app services into pyinfra plans.
 
-It wraps two typed dataclasses:
+It mirrors the three top-level config sections:
 
 ```python
 @dataclass
 class DeployContext:
-    config: BonesConfig      # strictly typed fields from bones.toml
-    runtime: RuntimeConfig   # runtime identity + dynamic runtime.toml keys
+    app: AppConfig
+    build: BuildConfig
+    runtime: RuntimeConfig
 ```
 
-## BonesConfig
+## AppConfig
 
-Typed fields read from top-level `bones.toml` keys:
+Typed fields read from nested `bones.toml` tables:
 
 ```text
-project_name, host, ssh_user, port, repo_path, project_root,
-branch, preview_domain, releases_keep, ssl_enabled, domain, email,
-remote_name, deploy_user
+`app.project_name`, `app.remote_name`, `app.server.host`, `app.server.ssh_user`,
+`app.server.port`, `app.deploy.branch`, `app.deploy.releases`,
+`app.dns.preview_domain`, `app.dns.ssl_enabled`, `app.dns.domain`, and
+`app.dns.email`. Repository and site paths are derived from `app.project_name`.
 ```
 
-Build resource policy is read from the optional `[build_resources]` table in
-`bones.toml` (the defaults are shown above).
+## BuildConfig
+
+`build.vars` is the build environment allowlist. Resource limits come from the
+optional `[build.resources]` table and default to the host-level values described above.
 
 ## RuntimeConfig
 
 ```text
-web_root           # docroot (default "public")
 runtime_user       # process user for nginx/php-fpm (default: project_name)
 runtime_group      # process group (default: project_name)
-runtime_data       # dict — all other keys from runtime.toml
+permissions        # [runtime.permissions] table
+data               # dynamic runtime-specific settings from [runtime]
 ```
 
 ## template_data()
 
 For Jinja2 template rendering, use `template_data(ctx, *, paths=None, **extra)`.
 It assembles a flat dict from the typed fields (project_name, runtime_user, paths, etc.)
-and merges `runtime.runtime_data` for dynamic keys.
+and merges `runtime.data` for dynamic keys.
 
 No `flat_data` property on `DeployContext`. No `host.data` side-channel.
 Plan files receive `ctx` directly as a function parameter.
@@ -513,7 +518,7 @@ The current model uses a single per-project identity:
 - **No separate release group** — releases are owned/sealed using the runtime group
 - Directories: `releases/` is `root:runtime_group 2750`, `shared/` is `runtime_user:runtime_group 0750`
 - The deploy user (`git`) is NOT added to the runtime group
-- The `release_group` key is deprecated; if it appears in `runtime.toml` input, bonesinfra logs a warning and ignores it
+- The `release_group` key is metadata only; provisioning does not use it
 
 ## Sudoers Contract
 

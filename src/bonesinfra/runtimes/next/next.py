@@ -19,7 +19,7 @@ def questions():
 
 
 def deploy(ctx):
-    is_static = ctx.runtime.runtime_data.get("is_static", True)
+    is_static = ctx.runtime.data.get("is_static", True)
     paths = service.runtime_paths(ctx)
 
     if is_static:
@@ -44,7 +44,7 @@ def deploy(ctx):
         nginx.render_static(ctx, paths=paths, root=STATIC_ROOT)
         return
 
-    port = ctx.runtime.runtime_data.get("internal_port", 3100)
+    port = ctx.runtime.data.get("internal_port", 3100)
     node.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)

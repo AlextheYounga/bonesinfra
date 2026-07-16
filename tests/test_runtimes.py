@@ -52,7 +52,7 @@ def test_laravel_php_fpm_cleans_orphaned_project_pools(monkeypatch):
         calls.append(kwargs)
 
     monkeypatch.setattr(php_fpm.server, "shell", fake_shell)
-    ctx = SimpleNamespace(config=SimpleNamespace(project_name="demo"))
+    ctx = SimpleNamespace(app=SimpleNamespace(project_name="demo"))
 
     php_fpm.cleanup_orphaned_pools(ctx, "8.5")
 
