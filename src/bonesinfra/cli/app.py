@@ -23,7 +23,7 @@ app.add_typer(helpers_app, name="helpers", help="Helper tool operations")
 
 
 def _validate_host(ctx: DeployContext) -> None:
-    if not ctx.host:
+    if not ctx.app.server.host:
         print("Error: missing host in bones.toml", file=sys.stderr)
         sys.exit(3)
 

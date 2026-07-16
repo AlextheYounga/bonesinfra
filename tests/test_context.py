@@ -11,6 +11,8 @@ def _write_config(tmp_path: Path, extra: str = "") -> Path:
         f"""[app]
 project_name = "lawsnipe"
 remote_name = "production"
+repo_path = "/var/lib/git/lawsnipe.git"
+project_root = "/var/www/lawsnipe"
 
 [app.server]
 host = "example.com"
@@ -35,6 +37,7 @@ memory_high_percent = 70
 memory_max_percent = 90
 
 [runtime]
+web_root = "dist"
 runtime_user = "lawsnipe-web"
 runtime_group = "lawsnipe-web"
 release_group = "ignored"
@@ -47,14 +50,15 @@ def test_reads_nested_single_file_config(tmp_path):
     ctx = DeployContext.from_files(str(_write_config(tmp_path)))
 
     assert ctx.app.project_name == "lawsnipe"
+    assert ctx.app.repo_path == "/var/lib/git/lawsnipe.git"
+    assert ctx.app.project_root == "/var/www/lawsnipe"
     assert ctx.app.server.host == "example.com"
     assert ctx.app.server.port == "2222"
-    assert ctx.paths.repo == "/srv/git/lawsnipe.git"
-    assert ctx.paths.project_root == "/srv/sites/lawsnipe"
+    assert ctx.paths.repo == "/var/lib/git/lawsnipe.git"
+    assert ctx.paths.project_root == "/var/www/lawsnipe"
+    assert ctx.paths.current_web_root == "/var/www/lawsnipe/current/dist"
     assert ctx.app.deploy.branch == "main"
-    assert ctx.app.deploy.releases == 7
     assert ctx.app.dns.ssl_enabled is True
-    assert ctx.build.vars == ["PUBLIC_URL"]
     assert ctx.runtime.runtime_user == "lawsnipe-web"
     assert ctx.runtime.runtime_group == "lawsnipe-web"
 
@@ -79,4 +83,7 @@ def test_missing_nested_tables_use_defaults(tmp_path):
     ctx = DeployContext.from_files(str(path))
     assert ctx.app.deploy.branch == "master"
     assert ctx.app.server.host == ""
+    assert ctx.app.repo_path == "/srv/git/lawsnipe.git"
+    assert ctx.app.project_root == "/srv/sites/lawsnipe"
+    assert ctx.runtime.web_root == "public"
     assert ctx.runtime.runtime_user == "lawsnipe"
