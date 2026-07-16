@@ -53,6 +53,8 @@ distribution-allocated subordinate UID/GID mappings, and a lingering systemd
 user manager for rootless Podman. Runtime application users remain home-less
 and non-login.
 
+Repository and site paths come from `app.repo_path` and `app.project_root`.
+
 Each build user's outer `user-<UID>.slice` is limited by root-owned systemd
 resource control. The defaults are configurable in `bones.toml` under
 `[build.resources]`: `cpu_quota_percent = 75`, `memory_high_percent = 60`, and
@@ -237,7 +239,7 @@ Domain code should not import pyinfra.
 
 - **`AppConfig`**: the `[app]`, `[app.server]`, `[app.dns]`, and `[app.deploy]` tables
 - **`BuildConfig`**: the `[build]` and `[build.resources]` tables
-- **`RuntimeConfig`**: the typed `[runtime]` identity and permissions fields, plus dynamic runtime settings
+- **`RuntimeConfig`**: the typed `[runtime]` identity fields, plus dynamic runtime settings
 - **`DeployContext`**: wraps `app`, `build`, and `runtime` and provides derived deployment paths
 
 No flat dict. No `host.data` side-channel.
@@ -308,7 +310,7 @@ def deploy_setup(ctx):     # ctx: DeployContext
 
 Sub-modules receive `(ctx, paths)` — no flat dict.
 
-Deploy plans use `ctx.paths_dict`, derived from `ctx.app.project_name`, and pass it to sub-modules along with `ctx`.
+Deploy plans use `ctx.paths_dict`, derived from `ctx.app` and `ctx.runtime.web_root`, and pass it to sub-modules along with `ctx`.
 
 Raw pyinfra operations should live in focused modules.
 
@@ -365,23 +367,25 @@ class DeployContext:
 Typed fields read from nested `bones.toml` tables:
 
 ```text
-`app.project_name`, `app.remote_name`, `app.server.host`, `app.server.ssh_user`,
-`app.server.port`, `app.deploy.branch`, `app.deploy.releases`,
+`app.project_name`, `app.repo_path`, `app.project_root`, `app.server.host`,
+`app.server.ssh_user`, `app.server.port`, `app.deploy.branch`,
 `app.dns.preview_domain`, `app.dns.ssl_enabled`, `app.dns.domain`, and
-`app.dns.email`. Repository and site paths are derived from `app.project_name`.
+`app.dns.email`. Deployment-owned fields such as `app.remote_name`,
+`app.deploy.deploy_on_push`, and `app.deploy.releases` remain outside
+`DeployContext`.
 ```
 
 ## BuildConfig
 
-`build.vars` is the build environment allowlist. Resource limits come from the
-optional `[build.resources]` table and default to the host-level values described above.
+BonesInfra reads resource limits from the optional `[build.resources]` table.
+`build.vars` is consumed by BonesRemote and is not retained in `DeployContext`.
 
 ## RuntimeConfig
 
 ```text
 runtime_user       # process user for nginx/php-fpm (default: project_name)
 runtime_group      # process group (default: project_name)
-permissions        # [runtime.permissions] table
+web_root           # release directory served by nginx (default: public)
 data               # dynamic runtime-specific settings from [runtime]
 ```
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from bonesinfra.domain.paths import DeploymentPaths
+from bonesinfra.domain.paths import DEFAULT_PROJECT_ROOT_PARENT, DEFAULT_REPO_PARENT, DeploymentPaths
 
 DEPLOY_USER = "git"
 
@@ -34,12 +34,12 @@ class DeployContext:
         build_cfg = _table(bones_cfg, "build")
         resources_cfg = _table(build_cfg, "resources")
         runtime_cfg = _table(bones_cfg, "runtime")
-        permissions_cfg = _table(runtime_cfg, "permissions")
         project_name = str(app_cfg.get("project_name", ""))
 
         app = AppConfig(
-            remote_name=str(app_cfg.get("remote_name", "")),
             project_name=project_name,
+            repo_path=str(app_cfg.get("repo_path") or f"{DEFAULT_REPO_PARENT}/{project_name}.git"),
+            project_root=str(app_cfg.get("project_root") or f"{DEFAULT_PROJECT_ROOT_PARENT}/{project_name}"),
             server=ServerConfig(
                 host=str(server_cfg.get("host", "")),
                 ssh_user=str(server_cfg.get("ssh_user", DEFAULT_SSH_USER)),
@@ -51,14 +51,9 @@ class DeployContext:
                 email=str(dns_cfg.get("email", "")),
                 ssl_enabled=bool(dns_cfg.get("ssl_enabled", False)),
             ),
-            deploy=DeployConfig(
-                branch=str(deploy_cfg.get("branch", "master")),
-                deploy_on_push=bool(deploy_cfg.get("deploy_on_push", False)),
-                releases=int(deploy_cfg.get("releases", 5)),
-            ),
+            deploy=DeployConfig(branch=str(deploy_cfg.get("branch", "master"))),
         )
         build = BuildConfig(
-            vars=_string_list(build_cfg.get("vars", []), "bones.toml [build].vars"),
             resources=BuildResourceLimits(
                 cpu_quota_percent=int(resources_cfg.get("cpu_quota_percent", DEFAULT_BUILD_CPU_QUOTA_PERCENT)),
                 memory_high_percent=int(resources_cfg.get("memory_high_percent", DEFAULT_BUILD_MEMORY_HIGH_PERCENT)),
@@ -67,25 +62,17 @@ class DeployContext:
         )
 
         runtime = RuntimeConfig(
+            web_root=str(runtime_cfg.get("web_root") or DEFAULT_WEB_ROOT),
             runtime_user=str(runtime_cfg.get("runtime_user") or project_name),
             runtime_group=str(runtime_cfg.get("runtime_group") or project_name),
-            permissions=RuntimePermissions(paths=_list(permissions_cfg, "paths")),
             data={
                 key: value
                 for key, value in runtime_cfg.items()
-                if key not in {"runtime_user", "runtime_group", "permissions", "release_group"}
+                if key not in {"web_root", "runtime_user", "runtime_group", "permissions", "release_group", "shared"}
             },
         )
 
         return cls(app=app, build=build, runtime=runtime)
-
-    @property
-    def host(self) -> str:
-        return self.app.server.host
-
-    @property
-    def ssh_port(self) -> int:
-        return int(self.app.server.port)
 
     @property
     def paths(self) -> DeploymentPaths:
@@ -95,8 +82,9 @@ class DeployContext:
             pass
         self._paths = DeploymentPaths.new(
             self.app.project_name,
-            f"/srv/git/{self.app.project_name}.git",
-            f"/srv/sites/{self.app.project_name}",
+            self.app.repo_path,
+            self.app.project_root,
+            self.runtime.web_root,
         )
         return self._paths
 
@@ -113,7 +101,7 @@ def template_data(ctx: DeployContext, *, paths: dict[str, Any] | None = None, **
     data: dict[str, Any] = {
         "project_name": ctx.app.project_name,
         "project_root": paths["project_root"],
-        "web_root": DEFAULT_WEB_ROOT,
+        "web_root": ctx.runtime.web_root,
         "repo_path": paths["repo"],
         "branch": ctx.app.deploy.branch,
         "deploy_user": DEPLOY_USER,
@@ -155,8 +143,9 @@ class BuildResourceLimits:
 
 @dataclass
 class AppConfig:
-    remote_name: str
     project_name: str
+    repo_path: str
+    project_root: str
     server: ServerConfig
     dns: DnsConfig
     deploy: DeployConfig
@@ -180,26 +169,18 @@ class DnsConfig:
 @dataclass
 class DeployConfig:
     branch: str
-    deploy_on_push: bool
-    releases: int
 
 
 @dataclass
 class BuildConfig:
-    vars: list[str] = field(default_factory=list)
     resources: BuildResourceLimits = field(default_factory=BuildResourceLimits)
-
-
-@dataclass(frozen=True)
-class RuntimePermissions:
-    paths: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
 class RuntimeConfig:
+    web_root: str
     runtime_user: str
     runtime_group: str
-    permissions: RuntimePermissions = field(default_factory=RuntimePermissions)
     data: dict[str, Any] = field(default_factory=dict)
 
 
@@ -207,17 +188,4 @@ def _table(parent: dict[str, Any], name: str) -> dict[str, Any]:
     value = parent.get(name, {})
     if not isinstance(value, dict):
         raise TypeError(f"bones.toml [{name}] must be a table")
-    return value
-
-
-def _list(parent: dict[str, Any], name: str) -> list[dict[str, Any]]:
-    value = parent.get(name, [])
-    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
-        raise TypeError(f"bones.toml [{name}] must be a list of tables")
-    return value
-
-
-def _string_list(value: Any, name: str) -> list[str]:
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-        raise TypeError(f"{name} must be a list of strings")
     return value
