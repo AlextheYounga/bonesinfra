@@ -3,17 +3,11 @@ from pathlib import Path
 from pyinfra.operations import files, systemd
 
 from bonesinfra.domain.context import template_data
-from bonesinfra.domain.paths import DeploymentPaths
 from bonesinfra.runtimes.common import validation
 
 
 def runtime_paths(ctx):
-    return DeploymentPaths.new(
-        ctx.config.project_name,
-        ctx.config.repo_path,
-        ctx.config.project_root,
-        ctx.runtime.web_root,
-    ).__dict__
+    return ctx.paths_dict
 
 
 def render_app_service(  # noqa: PLR0913
@@ -28,7 +22,7 @@ def render_app_service(  # noqa: PLR0913
     runtime_address_families="AF_UNIX",
 ):
     here = Path(__file__).parent
-    project = ctx.config.project_name
+    project = ctx.app.project_name
     files.template(
         name=f"Deploy {name} systemd service",
         src=str(here / "assets/app.service.j2"),
@@ -48,7 +42,7 @@ def render_app_service(  # noqa: PLR0913
 
 
 def enable_and_start(ctx, name, *, apparmor_profile_name=None):
-    service = f"{ctx.config.project_name}-{name}.service"
+    service = f"{ctx.app.project_name}-{name}.service"
     systemd.service(
         name=f"Enable and start {name} service",
         service=service,

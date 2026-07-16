@@ -26,4 +26,4 @@ def deploy_setup(ctx):
     unattended_upgrades.configure()
     users.install_authorized_key(ctx)
     bonesremote.install()
-    sudoers.install(ctx, paths)
+    sudoers.install(paths)

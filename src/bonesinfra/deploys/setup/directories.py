@@ -2,6 +2,7 @@ from shlex import quote
 
 from pyinfra.operations import files, server
 
+from bonesinfra.domain.context import DEPLOY_USER
 from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import mkdir
 
@@ -16,31 +17,31 @@ def setup_repo_and_project(ctx, paths):
     mkdir(
         name="Ensure bare repo parent directory exists",
         path=paths["repo_parent"],
-        user=ctx.config.deploy_user,
-        group=ctx.config.deploy_user,
+        user=DEPLOY_USER,
+        group=DEPLOY_USER,
     )
 
     server.shell(
         name="Initialize bare git repo",
-        commands=[_user_env_command(ctx.config.deploy_user, f"git init --bare {quote(paths['repo'])}")],
+        commands=[_user_env_command(DEPLOY_USER, f"git init --bare {quote(paths['repo'])}")],
         _sudo=True,
-        _sudo_user=ctx.config.deploy_user,
+        _sudo_user=DEPLOY_USER,
     )
 
     repo = quote(paths["repo"])
     server.shell(
         name="Set bare repo default branch",
-        commands=[f"git --git-dir {repo} symbolic-ref HEAD refs/heads/{ctx.config.branch}"],
+        commands=[f"git --git-dir {repo} symbolic-ref HEAD refs/heads/{ctx.app.deploy.branch}"],
         _sudo=True,
-        _sudo_user=ctx.config.deploy_user,
+        _sudo_user=DEPLOY_USER,
     )
 
     files.put(
         name="Install bare repo post-receive hook",
         src=str(ASSETS_DIR / "hooks/post-receive"),
         dest=f"{paths['repo']}/hooks/post-receive",
-        user=ctx.config.deploy_user,
-        group=ctx.config.deploy_user,
+        user=DEPLOY_USER,
+        group=DEPLOY_USER,
         mode="0755",
         _sudo=True,
     )
@@ -53,7 +54,7 @@ def setup_repo_and_project(ctx, paths):
 
     mkdir(
         name="Ensure project root boundary exists",
-        path=ctx.config.project_root,
+        path=paths["project_root"],
         user="root",
         group="root",
         mode="0751",

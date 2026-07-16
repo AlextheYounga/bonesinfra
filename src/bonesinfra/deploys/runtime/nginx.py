@@ -56,15 +56,15 @@ def setup(ctx, paths):
         _sudo=True,
     )
 
-    nginx_server_name = ctx.config.domain or ctx.config.preview_domain
+    nginx_server_name = ctx.app.dns.domain or ctx.app.dns.preview_domain
     if not nginx_server_name:
         raise ValueError("domain or preview_domain is required for nginx config")
 
-    # SSL state comes from bones.toml (ssl_enabled), not runtime.toml — SSL is
+    # SSL state comes from bones.toml (app.dns.ssl_enabled), not runtime data — SSL is
     # owned by `ssl apply`, not `runtime apply`. This keeps runtime apply from
     # clobbering the SSL router config that ssl apply wrote.
-    nginx_ssl_enabled = ctx.config.ssl_enabled and ctx.config.domain
-    cert_path, key_path = letsencrypt_cert_paths(ctx.config.domain or nginx_server_name)
+    nginx_ssl_enabled = ctx.app.dns.ssl_enabled and ctx.app.dns.domain
+    cert_path, key_path = letsencrypt_cert_paths(ctx.app.dns.domain or nginx_server_name)
 
     render(
         "Deploy router nginx config",

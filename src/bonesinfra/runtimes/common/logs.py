@@ -20,7 +20,7 @@ def ensure(ctx):
 
     files.directory(
         name="Ensure per-project log directory exists",
-        path=f"{BONESDEPLOY_LOG_ROOT}/{ctx.config.project_name}",
+        path=f"{BONESDEPLOY_LOG_ROOT}/{ctx.app.project_name}",
         user=ctx.runtime.runtime_user,
         group=ctx.runtime.runtime_group,
         mode="0750",

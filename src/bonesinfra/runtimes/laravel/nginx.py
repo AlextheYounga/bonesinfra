@@ -6,7 +6,7 @@ from bonesinfra.runtimes.common import php_fpm_pool
 
 def setup(here, ctx, paths, php_version):
     runtime_group = ctx.runtime.runtime_group
-    php_fpm_socket_path = php_fpm_pool.socket_path(ctx.config.project_name, php_version)
+    php_fpm_socket_path = php_fpm_pool.socket_path(ctx.app.project_name, php_version)
 
     files.template(
         name="Deploy Laravel-specific per-site nginx config",

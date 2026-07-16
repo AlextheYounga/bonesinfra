@@ -14,7 +14,7 @@ def configure(ctx):
         user="root",
         group="root",
         mode="0644",
-        ssh_port=int(ctx.config.port),
+        ssh_port=int(ctx.app.server.port),
     )
 
     systemd.service(

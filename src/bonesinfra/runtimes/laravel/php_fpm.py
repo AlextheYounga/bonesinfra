@@ -4,7 +4,7 @@ from bonesinfra.runtimes.common import php_fpm_pool
 
 
 def cleanup_orphaned_pools(ctx, php_version):
-    project = ctx.config.project_name
+    project = ctx.app.project_name
     current_pool = php_fpm_pool.pool_config_path(project, php_version)
     command = "\n".join(
         [

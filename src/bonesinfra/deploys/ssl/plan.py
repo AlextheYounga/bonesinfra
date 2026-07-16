@@ -22,7 +22,7 @@ def deploy_ssl(ctx):
 
 
 def _render_router_config(ctx, paths, ssl_enabled, stage):
-    nginx_server_name = ctx.config.domain
+    nginx_server_name = ctx.app.dns.domain
 
     extra = {
         "nginx_server_name": nginx_server_name,
@@ -57,10 +57,10 @@ def obtain_certificate(ctx, paths):
         name="Obtain or renew certificate",
         commands=[
             "certbot certonly --non-interactive --agree-tos "
-            f"--email {ctx.config.email} "
+            f"--email {ctx.app.dns.email} "
             f"--webroot "
             f"-w {paths['acme_webroot']} "
-            f"-d {ctx.config.domain} "
+            f"-d {ctx.app.dns.domain} "
             "--keep-until-expiring"
         ],
         _sudo=True,

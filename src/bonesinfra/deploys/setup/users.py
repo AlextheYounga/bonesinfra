@@ -1,12 +1,16 @@
 from shlex import quote
 
 from pyinfra import host
+from pyinfra.facts.hardware import Cpus
 from pyinfra.facts.server import Users
 from pyinfra.operations import server
 
-from bonesinfra.infra.deploy_helpers import mkdir
+from bonesinfra.domain.context import DEFAULT_BUILD_CPU_QUOTA_PERCENT, DEPLOY_USER
+from bonesinfra.domain.paths import ASSETS_DIR
+from bonesinfra.infra.deploy_helpers import mkdir, render
 
 BUILD_USER_HOME_ROOT = "/var/lib/bonesdeploy/users"
+BUILD_SYSTEMD_STAGING_ROOT = "/run/bonesdeploy"
 
 
 def install_rust():
@@ -39,14 +43,23 @@ def build_home_for(project_name: str) -> str:
     return f"{BUILD_USER_HOME_ROOT}/{build_user_for(project_name)}"
 
 
+def cpu_quota_for(online_cpu_count: int, per_cpu_percent: int = DEFAULT_BUILD_CPU_QUOTA_PERCENT) -> str:
+    if online_cpu_count < 1:
+        raise ValueError("online_cpu_count must be positive")
+    return f"{online_cpu_count * per_cpu_percent}%"
+
+
 def ensure_users_and_groups(ctx):
-    build_user = build_user_for(ctx.config.project_name)
-    build_group = build_group_for(ctx.config.project_name)
-    build_home = build_home_for(ctx.config.project_name)
+    build_user = build_user_for(ctx.app.project_name)
+    build_group = build_group_for(ctx.app.project_name)
+    build_home = build_home_for(ctx.app.project_name)
+    resources = ctx.build.resources
+    cpu_quota = cpu_quota_for(host.get_fact(Cpus), resources.cpu_quota_percent)
+    staged_dropin = f"{BUILD_SYSTEMD_STAGING_ROOT}/{build_user}.slice.conf"
 
     server.user(
         name="Ensure deploy user exists",
-        user=ctx.config.deploy_user,
+        user=DEPLOY_USER,
         shell="/bin/bash",
         ensure_home=True,
         _sudo=True,
@@ -117,6 +130,31 @@ def ensure_users_and_groups(ctx):
         commands=[f"systemctl start user@$(id -u {quote(build_user)}).service"],
         _sudo=True,
     )
+    mkdir(
+        name="Ensure systemd drop-in staging directory exists",
+        path=BUILD_SYSTEMD_STAGING_ROOT,
+    )
+    render(
+        name=f"Stage resource limits for {build_user}",
+        src=ASSETS_DIR / "systemd/bonesdeploy-build.slice.j2",
+        dest=staged_dropin,
+        cpu_quota=cpu_quota,
+        memory_high=f"{resources.memory_high_percent}%",
+        memory_max=f"{resources.memory_max_percent}%",
+    )
+    server.shell(
+        name=f"Install and apply resource limits for {build_user}",
+        commands=[
+            f"slice=user-$(id -u {quote(build_user)}).slice; "
+            'dropin="/etc/systemd/system/$slice.d/bonesdeploy-build.conf"; '
+            'install -d -m 0755 "${dropin%/*}"; '
+            f'cmp -s {quote(staged_dropin)} "$dropin" || {{ '
+            f'install -m 0644 {quote(staged_dropin)} "$dropin"; systemctl daemon-reload; '
+            f'systemctl set-property --runtime "$slice" CPUQuota={cpu_quota} '
+            f"MemoryHigh={resources.memory_high_percent}% MemoryMax={resources.memory_max_percent}%; }}"
+        ],
+        _sudo=True,
+    )
     server.shell(
         name=f"Verify rootless Podman for {build_user}",
         commands=[
@@ -133,12 +171,13 @@ def ensure_users_and_groups(ctx):
         ],
         _sudo=True,
         _sudo_user=build_user,
+        _chdir=build_home,
     )
 
 
 def install_authorized_key(ctx):
-    deploy_user = ctx.config.deploy_user
-    ssh_user = ctx.config.ssh_user
+    deploy_user = DEPLOY_USER
+    ssh_user = ctx.app.server.ssh_user
     server.shell(
         name=f"Copy {ssh_user} SSH key to deploy user {deploy_user}",
         commands=[

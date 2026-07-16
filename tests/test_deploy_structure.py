@@ -1,10 +1,13 @@
 """Operation ordering and separation of concerns in deploy plans."""
 
+from jinja2 import Template
+
 from . import helpers
 
 SETUP_PLAN = helpers.SRC_DIR / "bonesinfra/deploys/setup/plan.py"
 SETUP_PACKAGES = helpers.SRC_DIR / "bonesinfra/deploys/setup/packages.py"
 SETUP_USERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/users.py"
+BUILD_SLICE_DROPIN = helpers.SRC_DIR / "bonesinfra/assets/systemd/bonesdeploy-build.slice.j2"
 SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
 SETUP_PLACEHOLDER = helpers.SRC_DIR / "bonesinfra/deploys/setup/placeholder.py"
 SETUP_FIREWALL = helpers.SRC_DIR / "bonesinfra/deploys/setup/firewall.py"
@@ -78,7 +81,7 @@ def test_setup_seeds_bare_repo_post_receive_hook():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_contains(c, '"Install bare repo post-receive hook"')
     helpers.assert_contains(c, "dest=f\"{paths['repo']}/hooks/post-receive\"")
-    helpers.assert_contains(c, "user=ctx.config.deploy_user")
+    helpers.assert_contains(c, "user=DEPLOY_USER")
     helpers.assert_contains(c, 'mode="0755"')
 
 
@@ -86,7 +89,7 @@ def test_bare_repo_init_sets_default_branch():
     c = helpers.read(SETUP_DIRECTORIES)
     helpers.assert_contains(c, '"Set bare repo default branch"')
     helpers.assert_contains(c, "git --git-dir")
-    helpers.assert_contains(c, "symbolic-ref HEAD refs/heads/{ctx.config.branch}")
+    helpers.assert_contains(c, "symbolic-ref HEAD refs/heads/{ctx.app.deploy.branch}")
 
 
 def test_post_receive_hook_execs_bonesremote():
@@ -104,7 +107,7 @@ def test_setup_avoids_usermod_for_existing_runtime_user():
 
 def test_git_not_in_runtime_group():
     c = helpers.read(SETUP_USERS)
-    helpers.assert_not_contains(c, "_ensure_group_membership(ctx.config.deploy_user, ctx.runtime.runtime_group)")
+    helpers.assert_not_contains(c, "_ensure_group_membership(DEPLOY_USER, ctx.runtime.runtime_group)")
     helpers.assert_not_contains(c, "ctx.runtime.release_group")
 
 
@@ -171,7 +174,7 @@ def test_setup_fail2ban_configures_sshd_jail_and_service():
     c = helpers.read(SETUP_FAIL2BAN)
     helpers.assert_contains(c, '"/etc/fail2ban/jail.local"')
     helpers.assert_contains(c, '"fail2ban"')
-    helpers.assert_contains(c, "ssh_port=int(ctx.config.port)")
+    helpers.assert_contains(c, "ssh_port=int(ctx.app.server.port)")
 
 
 def test_setup_unattended_upgrades_installs_apt_configs():
@@ -291,7 +294,7 @@ def test_setup_installs_podman_networking():
 
 def test_setup_creates_rootless_build_user_and_pseudo_home():
     c = helpers.read(SETUP_USERS)
-    helpers.assert_contains(c, "build_user_for(ctx.config.project_name)")
+    helpers.assert_contains(c, "build_user_for(ctx.app.project_name)")
     helpers.assert_contains(c, "group=build_group")
     helpers.assert_contains(c, "home=build_home")
     helpers.assert_contains(c, "create_home=True")
@@ -321,9 +324,29 @@ def test_setup_enables_linger_for_build_user():
     helpers.assert_contains(c, "getsubids -g $(id -un)")
     helpers.assert_contains(c, 'test -S "/run/user/$(id -u)/bus"')
     helpers.assert_contains(c, "podman info")
+    helpers.assert_contains(c, "_chdir=build_home")
     helpers.assert_not_contains(c, "Delegate=")
     helpers.assert_not_contains(c, "cgroup.controllers")
     helpers.assert_not_contains(c, "python3 -c")
+
+
+def test_setup_limits_the_numeric_build_user_slice_idempotently():
+    c = helpers.read(SETUP_USERS)
+    dropin = helpers.read(BUILD_SLICE_DROPIN)
+
+    helpers.assert_contains(c, "host.get_fact(Cpus)")
+    helpers.assert_contains(c, "user-$(id -u")
+    helpers.assert_contains(c, "bonesdeploy-build.conf")
+    helpers.assert_contains(c, "cmp -s")
+    helpers.assert_contains(c, "systemctl daemon-reload")
+    helpers.assert_contains(c, "systemctl set-property --runtime")
+    helpers.assert_not_contains(c, "Delegate=")
+    helpers.assert_contains(dropin, "CPUQuota={{ cpu_quota }}")
+    helpers.assert_contains(dropin, "MemoryHigh={{ memory_high }}")
+    helpers.assert_contains(dropin, "MemoryMax={{ memory_max }}")
+    assert Template(dropin).render(cpu_quota="300%", memory_high="60%", memory_max="75%") == (
+        "[Slice]\nCPUQuota=300%\nMemoryHigh=60%\nMemoryMax=75%"
+    )
 
 
 # ---- ssl plan ----
@@ -342,7 +365,7 @@ def test_setup_installs_openssl_for_nginx_default_deny_cert():
 
 def test_runtime_nginx_falls_back_when_domain_empty():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/runtime/nginx.py")
-    helpers.assert_contains(c, "ctx.config.domain or ctx.config.preview_domain")
+    helpers.assert_contains(c, "ctx.app.dns.domain or ctx.app.dns.preview_domain")
     helpers.assert_contains(
         c,
         'raise ValueError("domain or preview_domain is required for nginx config")',
@@ -352,7 +375,7 @@ def test_runtime_nginx_falls_back_when_domain_empty():
 def test_ssl_requires_real_domain_for_router_render():
     c = helpers.read(helpers.SRC_DIR / "bonesinfra/deploys/ssl/plan.py")
     helpers.assert_not_contains(c, 'raise ValueError("domain is required for ssl nginx config")')
-    helpers.assert_contains(c, "nginx_server_name = ctx.config.domain")
+    helpers.assert_contains(c, "nginx_server_name = ctx.app.dns.domain")
 
 
 def test_ssl_uses_acme_webroot():

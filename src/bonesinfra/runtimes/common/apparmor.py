@@ -15,7 +15,7 @@ def render_app_profile(  # noqa: PLR0913
     apparmor_network="network unix stream,",
 ):
     here = Path(__file__).parent
-    profile_name = f"bonesdeploy-{ctx.config.project_name}-{runtime}"
+    profile_name = f"bonesdeploy-{ctx.app.project_name}-{runtime}"
     profile_path = f"/etc/apparmor.d/{profile_name}"
     files.template(
         name=f"Deploy {runtime} AppArmor profile",

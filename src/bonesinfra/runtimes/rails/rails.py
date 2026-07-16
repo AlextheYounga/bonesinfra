@@ -1,3 +1,10 @@
+from pathlib import Path
+from shlex import quote
+
+from pyinfra.operations import server
+
+from bonesinfra.domain.context import template_data
+from bonesinfra.infra.deploy_helpers import render
 from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_paths, service, validation
 from bonesinfra.runtimes.rails import ruby_packages
 
@@ -40,7 +47,7 @@ def deploy(ctx):
         f"{paths['shared']}/log",
         f"{paths['shared']}/storage",
     ]
-    rails_env = ctx.runtime.runtime_data.get("rails_env", "production")
+    rails_env = ctx.runtime.data.get("rails_env", "production")
     ruby_packages.install_packages()
     common_paths.ensure_runtime_dirs(ctx)
     logs.ensure(ctx)
@@ -51,10 +58,11 @@ def deploy(ctx):
         apparmor_exec_paths=["/usr/bin/ruby*", "/usr/bin/bundle*"],
         apparmor_writable_paths=runtime_write_paths,
     )
+    _seed_placeholder_server(ctx, paths)
     validation.run_as_runtime_user(
         ctx,
         "Validate Puma availability as runtime user",
-        "bundle exec puma --help >/dev/null",
+        f"cd {quote(paths['current'])} && bundle exec puma --help >/dev/null",
     )
     service.render_app_service(
         ctx,
@@ -67,3 +75,36 @@ def deploy(ctx):
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
     service.enable_and_start(ctx, "puma", apparmor_profile_name=apparmor_profile_name)
+
+
+def _seed_placeholder_server(ctx, paths):
+    """Seed a minimal Gemfile + bundle install + Rack app into the placeholder
+    release so the app service can start before any real release is deployed.
+
+    ponytail: bonesremote service restart only restarts
+    <project>-nginx.service, not <project>-puma.service.
+    """
+    placeholder = paths["placeholder_release"]
+    render(
+        "Seed placeholder Gemfile",
+        Path(__file__).parent / "assets/placeholder-Gemfile.j2",
+        f"{placeholder}/Gemfile",
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0640",
+        **template_data(ctx, paths=paths),
+    )
+    server.shell(
+        name="Install placeholder gems",
+        commands=[f"cd {quote(placeholder)} && bundle install"],
+        _sudo=True,
+    )
+    render(
+        "Seed placeholder Rack config",
+        Path(__file__).parent / "assets/placeholder-config.ru.j2",
+        f"{placeholder}/config.ru",
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0640",
+        **template_data(ctx, paths=paths),
+    )

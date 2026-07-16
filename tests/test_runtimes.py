@@ -52,7 +52,7 @@ def test_laravel_php_fpm_cleans_orphaned_project_pools(monkeypatch):
         calls.append(kwargs)
 
     monkeypatch.setattr(php_fpm.server, "shell", fake_shell)
-    ctx = SimpleNamespace(config=SimpleNamespace(project_name="demo"))
+    ctx = SimpleNamespace(app=SimpleNamespace(project_name="demo"))
 
     php_fpm.cleanup_orphaned_pools(ctx, "8.5")
 
@@ -132,10 +132,10 @@ def test_nuxt_static_runtime_seeds_placeholder_output():
     helpers.assert_contains(content, 'f"{static_web_root}/index.html"')
 
 
-def test_vue_static_uses_default_dist_root():
+def test_vue_static_uses_dist_root():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/vue/vue.py")
     helpers.assert_contains(content, "nginx.render_static")
-    helpers.assert_not_contains(content, 'root="')
+    helpers.assert_contains(content, 'VUE_STATIC_ROOT = "dist"')
 
 
 def test_sveltekit_uses_socket_path_env():
@@ -173,3 +173,88 @@ def test_rails_uses_puma_unix_socket():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py")
     helpers.assert_contains(content, "bundle exec puma")
     helpers.assert_contains(content, "-b unix://")
+
+
+def test_next_questions_include_is_static_default_true():
+    mod = importlib.import_module("bonesinfra.runtimes.next.next")
+    qs = mod.questions()
+    keys = {q["key"]: q for q in qs}
+    assert "is_static" in keys
+    assert keys["is_static"]["default"] is True
+    assert keys["is_static"]["type"] == "bool"
+
+
+def test_next_static_path_uses_render_static():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/next/next.py")
+    helpers.assert_contains(content, "nginx.render_static")
+    helpers.assert_contains(content, 'STATIC_ROOT = "out"')
+
+
+def test_next_static_runtime_seeds_placeholder_output():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/next/next.py")
+    helpers.assert_contains(content, "paths['placeholder_release']")
+    helpers.assert_contains(content, '"Seed Next static placeholder index page"')
+    helpers.assert_contains(content, 'f"{static_web_root}/index.html"')
+
+
+def test_next_app_server_seeds_placeholder_server():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/next/next.py")
+    helpers.assert_contains(content, "placeholder-server.js.j2")
+    helpers.assert_contains(content, ".next/standalone/server.js")
+    helpers.assert_contains(content, "_seed_placeholder_server")
+
+
+def test_next_validation_uses_absolute_current_path():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/next/next.py")
+    helpers.assert_contains(content, "test -f {paths['current']}/.next/standalone/server.js")
+
+
+def test_nuxt_app_server_seeds_placeholder_server():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
+    helpers.assert_contains(content, "placeholder-server.mjs.j2")
+    helpers.assert_contains(content, ".output/server/index.mjs")
+    helpers.assert_contains(content, "_seed_placeholder_server")
+
+
+def test_sveltekit_seeds_placeholder_server():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/sveltekit/svelte.py")
+    helpers.assert_contains(content, "placeholder-index.js.j2")
+    helpers.assert_contains(content, "_seed_placeholder_server")
+
+
+def test_sveltekit_seeds_blank_env():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/sveltekit/svelte.py")
+    helpers.assert_contains(content, "touch {quote(paths['placeholder_release'])}/.env")
+
+
+def test_sveltekit_validation_uses_absolute_current_path():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/sveltekit/svelte.py")
+    helpers.assert_contains(content, "test -e {paths['current']}/build")
+
+
+def test_django_seeds_placeholder_venv_and_wsgi():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/django/django.py")
+    helpers.assert_contains(content, "placeholder-wsgi.py.j2")
+    helpers.assert_contains(content, "python3 -m venv .venv")
+    helpers.assert_contains(content, ".venv/bin/pip install gunicorn")
+    helpers.assert_contains(content, "_seed_placeholder_server")
+
+
+def test_rails_seeds_placeholder_gemfile_and_rack():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py")
+    helpers.assert_contains(content, "placeholder-Gemfile.j2")
+    helpers.assert_contains(content, "placeholder-config.ru.j2")
+    helpers.assert_contains(content, "bundle install")
+    helpers.assert_contains(content, "_seed_placeholder_server")
+
+
+def test_rails_validation_uses_absolute_current_path():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py")
+    helpers.assert_contains(content, "cd {quote(paths['current'])} && bundle exec puma --help")
+
+
+def test_vue_seeds_dist_placeholder():
+    content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/vue/vue.py")
+    helpers.assert_contains(content, 'VUE_STATIC_ROOT = "dist"')
+    helpers.assert_contains(content, '"Seed Vue static placeholder index page"')
+    helpers.assert_contains(content, "paths['placeholder_release']")

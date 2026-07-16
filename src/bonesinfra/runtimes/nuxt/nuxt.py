@@ -19,7 +19,7 @@ def questions():
 
 
 def deploy(ctx):
-    is_static = ctx.runtime.runtime_data.get("is_static", True)
+    is_static = ctx.runtime.data.get("is_static", True)
     paths = service.runtime_paths(ctx)
 
     if is_static:
@@ -55,6 +55,7 @@ def deploy(ctx):
         apparmor_exec_paths=["/usr/bin/node"],
         apparmor_writable_paths=[],
     )
+    _seed_placeholder_server(ctx, paths)
     service.render_app_service(
         ctx,
         paths=paths,
@@ -68,3 +69,29 @@ def deploy(ctx):
     )
     nginx.render_proxy(ctx, paths=paths, socket_path=socket_path)
     service.enable_and_start(ctx, "nuxt", apparmor_profile_name=apparmor_profile_name)
+
+
+def _seed_placeholder_server(ctx, paths):
+    """Seed a minimal Node HTTP server into the placeholder release so the
+    app service can start before any real release is deployed.
+
+    ponytail: bonesremote service restart only restarts
+    <project>-nginx.service, not <project>-nuxt.service.
+    """
+    server_dir = f"{paths['placeholder_release']}/.output/server"
+    mkdir(
+        name="Ensure placeholder .output/server directory exists",
+        path=server_dir,
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0750",
+    )
+    render(
+        "Seed placeholder Nuxt nitro server",
+        Path(__file__).parent / "assets/placeholder-server.mjs.j2",
+        f"{server_dir}/index.mjs",
+        user="root",
+        group=ctx.runtime.runtime_group,
+        mode="0750",
+        **template_data(ctx, paths=paths),
+    )
