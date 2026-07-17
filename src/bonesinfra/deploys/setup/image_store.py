@@ -50,3 +50,13 @@ def seed_base_image():
         commands=[f"CONTAINERS_STORAGE_CONF={quote(IMAGE_STORE_STORAGE_CONF)} podman image prune --force"],
         _sudo=True,
     )
+    # ponytail: recursive chmod is O(store-size); fine for intentionally
+    # small seeded store — switch to targeted metadata perms if store grows.
+    server.shell(
+        name="Ensure shared store is world-readable for rootless users",
+        commands=[
+            f"chmod -R a+rX {quote(IMAGE_STORE_GRAPH_ROOT)}",
+            f"chmod -R a+rX {quote(IMAGE_STORE_RUN_ROOT)}",
+        ],
+        _sudo=True,
+    )

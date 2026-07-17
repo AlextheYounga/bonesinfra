@@ -98,6 +98,29 @@ def test_image_store_prune_dangling():
     helpers.assert_contains(c, "podman image prune --force")
 
 
+def test_image_store_normalizes_permissions():
+    c = helpers.read(IMAGE_STORE_MODULE)
+    helpers.assert_contains(c, "chmod -R a+rX")
+
+
+def test_image_store_normalization_after_prune():
+    c = helpers.read(IMAGE_STORE_MODULE)
+    helpers.assert_ordering(
+        c,
+        "podman image prune",
+        "chmod -R a+rX",
+    )
+
+
+def test_image_store_normalization_before_build_user_verification():
+    c = helpers.read(SETUP_PLAN)
+    helpers.assert_ordering(
+        c,
+        "image_store.seed_base_image",
+        "users.ensure_users_and_groups",
+    )
+
+
 def test_build_user_template_additional_image_stores():
     c = helpers.read(BUILD_USER_TEMPLATE)
     helpers.assert_contains(c, "additionalimagestores")
