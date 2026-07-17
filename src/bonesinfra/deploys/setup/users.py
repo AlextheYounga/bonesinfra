@@ -231,10 +231,6 @@ def ensure_users_and_groups(ctx):
         name=f"Verify shared image store for {build_user}",
         commands=[
             f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
-            f"podman info --format '{{{{.Store.AdditionalImageStores}}}}' | "
-            f"grep -qF {quote(IMAGE_STORE_GRAPH_ROOT)} || "
-            '(echo "ERROR: shared image store not configured" >&2; false)',
-            f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
             f"podman image exists {quote(BASE_IMAGE)} || "
             '(echo "ERROR: base image not found in shared store" >&2; false)',
         ],

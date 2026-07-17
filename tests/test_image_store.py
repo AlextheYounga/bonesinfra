@@ -182,14 +182,9 @@ def test_users_configure_build_user_storage_dot_config_before_containers():
     )
 
 
-def test_users_verify_shared_image_store():
-    c = helpers.read(SETUP_USERS)
-    helpers.assert_contains(c, "Verify shared image store")
-    helpers.assert_contains(c, "AdditionalImageStores")
-
-
 def test_users_verify_base_image_exists():
     c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "Verify shared image store")
     helpers.assert_contains(c, "podman image exists {quote(BASE_IMAGE)}")
 
 

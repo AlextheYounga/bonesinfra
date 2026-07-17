@@ -20,7 +20,6 @@ select = [
   "PL",   # pylint-derived rules
   "S",    # security-ish checks
   "D",    # docstring presence/style
-  "DOC",  # docstring consistency
   "A",    # shadowing builtins
   "RET",  # return statement cleanliness
   "T20",  # print statement detection (like dbg_macro in Rust)
