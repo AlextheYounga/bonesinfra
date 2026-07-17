@@ -1,5 +1,7 @@
 """Tests for shared Podman image store provisioning."""
 
+import tomllib
+
 from jinja2 import Template
 
 from . import helpers
@@ -56,19 +58,13 @@ def test_image_store_renders_storage_conf():
     helpers.assert_contains(c, "image-store-storage.conf.j2")
 
 
-def test_image_store_template_force_mask():
+def test_image_store_template_overlay_section():
     c = helpers.read(IMAGE_STORE_TEMPLATE)
-    helpers.assert_contains(c, 'force_mask = "shared"')
-
-
-def test_image_store_template_fuse_overlayfs():
-    c = helpers.read(IMAGE_STORE_TEMPLATE)
-    helpers.assert_contains(c, 'mount_program = "/usr/bin/fuse-overlayfs"')
-
-
-def test_image_store_template_driver():
-    c = helpers.read(IMAGE_STORE_TEMPLATE)
-    helpers.assert_contains(c, 'driver = "overlay"')
+    parsed = tomllib.loads(c)
+    assert parsed["storage"]["driver"] == "overlay"
+    overlay = parsed["storage"]["options"]["overlay"]
+    assert overlay["force_mask"] == "shared"
+    assert overlay["mount_program"] == "/usr/bin/fuse-overlayfs"
 
 
 def test_image_store_template_graphroot():
