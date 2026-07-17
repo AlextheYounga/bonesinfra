@@ -202,3 +202,49 @@ def test_setup_plan_image_store_before_directories():
         "image_store.seed_base_image",
         "directories.setup_repo_and_project",
     )
+
+
+def test_paths_build_cache_name_constant():
+    c = helpers.read(PATHS_MODULE)
+    helpers.assert_contains(c, 'BUILD_CACHE_NAME = "cache"')
+
+
+def test_users_configure_build_user_cache():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "def configure_build_user_cache")
+
+
+def test_users_configure_build_user_cache_creates_dir():
+    c = helpers.read(SETUP_USERS)
+    cache_block = c.split("def configure_build_user_cache")[1].split("\n\ndef ")[0]
+    helpers.assert_contains(cache_block, "Ensure persistent build cache")
+    helpers.assert_contains(cache_block, "mkdir(")
+    helpers.assert_contains(cache_block, 'mode="0700"')
+
+
+def test_users_configure_build_user_cache_uses_helper():
+    c = helpers.read(SETUP_USERS)
+    cache_block = c.split("def configure_build_user_cache")[1].split("\n\ndef ")[0]
+    helpers.assert_contains(cache_block, "build_cache_for")
+
+
+def test_users_verify_build_cache_exists():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_contains(c, "Verify build cache")
+    helpers.assert_contains(c, "test -d")
+    helpers.assert_contains(c, "test -O")
+    helpers.assert_contains(c, "build cache missing or unsafe")
+
+
+def test_users_configure_cache_before_verification():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_ordering(
+        c,
+        "configure_build_user_cache",
+        "Verify rootless Podman",
+    )
+    helpers.assert_ordering(
+        c,
+        "configure_build_user_cache",
+        "Verify build cache",
+    )
