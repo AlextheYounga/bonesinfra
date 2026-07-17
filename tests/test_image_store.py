@@ -128,7 +128,8 @@ def test_users_configure_build_user_storage():
 def test_users_configure_build_user_storage_creates_config_dir():
     c = helpers.read(SETUP_USERS)
     helpers.assert_contains(c, "Ensure containers config directory")
-    helpers.assert_contains(c, ".config/containers")
+    helpers.assert_contains(c, "config_parent")
+    helpers.assert_contains(c, "config_dir")
 
 
 def test_users_configure_build_user_storage_renders_template():
@@ -140,6 +141,22 @@ def test_users_configure_build_user_storage_sets_permissions():
     c = helpers.read(SETUP_USERS)
     storage_block = c.split("def configure_build_user_storage")[1].split("\n\ndef ")[0]
     helpers.assert_contains(storage_block, 'mode="0700"')
+
+
+def test_users_configure_build_user_storage_owns_dot_config():
+    c = helpers.read(SETUP_USERS)
+    storage_block = c.split("def configure_build_user_storage")[1].split("\n\ndef ")[0]
+    helpers.assert_contains(storage_block, "Ensure .config directory for")
+    helpers.assert_contains(storage_block, '.config"')
+
+
+def test_users_configure_build_user_storage_dot_config_before_containers():
+    c = helpers.read(SETUP_USERS)
+    helpers.assert_ordering(
+        c,
+        "Ensure .config directory",
+        "Ensure containers config directory",
+    )
 
 
 def test_users_verify_shared_image_store():
