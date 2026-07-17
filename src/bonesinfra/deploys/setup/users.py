@@ -5,8 +5,9 @@ from pyinfra.facts.hardware import Cpus
 from pyinfra.facts.server import Users
 from pyinfra.operations import server
 
+from bonesinfra.deploys.setup.image_store import BASE_IMAGE
 from bonesinfra.domain.context import DEFAULT_BUILD_CPU_QUOTA_PERCENT, DEPLOY_USER
-from bonesinfra.domain.paths import ASSETS_DIR
+from bonesinfra.domain.paths import ASSETS_DIR, IMAGE_STORE_GRAPH_ROOT
 from bonesinfra.infra.deploy_helpers import mkdir, render
 
 BUILD_USER_HOME_ROOT = "/var/lib/bonesdeploy/users"
@@ -47,6 +48,31 @@ def cpu_quota_for(online_cpu_count: int, per_cpu_percent: int = DEFAULT_BUILD_CP
     if online_cpu_count < 1:
         raise ValueError("online_cpu_count must be positive")
     return f"{online_cpu_count * per_cpu_percent}%"
+
+
+def configure_build_user_storage(project_name: str):
+    build_user = build_user_for(project_name)
+    build_group = build_group_for(project_name)
+    build_home = build_home_for(project_name)
+    config_dir = f"{build_home}/.config/containers"
+    storage_conf = f"{config_dir}/storage.conf"
+
+    mkdir(
+        name=f"Ensure containers config directory for {build_user}",
+        path=config_dir,
+        user=build_user,
+        group=build_group,
+        mode="0700",
+    )
+    render(
+        name=f"Install storage.conf for {build_user}",
+        src=ASSETS_DIR / "podman/build-user-storage.conf.j2",
+        dest=storage_conf,
+        user=build_user,
+        group=build_group,
+        mode="0600",
+        additional_image_store=IMAGE_STORE_GRAPH_ROOT,
+    )
 
 
 def ensure_users_and_groups(ctx):
@@ -155,6 +181,7 @@ def ensure_users_and_groups(ctx):
         ],
         _sudo=True,
     )
+    configure_build_user_storage(ctx.app.project_name)
     server.shell(
         name=f"Verify rootless Podman for {build_user}",
         commands=[
@@ -168,6 +195,21 @@ def ensure_users_and_groups(ctx):
             f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
             "podman info --format '{{.Host.Security.Rootless}}' | grep -qx true || "
             '(echo "ERROR: rootless Podman is unavailable" >&2; false)',
+        ],
+        _sudo=True,
+        _sudo_user=build_user,
+        _chdir=build_home,
+    )
+    server.shell(
+        name=f"Verify shared image store for {build_user}",
+        commands=[
+            f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
+            f"podman info --format '{{{{.Store.AdditionalImageStores}}}}' | "
+            f"grep -qF {quote(IMAGE_STORE_GRAPH_ROOT)} || "
+            '(echo "ERROR: shared image store not configured" >&2; false)',
+            f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
+            f"podman image exists {quote(BASE_IMAGE)} || "
+            '(echo "ERROR: base image not found in shared store" >&2; false)',
         ],
         _sudo=True,
         _sudo_user=build_user,

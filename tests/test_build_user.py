@@ -16,9 +16,9 @@ def test_build_identity_is_derived_from_project_name():
 
 @pytest.mark.parametrize(
     ("online_cpu_count", "quota"),
-    [(1, "75%"), (2, "150%"), (4, "300%"), (8, "600%")],
+    [(1, "80%"), (2, "160%"), (4, "320%"), (8, "640%")],
 )
-def test_cpu_quota_is_three_quarters_of_online_cpu_capacity(online_cpu_count, quota):
+def test_cpu_quota_is_default_percentage_of_online_cpu_capacity(online_cpu_count, quota):
     assert cpu_quota_for(online_cpu_count) == quota
 
 
