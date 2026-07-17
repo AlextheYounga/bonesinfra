@@ -3,6 +3,7 @@ from bonesinfra.deploys.setup import (
     directories,
     fail2ban,
     firewall,
+    image_store,
     packages,
     placeholder,
     sudoers,
@@ -18,6 +19,8 @@ def deploy_setup(ctx):
 
     packages.install_system(all_pkgs)
     users.install_rust()
+    image_store.ensure_shared_store()
+    image_store.seed_base_image()
     users.ensure_users_and_groups(ctx)
     directories.setup_repo_and_project(ctx, paths)
     placeholder.seed(ctx, paths)
