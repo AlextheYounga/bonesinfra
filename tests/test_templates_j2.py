@@ -57,6 +57,8 @@ def test_common_app_service_runs_as_runtime_user():
     helpers.assert_contains(c, "EnvironmentFile=-{{ paths.conf_root }}/runtime.env")
     helpers.assert_contains(c, "ExecStart={{ runtime_exec }}")
     helpers.assert_contains(c, "AppArmorProfile={{ apparmor_profile_name }}")
+    helpers.assert_contains(c, "PartOf={{ project_name }}.target")
+    helpers.assert_contains(c, "Before={{ project_name }}.target")
 
 
 def test_common_app_service_writes_to_runtime_and_logs_dirs():
@@ -71,7 +73,18 @@ def test_common_app_service_writes_to_runtime_and_logs_dirs():
     helpers.assert_contains(c, "StandardError=journal")
     helpers.assert_contains(c, "Restart=always")
     helpers.assert_contains(c, "RestartSec=2")
+
+
+def test_site_target_is_a_stable_lifecycle_entrypoint():
+    c = _read("runtimes/common/assets/site.target.j2")
+    helpers.assert_contains(c, "Description=Lifecycle target for {{ project_name }}")
     helpers.assert_contains(c, "WantedBy=multi-user.target")
+
+
+def test_site_nginx_service_participates_in_site_target():
+    c = _read("assets/nginx/site-nginx.service.j2")
+    helpers.assert_contains(c, "PartOf={{ project_name }}.target")
+    helpers.assert_contains(c, "Before={{ project_name }}.target")
 
 
 # ---- Common app nginx proxy template ----

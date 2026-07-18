@@ -6,9 +6,15 @@ from bonesinfra.deploys._shared import nginx_safety
 from bonesinfra.domain.context import template_data
 from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
+from bonesinfra.runtimes.common import service
 
 
 def setup(ctx, paths, *, nginx_address_families="AF_UNIX", nginx_ip_loopback_only=False):
+    nginx_server_name = ctx.app.dns.domain or ctx.app.dns.preview_domain
+    if not nginx_server_name:
+        raise ValueError("domain or preview_domain is required for nginx config")
+
+    service.render_target(ctx, paths=paths)
     # 0711: system nginx (www-data) needs traversal to reach the per-site
     # nginx socket at /run/<project>/nginx/nginx.sock. 0750 would block it.
     mkdir(
@@ -42,7 +48,6 @@ def setup(ctx, paths, *, nginx_address_families="AF_UNIX", nginx_ip_loopback_onl
         mode="0640",
         **template_data(ctx, paths=paths),
     )
-
     render(
         "Deploy per-site nginx systemd service",
         ASSETS_DIR / "nginx/site-nginx.service.j2",
@@ -52,15 +57,16 @@ def setup(ctx, paths, *, nginx_address_families="AF_UNIX", nginx_ip_loopback_onl
         nginx_ip_loopback_only=nginx_ip_loopback_only,
         **template_data(ctx, paths=paths),
     )
+    service.register_service(
+        ctx,
+        paths=paths,
+        name="nginx",
+    )
 
     systemd.daemon_reload(
         name="Reload systemd after site-nginx service change",
         _sudo=True,
     )
-
-    nginx_server_name = ctx.app.dns.domain or ctx.app.dns.preview_domain
-    if not nginx_server_name:
-        raise ValueError("domain or preview_domain is required for nginx config")
 
     # SSL state comes from bones.toml (app.dns.ssl_enabled), not runtime data — SSL is
     # owned by `ssl apply`, not `runtime apply`. This keeps runtime apply from
@@ -104,10 +110,17 @@ def start_services(paths):
 
     site_name = Path(paths["systemd_site_nginx_service"]).stem
     systemd.service(
-        name="Ensure per-site nginx service is enabled and started",
+        name="Remove per-site nginx service from multi-user boot",
         service=site_name,
+        enabled=False,
+        _sudo=True,
+    )
+    systemd.service(
+        name="Enable and restart site systemd target",
+        service=Path(paths["systemd_site_target"]).name,
         enabled=True,
         running=True,
+        restarted=True,
         daemon_reload=True,
         _sudo=True,
     )
