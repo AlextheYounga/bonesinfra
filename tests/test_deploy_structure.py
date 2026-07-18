@@ -232,6 +232,8 @@ def test_common_validation_verifies_proc_attr_current():
     helpers.assert_contains(c, "def verify_profile_attached")
     helpers.assert_contains(c, "attr/current")
     helpers.assert_contains(c, "MainPID")
+    helpers.assert_contains(c, "systemctl status")
+    helpers.assert_contains(c, "journalctl -u")
 
 
 def test_app_service_uses_per_service_runtime_directory_leaf():

@@ -104,6 +104,8 @@ def test_common_static_nginx_serves_dist():
 def test_common_apparmor_profile_uses_configurable_network():
     c = _read("runtimes/common/assets/app-profile.j2")
     helpers.assert_contains(c, '{{ apparmor_network | default("network unix stream,") }}')
+    helpers.assert_contains(c, "{{ paths.releases }}/*/** r,")
+    helpers.assert_not_contains(c, "{{ paths.current }}/** r,")
 
 
 def test_fail2ban_template_enables_sshd_on_configured_port():

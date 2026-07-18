@@ -36,7 +36,9 @@ def verify_profile_attached(service_name, profile_name, *, name=None):
     cmd = (
         f"pid=$(systemctl show -p MainPID --value {q_service}); "
         f'[ "$pid" != "0" ] && [ -n "$pid" ] && '
-        f'grep -q "{q_profile}" /proc/$pid/attr/current'
+        f"grep -qF -- {q_profile} /proc/$pid/attr/current || "
+        f"{{ systemctl status {q_service} --no-pager --full >&2; "
+        f"journalctl -u {q_service} -n 50 --no-pager >&2; false; }}"
     )
     server.shell(
         name=name or f"Verify {service_name} attached to {profile_name}",
