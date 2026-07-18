@@ -18,4 +18,4 @@ def deploy_runtime(ctx):
     apparmor.setup(ctx, paths, nginx_apparmor_network=nginx_apparmor_network)
     nginx.setup(ctx, paths, nginx_address_families=nginx_address_families, nginx_ip_loopback_only=uses_tcp)
     template_runtime.load(ctx)
-    nginx.start_services(paths)
+    nginx.start_services(ctx, paths)

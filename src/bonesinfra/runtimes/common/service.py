@@ -5,6 +5,7 @@ from shlex import quote
 from pyinfra.operations import files, server, systemd
 
 from bonesinfra.domain.context import template_data
+from bonesinfra.domain.paths import ETC_SYSTEMD_SYSTEM
 from bonesinfra.runtimes.common import validation
 
 SERVICE_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_-]*")
@@ -55,6 +56,19 @@ def register_service(ctx, *, paths, name):
     )
 
 
+def remove_direct_boot(ctx, name):
+    """Remove only the legacy direct multi-user boot link for a site service."""
+    if not SERVICE_NAME_RE.fullmatch(name):
+        raise ValueError(f"invalid site service name: {name}")
+    service_name = f"{ctx.app.project_name}-{name}.service"
+    link_path = Path(ETC_SYSTEMD_SYSTEM) / "multi-user.target.wants" / service_name
+    server.shell(
+        name=f"Remove {name} service from direct multi-user boot",
+        commands=[f"rm -f -- {quote(str(link_path))}"],
+        _sudo=True,
+    )
+
+
 def render_app_service(  # noqa: PLR0913
     ctx,
     *,
@@ -88,14 +102,14 @@ def render_app_service(  # noqa: PLR0913
 
 
 def enable_and_start(ctx, name, *, apparmor_profile_name=None):
-    service = f"{ctx.app.project_name}-{name}.service"
+    service_name = f"{ctx.app.project_name}-{name}.service"
+    remove_direct_boot(ctx, name)
     systemd.service(
-        name=f"Remove {name} service from multi-user boot and start it",
-        service=service,
-        enabled=False,
+        name=f"Start {name} service",
+        service=service_name,
         running=True,
         daemon_reload=True,
         _sudo=True,
     )
     if apparmor_profile_name:
-        validation.verify_profile_attached(service, apparmor_profile_name)
+        validation.verify_profile_attached(service_name, apparmor_profile_name)

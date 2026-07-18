@@ -99,7 +99,7 @@ def setup(ctx, paths, *, nginx_address_families="AF_UNIX", nginx_ip_loopback_onl
     nginx_safety.validate_config("Validate nginx configuration")
 
 
-def start_services(paths):
+def start_services(ctx, paths):
     systemd.service(
         name="Ensure nginx service is enabled and started",
         service="nginx",
@@ -108,13 +108,7 @@ def start_services(paths):
         _sudo=True,
     )
 
-    site_name = Path(paths["systemd_site_nginx_service"]).stem
-    systemd.service(
-        name="Remove per-site nginx service from multi-user boot",
-        service=site_name,
-        enabled=False,
-        _sudo=True,
-    )
+    service.remove_direct_boot(ctx, "nginx")
     systemd.service(
         name="Enable and restart site systemd target",
         service=Path(paths["systemd_site_target"]).name,

@@ -466,7 +466,7 @@ def test_runtime_nginx_reloads_after_config_change():
         "Enable router nginx site",
         "validate_config",
         "Ensure nginx service is enabled and started",
-        "Remove per-site nginx service from multi-user boot",
+        'remove_direct_boot(ctx, "nginx")',
         "Enable and restart site systemd target",
         "systemctl reload nginx",
     )

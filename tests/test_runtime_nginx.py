@@ -70,14 +70,16 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
 
 def test_runtime_nginx_migrates_site_service_to_target(monkeypatch):
     calls = []
+    shell_calls = []
+    ctx = type("Context", (), {"app": type("App", (), {"project_name": "shop"})()})()
     paths = {
         "systemd_site_nginx_service": "/etc/systemd/system/shop-nginx.service",
         "systemd_site_target": "/etc/systemd/system/shop.target",
     }
     monkeypatch.setattr(runtime_nginx.systemd, "service", lambda **kwargs: calls.append(kwargs))
-    monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
+    monkeypatch.setattr(runtime_nginx.server, "shell", lambda **kwargs: shell_calls.append(kwargs))
 
-    runtime_nginx.start_services(paths)
+    runtime_nginx.start_services(ctx, paths)
 
-    assert {"service": "shop-nginx", "enabled": False}.items() <= calls[1].items()
-    assert {"service": "shop.target", "enabled": True, "running": True, "restarted": True}.items() <= calls[2].items()
+    assert shell_calls[0]["commands"] == ["rm -f -- /etc/systemd/system/multi-user.target.wants/shop-nginx.service"]
+    assert {"service": "shop.target", "enabled": True, "running": True, "restarted": True}.items() <= calls[1].items()
