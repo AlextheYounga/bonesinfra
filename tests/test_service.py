@@ -7,22 +7,23 @@ from bonesinfra.runtimes.common import service
 
 def test_register_service_uses_exact_project_derived_unit(monkeypatch):
     calls = []
-    monkeypatch.setattr(service.files, "link", lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(service.server, "shell", lambda **kwargs: calls.append(kwargs))
     ctx = SimpleNamespace(app=SimpleNamespace(project_name="shop"))
     paths = {"systemd_site_target_requires": "/etc/systemd/system/shop.target.requires"}
 
     service.register_service(ctx, paths=paths, name="nginx")
 
-    assert calls[0]["path"] == "/etc/systemd/system/shop.target.requires/shop-nginx.service"
-    assert calls[0]["target"] == "/etc/systemd/system/shop-nginx.service"
-    assert calls[0]["target"] != "/etc/systemd/system/shop-admin-nginx.service"
+    command = calls[0]["commands"][0]
+    assert "ln -sfn -- /etc/systemd/system/shop-nginx.service" in command
+    assert "/etc/systemd/system/shop.target.requires/shop-nginx.service" in command
+    assert "shop-admin" not in command
 
 
 def test_register_service_rejects_arbitrary_unit_suffix(monkeypatch):
     def ignore_link(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr(service.files, "link", ignore_link)
+    monkeypatch.setattr(service.server, "shell", ignore_link)
     ctx = SimpleNamespace(app=SimpleNamespace(project_name="shop"))
     paths = {"systemd_site_target_requires": "/etc/systemd/system/shop.target.requires"}
 
@@ -40,9 +41,9 @@ def test_render_target_reconciles_stale_memberships(monkeypatch):
     def empty_template_data(*_args, **_kwargs):
         return {}
 
-    directory_calls = []
+    shell_calls = []
     monkeypatch.setattr(service.files, "template", ignore_template)
-    monkeypatch.setattr(service.files, "directory", lambda **kwargs: directory_calls.append(kwargs))
+    monkeypatch.setattr(service.server, "shell", lambda **kwargs: shell_calls.append(kwargs))
     monkeypatch.setattr(service, "template_data", empty_template_data)
     ctx = SimpleNamespace(app=SimpleNamespace(project_name="shop"))
     paths = {
@@ -52,22 +53,37 @@ def test_render_target_reconciles_stale_memberships(monkeypatch):
 
     service.render_target(ctx, paths=paths)
 
-    assert directory_calls == [
-        {
-            "name": "Remove stale site systemd target memberships",
-            "path": "/etc/systemd/system/shop.target.requires",
-            "present": False,
-            "_sudo": True,
-        },
-        {
-            "name": "Ensure site systemd target requires directory exists",
-            "path": "/etc/systemd/system/shop.target.requires",
-            "user": "root",
-            "group": "root",
-            "mode": "0755",
-            "_sudo": True,
-        },
+    assert shell_calls[0]["commands"] == [
+        "rm -rf -- /etc/systemd/system/shop.target.requires; "
+        "install -d -o root -g root -m 0755 -- /etc/systemd/system/shop.target.requires",
     ]
+
+
+def test_target_membership_reconciliation_recreates_all_registered_services(monkeypatch):
+    def ignore_template(*_args, **_kwargs):
+        return None
+
+    def empty_template_data(*_args, **_kwargs):
+        return {}
+
+    calls = []
+    monkeypatch.setattr(service.files, "template", ignore_template)
+    monkeypatch.setattr(service.server, "shell", lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(service, "template_data", empty_template_data)
+    ctx = SimpleNamespace(app=SimpleNamespace(project_name="nexttest"))
+    paths = {
+        "systemd_site_target": "/etc/systemd/system/nexttest.target",
+        "systemd_site_target_requires": "/etc/systemd/system/nexttest.target.requires",
+    }
+
+    service.render_target(ctx, paths=paths)
+    service.register_service(ctx, paths=paths, name="nginx")
+    service.register_service(ctx, paths=paths, name="next")
+
+    commands = [call["commands"][0] for call in calls]
+    assert commands[0].startswith("rm -rf -- /etc/systemd/system/nexttest.target.requires")
+    assert commands[1].endswith("nexttest.target.requires/nexttest-nginx.service")
+    assert commands[2].endswith("nexttest.target.requires/nexttest-next.service")
 
 
 def test_enable_and_start_removes_legacy_direct_service_enablement(monkeypatch):

@@ -1,7 +1,8 @@
 import re
 from pathlib import Path
+from shlex import quote
 
-from pyinfra.operations import files, systemd
+from pyinfra.operations import files, server, systemd
 
 from bonesinfra.domain.context import template_data
 from bonesinfra.runtimes.common import validation
@@ -26,18 +27,12 @@ def render_target(ctx, *, paths):
         **template_data(ctx, paths=paths),
         _sudo=True,
     )
-    files.directory(
-        name="Remove stale site systemd target memberships",
-        path=paths["systemd_site_target_requires"],
-        present=False,
-        _sudo=True,
-    )
-    files.directory(
-        name="Ensure site systemd target requires directory exists",
-        path=paths["systemd_site_target_requires"],
-        user="root",
-        group="root",
-        mode="0755",
+    requires_dir = quote(paths["systemd_site_target_requires"])
+    server.shell(
+        name="Reconcile site systemd target memberships",
+        commands=[
+            f"rm -rf -- {requires_dir}; install -d -o root -g root -m 0755 -- {requires_dir}",
+        ],
         _sudo=True,
     )
 
@@ -47,13 +42,15 @@ def register_service(ctx, *, paths, name):
     if not SERVICE_NAME_RE.fullmatch(name):
         raise ValueError(f"invalid site service name: {name}")
     service_name = f"{ctx.app.project_name}-{name}.service"
-    files.link(
+    requires_dir = paths["systemd_site_target_requires"]
+    link_path = f"{requires_dir}/{service_name}"
+    service_path = f"/etc/systemd/system/{service_name}"
+    server.shell(
         name=f"Require {service_name} from site target",
-        path=f"{paths['systemd_site_target_requires']}/{service_name}",
-        target=f"/etc/systemd/system/{service_name}",
-        user="root",
-        group="root",
-        force=True,
+        commands=[
+            f"install -d -o root -g root -m 0755 -- {quote(requires_dir)} && "
+            f"ln -sfn -- {quote(service_path)} {quote(link_path)}",
+        ],
         _sudo=True,
     )
 
