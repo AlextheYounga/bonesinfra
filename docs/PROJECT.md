@@ -562,8 +562,19 @@ Responsibilities:
 - configure AppArmor
 - configure nginx router
 - configure per-site nginx service
+- generate `<project>.target` as the site lifecycle entrypoint
+- register nginx and runtime services in the target's requires directory
 - provision declared `[shared].paths` under `shared/`
 - run runtime-specific deploy operations
+
+BonesInfra owns site service membership. Every generated site service participates
+in `<project>.target`; BonesRemote must restart exactly `<project>.target` for
+deploy and rollback (`systemctl restart <project>.target`). It must not discover
+services by name-prefix wildcard. The target requires every registered service,
+and services are ordered before it, so an immediate service-start failure fails
+the restart. BonesRemote should also
+verify every required service remains active after restarting, because a
+`Type=simple` process can exit shortly after systemd reports a successful start.
 
 Runtime setup is separate from SSL.
 

@@ -30,6 +30,8 @@ def test_runtime_nginx_uses_preview_domain_when_domain_is_empty(tmp_path, monkey
     calls = []
 
     monkeypatch.setattr(runtime_nginx, "mkdir", _noop)
+    monkeypatch.setattr(runtime_nginx.service, "render_target", _noop)
+    monkeypatch.setattr(runtime_nginx.service, "register_service", _noop)
     monkeypatch.setattr(runtime_nginx.files, "link", _noop)
     monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
     monkeypatch.setattr(runtime_nginx.systemd, "daemon_reload", _noop)
@@ -53,6 +55,8 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
     paths = ctx.paths_dict
 
     monkeypatch.setattr(runtime_nginx, "mkdir", _noop)
+    monkeypatch.setattr(runtime_nginx.service, "render_target", _noop)
+    monkeypatch.setattr(runtime_nginx.service, "register_service", _noop)
     monkeypatch.setattr(runtime_nginx.files, "link", _noop)
     monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
     monkeypatch.setattr(runtime_nginx.systemd, "daemon_reload", _noop)
@@ -62,3 +66,18 @@ def test_runtime_nginx_requires_a_real_name(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="domain or preview_domain"):
         runtime_nginx.setup(ctx, paths)
+
+
+def test_runtime_nginx_migrates_site_service_to_target(monkeypatch):
+    calls = []
+    paths = {
+        "systemd_site_nginx_service": "/etc/systemd/system/shop-nginx.service",
+        "systemd_site_target": "/etc/systemd/system/shop.target",
+    }
+    monkeypatch.setattr(runtime_nginx.systemd, "service", lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(runtime_nginx.server, "shell", _noop)
+
+    runtime_nginx.start_services(paths)
+
+    assert {"service": "shop-nginx", "enabled": False}.items() <= calls[1].items()
+    assert {"service": "shop.target", "enabled": True, "running": True, "restarted": True}.items() <= calls[2].items()

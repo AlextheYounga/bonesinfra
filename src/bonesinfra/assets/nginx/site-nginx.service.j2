@@ -2,6 +2,8 @@
 Description=Per-site nginx for {{ project_name }}
 After=network.target apparmor.service
 Requires=apparmor.service
+PartOf={{ project_name }}.target
+Before={{ project_name }}.target
 
 [Service]
 Type=simple
@@ -44,6 +46,3 @@ ReadOnlyPaths={{ paths.current }} {{ paths.site_nginx_config }}
 
 Restart=always
 RestartSec=2
-
-[Install]
-WantedBy=multi-user.target

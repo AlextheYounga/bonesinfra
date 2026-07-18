@@ -2,6 +2,8 @@
 Description={{ runtime_label }} for {{ project_name }}
 After=network.target apparmor.service
 Requires=apparmor.service
+PartOf={{ project_name }}.target
+Before={{ project_name }}.target
 
 [Service]
 Type=simple
@@ -38,6 +40,3 @@ StandardOutput=journal
 StandardError=journal
 Restart=always
 RestartSec=2
-
-[Install]
-WantedBy=multi-user.target
