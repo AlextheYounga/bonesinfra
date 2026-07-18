@@ -8,7 +8,7 @@ from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
-def setup(ctx, paths):
+def setup(ctx, paths, *, nginx_address_families="AF_UNIX", nginx_ip_loopback_only=False):
     # 0711: system nginx (www-data) needs traversal to reach the per-site
     # nginx socket at /run/<project>/nginx/nginx.sock. 0750 would block it.
     mkdir(
@@ -48,6 +48,8 @@ def setup(ctx, paths):
         ASSETS_DIR / "nginx/site-nginx.service.j2",
         paths["systemd_site_nginx_service"],
         mode="0644",
+        nginx_address_families=nginx_address_families,
+        nginx_ip_loopback_only=nginx_ip_loopback_only,
         **template_data(ctx, paths=paths),
     )
 

@@ -5,6 +5,7 @@ from bonesinfra.infra.deploy_helpers import mkdir, render
 from bonesinfra.runtimes.common import apparmor, logs, nginx, node, paths as common_paths, service, validation
 
 STATIC_ROOT = "out"
+USES_TCP = True
 
 
 def questions():

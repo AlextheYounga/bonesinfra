@@ -4,7 +4,7 @@ profile {{ apparmor_profile_name | default("bonesdeploy-" ~ project_name ~ "-ngi
   # Base runtime abstractions and libc/loader paths.
   #include <abstractions/base>
 
-  network unix stream,
+  {{ nginx_apparmor_network | default("network unix stream,") }}
 
   {{ paths.bonesremote_global_link }} mr,
   {{ paths.bonesremote_global_link }} ix,
