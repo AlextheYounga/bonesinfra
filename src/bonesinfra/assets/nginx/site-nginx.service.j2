@@ -30,7 +30,10 @@ PrivateDevices=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
-RestrictAddressFamilies=AF_UNIX
+RestrictAddressFamilies={{ nginx_address_families | default("AF_UNIX") }}
+{% if nginx_ip_loopback_only %}IPAddressDeny=any
+IPAddressAllow=localhost
+{% endif %}
 
 PrivateTmp=yes
 ProtectHome=yes

@@ -258,3 +258,13 @@ def test_vue_seeds_dist_placeholder():
     helpers.assert_contains(content, 'VUE_STATIC_ROOT = "dist"')
     helpers.assert_contains(content, '"Seed Vue static placeholder index page"')
     helpers.assert_contains(content, "paths['placeholder_release']")
+
+
+def test_next_declares_uses_tcp():
+    mod = importlib.import_module("bonesinfra.runtimes.next.next")
+    assert getattr(mod, "USES_TCP", False) is True
+
+
+def test_nuxt_does_not_declare_uses_tcp():
+    mod = importlib.import_module("bonesinfra.runtimes.nuxt.nuxt")
+    assert not hasattr(mod, "USES_TCP")

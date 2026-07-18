@@ -5,7 +5,7 @@ from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import render
 
 
-def setup(ctx, paths):
+def setup(ctx, paths, nginx_apparmor_network="network unix stream,"):
     systemd.service(
         name="Ensure apparmor service is enabled and started",
         service="apparmor",
@@ -29,6 +29,7 @@ def setup(ctx, paths):
         apparmor_profile_path,
         mode="0644",
         apparmor_profile_name=apparmor_profile_name,
+        nginx_apparmor_network=nginx_apparmor_network,
         **template_data(ctx, paths=paths),
     )
 

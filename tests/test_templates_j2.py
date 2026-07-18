@@ -123,3 +123,21 @@ def test_unattended_upgrades_template_uses_distro_variables():
     c = _read("assets/unattended-upgrades/50unattended-upgrades.j2")
     helpers.assert_contains(c, '"${distro_id}:${distro_codename}-security";')
     helpers.assert_contains(c, 'Unattended-Upgrade::Automatic-Reboot "false";')
+
+
+def test_site_nginx_service_uses_configurable_address_families():
+    c = _read("assets/nginx/site-nginx.service.j2")
+    helpers.assert_contains(c, 'RestrictAddressFamilies={{ nginx_address_families | default("AF_UNIX") }}')
+    helpers.assert_not_contains(c, "RestrictAddressFamilies=AF_UNIX")
+
+
+def test_site_nginx_service_conditionally_restricts_ip_to_loopback():
+    c = _read("assets/nginx/site-nginx.service.j2")
+    helpers.assert_contains(c, "{% if nginx_ip_loopback_only %}IPAddressDeny=any")
+    helpers.assert_contains(c, "IPAddressAllow=localhost")
+
+
+def test_project_nginx_profile_uses_configurable_network():
+    c = _read("assets/apparmor/project-nginx-profile.j2")
+    helpers.assert_contains(c, '{{ nginx_apparmor_network | default("network unix stream,") }}')
+    helpers.assert_not_contains(c, "\n  network unix stream,")

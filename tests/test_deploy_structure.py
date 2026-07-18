@@ -482,3 +482,57 @@ def test_ssl_installs_default_deny_before_validation():
 def test_ssl_installs_default_deny_once():
     c = helpers.read(SSL_PLAN)
     assert c.count("install_default_deny_server") == 1
+
+
+def test_runtime_plan_derives_nginx_address_families_from_template():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, "nginx_address_families")
+    helpers.assert_contains(c, "nginx_address_families=nginx_address_families")
+
+
+def test_runtime_plan_derives_nginx_apparmor_network_from_template():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, "nginx_apparmor_network")
+    helpers.assert_contains(c, "nginx_apparmor_network=nginx_apparmor_network")
+
+
+def test_runtime_plan_passes_tcp_values_when_tcp_runtime():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, '"network inet stream,"')
+    helpers.assert_contains(c, '"AF_UNIX AF_INET"')
+
+
+def test_runtime_plan_defaults_to_unix_only():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, '"network unix stream,"')
+    helpers.assert_contains(c, '"AF_UNIX"')
+
+
+def test_runtime_plan_passes_ip_loopback_only_to_nginx_setup():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, "nginx_ip_loopback_only=uses_tcp")
+
+
+def test_runtime_plan_imports_get_runtime():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, "from bonesinfra.runtimes import get_runtime")
+
+
+def test_runtime_plan_checks_uses_tcp_and_is_static():
+    c = helpers.read(RUNTIME_PLAN)
+    helpers.assert_contains(c, "USES_TCP")
+    helpers.assert_contains(c, '"is_static"')
+
+
+def test_apparmor_setup_accepts_nginx_apparmor_network():
+    c = helpers.read(RUNTIME_APPARMOR)
+    helpers.assert_contains(c, "nginx_apparmor_network")
+    helpers.assert_contains(c, "nginx_apparmor_network=nginx_apparmor_network")
+
+
+def test_nginx_setup_accepts_nginx_address_families_and_ip_loopback():
+    c = helpers.read(RUNTIME_NGINX)
+    helpers.assert_contains(c, "nginx_address_families")
+    helpers.assert_contains(c, "nginx_ip_loopback_only")
+    helpers.assert_contains(c, "nginx_address_families=nginx_address_families")
+    helpers.assert_contains(c, "nginx_ip_loopback_only=nginx_ip_loopback_only")
