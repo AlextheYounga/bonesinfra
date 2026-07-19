@@ -16,6 +16,9 @@ http {
     fastcgi_temp_path {{ paths.runtime_nginx_dir }}/fastcgi;
     uwsgi_temp_path {{ paths.runtime_nginx_dir }}/uwsgi;
     scgi_temp_path {{ paths.runtime_nginx_dir }}/scgi;
+    fastcgi_buffer_size 16k;
+    fastcgi_buffers 8 8k;
+    fastcgi_busy_buffers_size 16k;
 
     # The SSL-terminating router sets X-Forwarded-Proto; mirror it to PHP-FPM
     # so url()/asset_url() generate https:// links under SSL.

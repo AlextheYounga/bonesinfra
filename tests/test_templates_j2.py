@@ -43,6 +43,13 @@ def test_default_deny_config_is_default_deny_only():
 # ---- Laravel nginx config ----
 
 
+def test_laravel_nginx_has_larger_fastcgi_buffers():
+    c = _read("runtimes/laravel/assets/nginx/laravel-site-nginx.conf.j2")
+    helpers.assert_contains(c, "fastcgi_buffer_size 16k")
+    helpers.assert_contains(c, "fastcgi_buffers 8 8k")
+    helpers.assert_contains(c, "fastcgi_busy_buffers_size 16k")
+
+
 # ---- Common app service template ----
 
 
@@ -99,6 +106,16 @@ def test_common_app_nginx_proxies_to_socket():
     helpers.assert_contains(c, "proxy_set_header X-Real-IP $remote_addr")
     helpers.assert_contains(c, "proxy_http_version 1.1")
     helpers.assert_contains(c, 'proxy_set_header Connection ""')
+    helpers.assert_contains(c, "proxy_buffer_size 16k")
+    helpers.assert_contains(c, "proxy_buffers 8 8k")
+    helpers.assert_contains(c, "proxy_busy_buffers_size 16k")
+
+
+def test_router_nginx_has_larger_proxy_buffers():
+    c = _read("assets/nginx/router.conf.j2")
+    helpers.assert_contains(c, "proxy_buffer_size 16k")
+    helpers.assert_contains(c, "proxy_buffers 8 8k")
+    helpers.assert_contains(c, "proxy_busy_buffers_size 16k")
 
 
 # ---- Common static nginx template ----
