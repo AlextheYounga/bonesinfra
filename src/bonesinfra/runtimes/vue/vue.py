@@ -7,10 +7,6 @@ from bonesinfra.runtimes.common import nginx, service
 VUE_STATIC_ROOT = "dist"
 
 
-def questions():
-    return []
-
-
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     static_web_root = f"{paths['placeholder_release']}/{VUE_STATIC_ROOT}"

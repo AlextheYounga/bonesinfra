@@ -33,13 +33,6 @@ def runtime_list():
     print(json.dumps(list_runtimes()))
 
 
-@runtime_app.command("questions")
-def runtime_questions(
-    runtime: str = typer.Argument(help="Runtime name"),
-):
-    print(json.dumps(get_runtime(runtime).questions()))
-
-
 @runtime_app.command("apply")
 def runtime_apply_cmd(
     config: str = typer.Option(..., "--config", help="Path to bones.toml"),
