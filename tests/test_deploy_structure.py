@@ -12,6 +12,8 @@ SETUP_DIRECTORIES = helpers.SRC_DIR / "bonesinfra/deploys/setup/directories.py"
 SETUP_PLACEHOLDER = helpers.SRC_DIR / "bonesinfra/deploys/setup/placeholder.py"
 SETUP_FIREWALL = helpers.SRC_DIR / "bonesinfra/deploys/setup/firewall.py"
 SETUP_FAIL2BAN = helpers.SRC_DIR / "bonesinfra/deploys/setup/fail2ban.py"
+SETUP_KERNEL_HARDENING = helpers.SRC_DIR / "bonesinfra/deploys/setup/kernel_hardening.py"
+DISABLE_ALGIF = helpers.SRC_DIR / "bonesinfra/assets/modprobe/disable-algif.conf.j2"
 SETUP_UNATTENDED_UPGRADES = helpers.SRC_DIR / "bonesinfra/deploys/setup/unattended_upgrades.py"
 SETUP_BONESREMOTE = helpers.SRC_DIR / "bonesinfra/deploys/setup/bonesremote.py"
 SETUP_SUDOERS = helpers.SRC_DIR / "bonesinfra/deploys/setup/sudoers.py"
@@ -38,6 +40,7 @@ def test_setup_plan_calls_all_steps():
     helpers.assert_contains(c, "placeholder.seed")
     helpers.assert_contains(c, "firewall.configure")
     helpers.assert_contains(c, "fail2ban.configure")
+    helpers.assert_contains(c, "kernel_hardening.configure")
     helpers.assert_contains(c, "unattended_upgrades.configure")
     helpers.assert_contains(c, "users.install_authorized_key")
     helpers.assert_contains(c, "bonesremote.install")
@@ -181,6 +184,18 @@ def test_setup_unattended_upgrades_installs_apt_configs():
     c = helpers.read(SETUP_UNATTENDED_UPGRADES)
     helpers.assert_contains(c, '"/etc/apt/apt.conf.d/20auto-upgrades"')
     helpers.assert_contains(c, '"/etc/apt/apt.conf.d/50unattended-upgrades"')
+
+
+def test_setup_guarantees_copy_fail_module_is_disabled():
+    plan = helpers.read(SETUP_PLAN)
+    hardening = helpers.read(SETUP_KERNEL_HARDENING)
+    modprobe_config = helpers.read(DISABLE_ALGIF)
+
+    helpers.assert_ordering(plan, "packages.install_system", "kernel_hardening.configure")
+    helpers.assert_contains(hardening, '"/etc/modprobe.d/disable-algif.conf"')
+    helpers.assert_contains(hardening, "rmmod algif_aead")
+    helpers.assert_not_contains(hardening, "rmmod algif_aead 2>/dev/null || true")
+    helpers.assert_contains(modprobe_config, "install algif_aead /bin/false")
 
 
 def test_helpers_neovim_installs_config_from_repo():

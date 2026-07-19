@@ -38,6 +38,7 @@ BonesInfra owns:
 
 - pyinfra API integration
 - setup provisioning
+- setup disables and unloads `algif_aead` to prevent Copy Fail (CVE-2026-31431) exploitation
 - runtime provisioning
 - SSL provisioning
 - runtime catalog

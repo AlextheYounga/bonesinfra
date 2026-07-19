@@ -4,6 +4,7 @@ from bonesinfra.deploys.setup import (
     fail2ban,
     firewall,
     image_store,
+    kernel_hardening,
     packages,
     placeholder,
     sudoers,
@@ -18,6 +19,7 @@ def deploy_setup(ctx):
     all_pkgs = BASE_SYSTEM_PACKAGES + SUPPLEMENTARY_PACKAGES
 
     packages.install_system(all_pkgs)
+    kernel_hardening.configure()
     users.install_rust()
     image_store.ensure_shared_store()
     image_store.seed_base_image()
