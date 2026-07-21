@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from types import ModuleType
 
 from pyinfra.api import Config, Inventory, State
 from pyinfra.api.connect import connect_all
@@ -10,6 +11,7 @@ from pyinfra.api.operations import run_ops
 from pyinfra.context import ctx_config, ctx_host, ctx_inventory, ctx_state
 
 from bonesinfra.domain.context import DeployContext
+from bonesinfra.domain.custom import load_custom_module
 from bonesinfra.infra.output import (
     BonesDeployCallback,
     activity,
@@ -25,10 +27,14 @@ from bonesinfra.infra.output import (
 def run(
     *,
     ctx: DeployContext,
+    config_path: str,
+    deploy: Callable[[DeployContext, ModuleType | None], None],
     ssh_key: str | None = None,
-    deploy: Callable[[DeployContext], None],
 ) -> None:
     setup_output()
+
+    # Fail fast on custom.py syntax/import/shape errors before opening SSH.
+    custom = load_custom_module(config_path)
 
     hostname = ctx.app.server.host
     ssh_user = ctx.app.server.ssh_user
@@ -66,7 +72,7 @@ def run(
         ctx_host.use(target_host),
         activity("planning deploy operations"),
     ):
-        deploy(ctx)
+        deploy(ctx, custom)
 
     state.add_callback_handler(BonesDeployCallback())
 

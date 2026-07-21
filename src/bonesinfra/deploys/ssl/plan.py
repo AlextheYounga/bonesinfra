@@ -1,12 +1,15 @@
+from types import ModuleType
+
 from pyinfra.operations import server, systemd
 
 from bonesinfra.deploys._shared import nginx_safety
 from bonesinfra.domain.context import template_data
+from bonesinfra.domain.custom import call_hook
 from bonesinfra.domain.paths import ASSETS_DIR
 from bonesinfra.infra.deploy_helpers import letsencrypt_cert_paths, mkdir, render
 
 
-def deploy_ssl(ctx):
+def deploy_ssl(ctx, custom: ModuleType | None = None):
     paths = ctx.paths_dict
 
     mkdir(
@@ -19,6 +22,8 @@ def deploy_ssl(ctx):
     _render_router_config(ctx, paths, ssl_enabled=False, stage="certbot challenge")
     obtain_certificate(ctx, paths)
     _render_router_config(ctx, paths, ssl_enabled=True, stage="SSL enable")
+
+    call_hook(custom, "after_ssl", ctx)
 
 
 def _render_router_config(ctx, paths, ssl_enabled, stage):

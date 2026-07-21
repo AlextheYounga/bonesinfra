@@ -1,7 +1,7 @@
 import importlib
 from types import SimpleNamespace
 
-from bonesinfra.runtimes import get_runtime, list_runtimes
+from bonesinfra.runtimes import list_runtimes
 from bonesinfra.runtimes.laravel import php_fpm
 
 from . import helpers

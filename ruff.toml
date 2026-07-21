@@ -108,6 +108,10 @@ combine-as-imports = true
   "A005",    # intentional module name matching project domain
   "T20",     # print to stderr on error
 ]
+"src/bonesinfra/domain/custom.py" = [
+  "T20",     # fail-fast errors print the offending path to stderr before SSH
+  "BLE001",  # surface any load failure with the file path visible
+]
 
 [format]
 quote-style = "double"

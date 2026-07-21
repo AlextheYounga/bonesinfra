@@ -1,3 +1,5 @@
+from types import ModuleType
+
 from bonesinfra.deploys.setup import (
     bonesremote,
     directories,
@@ -12,9 +14,10 @@ from bonesinfra.deploys.setup import (
     users,
 )
 from bonesinfra.deploys.setup.packages import BASE_SYSTEM_PACKAGES, SUPPLEMENTARY_PACKAGES
+from bonesinfra.domain.custom import call_hook
 
 
-def deploy_setup(ctx):
+def deploy_setup(ctx, custom: ModuleType | None = None):
     paths = ctx.paths_dict
     all_pkgs = BASE_SYSTEM_PACKAGES + SUPPLEMENTARY_PACKAGES
 
@@ -32,3 +35,5 @@ def deploy_setup(ctx):
     users.install_authorized_key(ctx)
     bonesremote.install()
     sudoers.install(paths)
+
+    call_hook(custom, "after_setup", ctx)

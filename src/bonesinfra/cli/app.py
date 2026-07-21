@@ -9,7 +9,7 @@ from bonesinfra.deploys.setup.plan import deploy_setup
 from bonesinfra.deploys.ssl.plan import deploy_ssl
 from bonesinfra.domain.context import DeployContext
 from bonesinfra.infra.pyinfra_runner import run
-from bonesinfra.runtimes import get_runtime, list_runtimes
+from bonesinfra.runtimes import list_runtimes
 
 app = typer.Typer()
 runtime_app = typer.Typer()
@@ -39,7 +39,7 @@ def runtime_apply_cmd(
 ):
     ctx = DeployContext.from_files(config)
     _validate_host(ctx)
-    run(ctx=ctx, deploy=deploy_runtime)
+    run(ctx=ctx, config_path=config, deploy=deploy_runtime)
 
 
 @setup_app.command("apply")
@@ -48,7 +48,7 @@ def setup_apply_cmd(
 ):
     ctx = DeployContext.from_files(config)
     _validate_host(ctx)
-    run(ctx=ctx, deploy=deploy_setup)
+    run(ctx=ctx, config_path=config, deploy=deploy_setup)
 
 
 @ssl_app.command("apply")
@@ -60,7 +60,7 @@ def ssl_apply_cmd(
         print("Error: ssl.domain and ssl.email are required in bones.toml", file=sys.stderr)
         sys.exit(3)
     _validate_host(ctx)
-    run(ctx=ctx, deploy=deploy_ssl)
+    run(ctx=ctx, config_path=config, deploy=deploy_ssl)
 
 
 @helpers_app.command("apply")
@@ -69,4 +69,4 @@ def helpers_apply_cmd(
 ):
     ctx = DeployContext.from_files(config)
     _validate_host(ctx)
-    run(ctx=ctx, deploy=deploy_helpers)
+    run(ctx=ctx, config_path=config, deploy=deploy_helpers)

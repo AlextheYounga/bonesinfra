@@ -1,8 +1,11 @@
+from types import ModuleType
+
 from bonesinfra.deploys.runtime import apparmor, nginx, packages, template_runtime
+from bonesinfra.domain.custom import call_hook
 from bonesinfra.runtimes import get_runtime
 
 
-def deploy_runtime(ctx):
+def deploy_runtime(ctx, custom: ModuleType | None = None):
     paths = ctx.paths_dict
     packages.install_apt(ctx)
 
@@ -19,3 +22,5 @@ def deploy_runtime(ctx):
     nginx.setup(ctx, paths, nginx_address_families=nginx_address_families, nginx_ip_loopback_only=uses_tcp)
     template_runtime.load(ctx)
     nginx.start_services(ctx, paths)
+
+    call_hook(custom, "after_runtime", ctx)
