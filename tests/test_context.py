@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from bonesinfra.domain.context import DeployContext, template_data
 
 
@@ -87,3 +89,20 @@ def test_missing_nested_tables_use_defaults(tmp_path):
     assert ctx.app.project_root == "/srv/sites/lawsnipe"
     assert ctx.runtime.web_root == "public"
     assert ctx.runtime.runtime_user == "lawsnipe"
+
+
+def test_database_services_are_read_and_validated(tmp_path):
+    ctx = DeployContext.from_files(_write_config(tmp_path, '\n[dbs]\nservices = ["postgres", "valkey"]\n'))
+    assert ctx.dbs.services == ("postgres", "valkey")
+
+
+def test_conflicting_mysql_implementations_are_rejected(tmp_path):
+    path = _write_config(tmp_path, '\n[dbs]\nservices = ["mariadb", "mysql"]\n')
+    with pytest.raises(ValueError, match="cannot be provisioned together"):
+        DeployContext.from_files(str(path))
+
+
+def test_duplicate_database_services_are_rejected(tmp_path):
+    path = _write_config(tmp_path, '\n[dbs]\nservices = ["postgres", "postgres"]\n')
+    with pytest.raises(ValueError, match="must not contain duplicates"):
+        DeployContext.from_files(str(path))

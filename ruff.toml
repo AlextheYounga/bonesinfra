@@ -112,6 +112,12 @@ combine-as-imports = true
   "T20",     # fail-fast errors print the offending path to stderr before SSH
   "BLE001",  # surface any load failure with the file path visible
 ]
+"src/bonesinfra/deploys/dbs/services.py" = [
+  "C901",    # one dispatcher keeps the selected service operations visible
+  "E501",    # shell commands are intentionally contiguous for pyinfra
+  "PLR2004", # PostgreSQL identifier ceiling is protocol-derived
+  "S608",    # PostgreSQL uses psql variables; identifiers are validated first
+]
 
 [format]
 quote-style = "double"
