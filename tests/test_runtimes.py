@@ -1,7 +1,7 @@
 import importlib
 from types import SimpleNamespace
 
-from bonesinfra.runtimes import get_runtime, list_runtimes
+from bonesinfra.runtimes import list_runtimes
 from bonesinfra.runtimes.laravel import php_fpm
 
 from . import helpers
@@ -17,19 +17,14 @@ RUNTIMES_MODULES = {
 }
 
 
-def test_runtimes_have_questions_and_deploy():
+def test_runtimes_have_deploy():
     for name, module_path in RUNTIMES_MODULES.items():
         mod = importlib.import_module(module_path)
-        assert callable(getattr(mod, "questions", None)), f"{name}: missing questions()"
         assert callable(getattr(mod, "deploy", None)), f"{name}: missing deploy()"
 
 
 def test_runtime_registry_is_explicit():
     assert list_runtimes() == sorted(RUNTIMES_MODULES)
-
-
-def test_laravel_questions_are_exposed():
-    assert get_runtime("laravel").questions()
 
 
 def test_common_php_fpm_pool_socket_path_is_distro_standard():
@@ -109,15 +104,6 @@ def test_nuxt_uses_nitro_unix_socket():
     helpers.assert_contains(content, "socket_path=socket_path")
 
 
-def test_nuxt_questions_include_is_static_default_true():
-    mod = importlib.import_module("bonesinfra.runtimes.nuxt.nuxt")
-    qs = mod.questions()
-    keys = {q["key"]: q for q in qs}
-    assert "is_static" in keys
-    assert keys["is_static"]["default"] is True
-    assert keys["is_static"]["type"] == "bool"
-
-
 def test_nuxt_static_path_uses_render_static():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/nuxt/nuxt.py")
     helpers.assert_contains(content, "nginx.render_static")
@@ -173,15 +159,6 @@ def test_rails_uses_puma_unix_socket():
     content = helpers.read(helpers.SRC_DIR / "bonesinfra/runtimes/rails/rails.py")
     helpers.assert_contains(content, "bundle exec puma")
     helpers.assert_contains(content, "-b unix://")
-
-
-def test_next_questions_include_is_static_default_true():
-    mod = importlib.import_module("bonesinfra.runtimes.next.next")
-    qs = mod.questions()
-    keys = {q["key"]: q for q in qs}
-    assert "is_static" in keys
-    assert keys["is_static"]["default"] is True
-    assert keys["is_static"]["type"] == "bool"
 
 
 def test_next_static_path_uses_render_static():

@@ -22,6 +22,7 @@ class DeployContext:
     app: AppConfig
     build: BuildConfig
     runtime: RuntimeConfig
+    dbs: DbsConfig
 
     @classmethod
     def from_files(cls, config_path: str) -> DeployContext:
@@ -34,6 +35,7 @@ class DeployContext:
         build_cfg = _table(bones_cfg, "build")
         resources_cfg = _table(build_cfg, "resources")
         runtime_cfg = _table(bones_cfg, "runtime")
+        dbs_cfg = _table(bones_cfg, "dbs")
         project_name = str(app_cfg.get("project_name", ""))
 
         app = AppConfig(
@@ -72,7 +74,8 @@ class DeployContext:
             },
         )
 
-        return cls(app=app, build=build, runtime=runtime)
+        dbs = DbsConfig(services=_database_services(dbs_cfg.get("services", [])))
+        return cls(app=app, build=build, runtime=runtime, dbs=dbs)
 
     @property
     def paths(self) -> DeploymentPaths:
@@ -184,8 +187,28 @@ class RuntimeConfig:
     data: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class DbsConfig:
+    services: tuple[str, ...] = ()
+
+
 def _table(parent: dict[str, Any], name: str) -> dict[str, Any]:
     value = parent.get(name, {})
     if not isinstance(value, dict):
         raise TypeError(f"bones.toml [{name}] must be a table")
     return value
+
+
+def _database_services(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(isinstance(service, str) for service in value):
+        raise TypeError("bones.toml [dbs].services must be an array of strings")
+    supported = {"postgres", "mariadb", "mysql", "mongodb", "valkey", "redis"}
+    services = tuple(value)
+    unsupported = set(services) - supported
+    if unsupported:
+        raise ValueError(f"unsupported database services: {', '.join(sorted(unsupported))}")
+    if "mariadb" in services and "mysql" in services:
+        raise ValueError("mariadb and mysql cannot be provisioned together")
+    if len(set(services)) != len(services):
+        raise ValueError("database services must not contain duplicates")
+    return services

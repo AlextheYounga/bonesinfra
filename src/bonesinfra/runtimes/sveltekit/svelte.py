@@ -8,10 +8,6 @@ from bonesinfra.infra.deploy_helpers import render
 from bonesinfra.runtimes.common import apparmor, logs, nginx, node, paths as common_paths, service, validation
 
 
-def questions():
-    return []
-
-
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/sveltekit/sveltekit.sock"

@@ -9,42 +9,6 @@ from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_pa
 from bonesinfra.runtimes.django import python_packages
 
 
-def questions():
-    return [
-        {
-            "key": "wsgi_module",
-            "type": "text",
-            "label": "WSGI module",
-            "default": "config.wsgi:application",
-        },
-        {
-            "key": "python_version",
-            "type": "choice",
-            "label": "Python version",
-            "choices": ["3.11", "3.12", "3.13"],
-            "default": "3.12",
-        },
-        {
-            "key": "install_postgres",
-            "type": "bool",
-            "label": "Install PostgreSQL client libraries?",
-            "default": False,
-        },
-        {
-            "key": "static_root",
-            "type": "text",
-            "label": "Static root",
-            "default": "staticfiles",
-        },
-        {
-            "key": "media_root",
-            "type": "text",
-            "label": "Media root",
-            "default": "media",
-        },
-    ]
-
-
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/gunicorn/gunicorn.sock"

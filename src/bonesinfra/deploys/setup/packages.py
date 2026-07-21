@@ -8,6 +8,7 @@ BASE_SYSTEM_PACKAGES: list[str] = [
     "dbus-user-session",
     "fuse-overlayfs",
     "git",
+    "gpg",
     "rsync",
     "sudo",
     "nginx",

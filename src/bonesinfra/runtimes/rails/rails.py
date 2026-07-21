@@ -9,36 +9,6 @@ from bonesinfra.runtimes.common import apparmor, logs, nginx, paths as common_pa
 from bonesinfra.runtimes.rails import ruby_packages
 
 
-def questions():
-    return [
-        {
-            "key": "ruby_version",
-            "type": "choice",
-            "label": "Ruby version",
-            "choices": ["3.2", "3.3", "3.4"],
-            "default": "3.3",
-        },
-        {
-            "key": "install_postgres",
-            "type": "bool",
-            "label": "Install PostgreSQL client libraries?",
-            "default": False,
-        },
-        {
-            "key": "install_redis",
-            "type": "bool",
-            "label": "Install Redis?",
-            "default": False,
-        },
-        {
-            "key": "rails_env",
-            "type": "text",
-            "label": "Rails environment",
-            "default": "production",
-        },
-    ]
-
-
 def deploy(ctx):
     paths = service.runtime_paths(ctx)
     socket_path = f"{paths['runtime_socket_dir']}/puma/puma.sock"

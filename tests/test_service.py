@@ -87,10 +87,14 @@ def test_target_membership_reconciliation_recreates_all_registered_services(monk
 
 
 def test_enable_and_start_removes_legacy_direct_service_enablement(monkeypatch):
-    calls = []
-    monkeypatch.setattr(service.systemd, "service", lambda **kwargs: calls.append(kwargs))
+    shell_calls = []
+    systemd_calls = []
+    monkeypatch.setattr(service.server, "shell", lambda **kwargs: shell_calls.append(kwargs))
+    monkeypatch.setattr(service.systemd, "service", lambda **kwargs: systemd_calls.append(kwargs))
     ctx = SimpleNamespace(app=SimpleNamespace(project_name="shop"))
 
     service.enable_and_start(ctx, "next")
 
-    assert {"service": "shop-next.service", "enabled": False, "running": True}.items() <= calls[0].items()
+    assert shell_calls[0]["commands"] == ["rm -f -- /etc/systemd/system/multi-user.target.wants/shop-next.service"]
+    assert {"service": "shop-next.service", "running": True}.items() <= systemd_calls[0].items()
+    assert "enabled" not in systemd_calls[0]

@@ -8,17 +8,6 @@ STATIC_ROOT = "out"
 USES_TCP = True
 
 
-def questions():
-    return [
-        {
-            "key": "is_static",
-            "type": "bool",
-            "label": "Is this Next site static?",
-            "default": True,
-        },
-    ]
-
-
 def deploy(ctx):
     is_static = ctx.runtime.data.get("is_static", True)
     paths = service.runtime_paths(ctx)

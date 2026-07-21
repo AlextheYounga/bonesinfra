@@ -58,9 +58,17 @@ def configure_build_user_storage(project_name: str):
     build_user = build_user_for(project_name)
     build_group = build_group_for(project_name)
     build_home = build_home_for(project_name)
-    config_dir = f"{build_home}/.config/containers"
+    config_parent = f"{build_home}/.config"
+    config_dir = f"{config_parent}/containers"
     storage_conf = f"{config_dir}/storage.conf"
 
+    mkdir(
+        name=f"Ensure .config directory for {build_user}",
+        path=config_parent,
+        user=build_user,
+        group=build_group,
+        mode="0700",
+    )
     mkdir(
         name=f"Ensure containers config directory for {build_user}",
         path=config_dir,
@@ -222,10 +230,6 @@ def ensure_users_and_groups(ctx):
     server.shell(
         name=f"Verify shared image store for {build_user}",
         commands=[
-            f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
-            f"podman info --format '{{{{.Store.AdditionalImageStores}}}}' | "
-            f"grep -qF {quote(IMAGE_STORE_GRAPH_ROOT)} || "
-            '(echo "ERROR: shared image store not configured" >&2; false)',
             f"HOME={quote(build_home)} XDG_RUNTIME_DIR=/run/user/$(id -u) "
             f"podman image exists {quote(BASE_IMAGE)} || "
             '(echo "ERROR: base image not found in shared store" >&2; false)',

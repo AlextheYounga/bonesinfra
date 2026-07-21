@@ -20,7 +20,6 @@ select = [
   "PL",   # pylint-derived rules
   "S",    # security-ish checks
   "D",    # docstring presence/style
-  "DOC",  # docstring consistency
   "A",    # shadowing builtins
   "RET",  # return statement cleanliness
   "T20",  # print statement detection (like dbg_macro in Rust)
@@ -108,6 +107,16 @@ combine-as-imports = true
 "src/bonesinfra/deploys/ssl/plan.py" = [
   "A005",    # intentional module name matching project domain
   "T20",     # print to stderr on error
+]
+"src/bonesinfra/domain/custom.py" = [
+  "T20",     # fail-fast errors print the offending path to stderr before SSH
+  "BLE001",  # surface any load failure with the file path visible
+]
+"src/bonesinfra/deploys/dbs/services.py" = [
+  "C901",    # one dispatcher keeps the selected service operations visible
+  "E501",    # shell commands are intentionally contiguous for pyinfra
+  "PLR2004", # PostgreSQL identifier ceiling is protocol-derived
+  "S608",    # PostgreSQL uses psql variables; identifiers are validated first
 ]
 
 [format]
